@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://serdararminsargut.pages.dev/</loc>
+    <lastmod>2026-08-28</lastmod>
+    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://serdararminsargut.pages.dev/en/</loc>
+    <lastmod>2026-08-28</lastmod>
+    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://serdararminsargut.pages.dev/ar/</loc>
+    <lastmod>2026-08-28</lastmod>
+    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://serdararminsargut.pages.dev/ru/</loc>
+    <lastmod>2026-08-28</lastmod>
+    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://serdararminsargut.pages.dev/casting-card/</loc>
+    <lastmod>2026-08-28</lastmod>
+    <image:image>
+      <image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc>
+    </image:image>
+  </url>
+</urlset>
