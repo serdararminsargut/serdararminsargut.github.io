@@ -1,15 +1,42 @@
+# Serdar Armin Sargut — search and AI crawler policy
+# Public portfolio pages are crawlable. Private information is not published.
+
+User-agent: YandexBot
+Allow: /
+Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&utm_id&fbclid&gclid /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
 User-agent: OAI-SearchBot
 Allow: /
 
 User-agent: ChatGPT-User
 Allow: /
 
-# Search visibility remains enabled, while model-training crawlers are excluded.
 User-agent: GPTBot
-Disallow: /
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: FalconBot
+Allow: /
+
+User-agent: JaisBot
+Allow: /
+
+User-agent: ALLaMBot
+Allow: /
 
 User-agent: Google-Extended
-Disallow: /
+Allow: /
 
 User-agent: *
 Allow: /

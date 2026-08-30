@@ -1,31 +1,66 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://serdararminsargut.pages.dev/</loc>
-    <lastmod>2026-08-28</lastmod>
+    <lastmod>2026-08-30</lastmod>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
     <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/en/</loc>
-    <lastmod>2026-08-28</lastmod>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
+    <lastmod>2026-08-30</lastmod>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
+    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-bej-katalog-portre.webp</image:loc></image:image>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/ar/</loc>
-    <lastmod>2026-08-28</lastmod>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
+    <lastmod>2026-08-30</lastmod>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
+    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-siyah-cizgili-takim-portre.webp</image:loc></image:image>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/ru/</loc>
-    <lastmod>2026-08-28</lastmod>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
+    <lastmod>2026-08-30</lastmod>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
+    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
+    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-mavi-spor-katalog.webp</image:loc></image:image>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/casting-card/</loc>
-    <lastmod>2026-08-28</lastmod>
-    <image:image>
-      <image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc>
-    </image:image>
+    <lastmod>2026-08-30</lastmod>
+    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/</loc>
+    <lastmod>2026-08-30</lastmod>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/"/>
+    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-gri-takim-yelek.webp</image:loc></image:image>
+  </url>
+  <url>
+    <loc>https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/</loc>
+    <lastmod>2026-08-30</lastmod>
+    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/"/>
+    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/"/>
+    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-kahverengi-takim-oturan.webp</image:loc></image:image>
   </url>
 </urlset>
