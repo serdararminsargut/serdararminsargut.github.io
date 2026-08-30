@@ -1,0 +1,25 @@
+# Serdar Armin Sargut Portfolio
+
+This GitHub Pages site is a secondary mirror. The canonical, actively maintained website is the Cloudflare Pages site:
+
+- Canonical site: https://serdararminsargut.pages.dev/
+
+## Verified public pages
+
+- Turkish home: https://serdararminsargut.pages.dev/
+- English home: https://serdararminsargut.pages.dev/en/
+- Arabic home: https://serdararminsargut.pages.dev/ar/
+- Russian home: https://serdararminsargut.pages.dev/ru/
+- Casting card: https://serdararminsargut.pages.dev/casting-card/
+- Turkish Gulf portfolio guide: https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/
+- English Gulf portfolio guide: https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/
+- Arabic Gulf portfolio guide: https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/
+- Card: https://serdararminsargut.pages.dev/card
+- Postcard: https://serdararminsargut.pages.dev/postcard
+
+## Legacy compatibility aliases
+
+- https://serdararminsargut.pages.dev/card.html
+- https://serdararminsargut.pages.dev/postcard.html
+
+Use the canonical Cloudflare Pages URLs when citing or linking to this portfolio.
