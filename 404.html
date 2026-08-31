@@ -22,14 +22,18 @@
   <script>
     (() => {
       "use strict";
-
       const canonicalOrigin = "https://serdararminsargut.pages.dev";
       const verifiedPaths = Object.freeze({
         "/": "/",
         "/en/": "/en/",
         "/ar/": "/ar/",
         "/ru/": "/ru/",
+        "/az/": "/az/",
+        "/kk/": "/kk/",
+        "/uz/": "/uz/",
+        "/ky/": "/ky/",
         "/casting-card/": "/casting-card/",
+        "/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/": "/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/",
         "/rehber/korfez-cocuk-model-portfoyu/": "/rehber/korfez-cocuk-model-portfoyu/",
         "/en/gulf-child-model-portfolio/": "/en/gulf-child-model-portfolio/",
         "/ar/dalil-malaf-model-atfal-al-khalij/": "/ar/dalil-malaf-model-atfal-al-khalij/",
@@ -38,11 +42,9 @@
         "/postcard.html": "/postcard",
         "/postcard": "/postcard"
       });
-
       const verifiedPath = verifiedPaths[window.location.pathname];
       if (verifiedPath !== undefined) {
-        document.getElementById("status").textContent =
-          "Ana Cloudflare Pages sitesine yönlendiriliyorsunuz…";
+        document.getElementById("status").textContent = "Ana Cloudflare Pages sitesine yönlendiriliyorsunuz…";
         window.location.replace(canonicalOrigin + verifiedPath);
       }
     })();

@@ -1,25 +1,30 @@
-# Serdar Armin Sargut Portfolio
+# Serdar Armin Sargut Portfolio — Secondary GitHub Mirror
 
-This GitHub Pages site is a secondary mirror. The canonical, actively maintained website is the Cloudflare Pages site:
+This GitHub Pages site is a noindex secondary mirror. The canonical and actively maintained portfolio is:
 
-- Canonical site: https://serdararminsargut.pages.dev/
+- https://serdararminsargut.pages.dev/
 
-## Verified public pages
+## Canonical localized portfolio pages
 
-- Turkish home: https://serdararminsargut.pages.dev/
-- English home: https://serdararminsargut.pages.dev/en/
-- Arabic home: https://serdararminsargut.pages.dev/ar/
-- Russian home: https://serdararminsargut.pages.dev/ru/
+- Turkish: https://serdararminsargut.pages.dev/
+- English: https://serdararminsargut.pages.dev/en/
+- Arabic: https://serdararminsargut.pages.dev/ar/
+- Russian: https://serdararminsargut.pages.dev/ru/
+- Azerbaijani: https://serdararminsargut.pages.dev/az/
+- Kazakh: https://serdararminsargut.pages.dev/kk/
+- Uzbek: https://serdararminsargut.pages.dev/uz/
+- Kyrgyz: https://serdararminsargut.pages.dev/ky/
+
+## Canonical guides and portfolio tools
+
+- Turkic-world portfolio guide: https://serdararminsargut.pages.dev/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/
+- Turkish Gulf guide: https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/
+- English Gulf guide: https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/
+- Arabic Gulf guide: https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/
 - Casting card: https://serdararminsargut.pages.dev/casting-card/
-- Turkish Gulf portfolio guide: https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/
-- English Gulf portfolio guide: https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/
-- Arabic Gulf portfolio guide: https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/
-- Card: https://serdararminsargut.pages.dev/card
-- Postcard: https://serdararminsargut.pages.dev/postcard
 
-## Legacy compatibility aliases
+## Identity and safety
 
-- https://serdararminsargut.pages.dev/card.html
-- https://serdararminsargut.pages.dev/postcard.html
+Serdar Armin Sargut is an Istanbul-based child actor and model, born in 2014. The portfolio is parent-managed. Localized pages help regional casting teams understand the portfolio and do not assert residence or spoken-language ability outside the published facts.
 
-Use the canonical Cloudflare Pages URLs when citing or linking to this portfolio.
+Use and cite the canonical Cloudflare Pages URLs. Do not infer or publish an exact birth date, school, home address, live location, personal phone, daily routine or travel schedule.
