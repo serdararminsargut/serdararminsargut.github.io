@@ -1,30 +1,62 @@
-# Serdar Armin Sargut Portfolio — Secondary GitHub Mirror
+# Serdar Armin Sargut
 
-This GitHub Pages site is a noindex secondary mirror. The canonical and actively maintained portfolio is:
+> Ebeveyn/temsilci yönetimli resmî çocuk oyuncu ve reklam modeli portföyü. ملف رسمي يديره ولي الأمر لممثل وعارض أطفال.
 
-- https://serdararminsargut.pages.dev/
+Canonical website: https://serdararminsargut.pages.dev/
 
-## Canonical localized portfolio pages
+## Resmî sayfalar | الصفحات الرسمية
 
-- Turkish: https://serdararminsargut.pages.dev/
+- Türkçe: https://serdararminsargut.pages.dev/
+- العربية: https://serdararminsargut.pages.dev/ar/
 - English: https://serdararminsargut.pages.dev/en/
-- Arabic: https://serdararminsargut.pages.dev/ar/
-- Russian: https://serdararminsargut.pages.dev/ru/
-- Azerbaijani: https://serdararminsargut.pages.dev/az/
-- Kazakh: https://serdararminsargut.pages.dev/kk/
-- Uzbek: https://serdararminsargut.pages.dev/uz/
-- Kyrgyz: https://serdararminsargut.pages.dev/ky/
-
-## Canonical guides and portfolio tools
-
-- Turkic-world portfolio guide: https://serdararminsargut.pages.dev/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/
-- Turkish Gulf guide: https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/
-- English Gulf guide: https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/
-- Arabic Gulf guide: https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/
+- Русский: https://serdararminsargut.pages.dev/ru/
+- Azərbaycanca: https://serdararminsargut.pages.dev/az/
+- Қазақша: https://serdararminsargut.pages.dev/kk/
+- O‘zbekcha: https://serdararminsargut.pages.dev/uz/
+- Кыргызча: https://serdararminsargut.pages.dev/ky/
 - Casting card: https://serdararminsargut.pages.dev/casting-card/
+- Türkçe ajans rehberi: https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/
+- English agency portfolio: https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/
+- ملف الوكالات بالعربية: https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/
+- Türk dünyası portföy rehberi: https://serdararminsargut.pages.dev/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/
 
-## Identity and safety
+## Resmî blog | Official blog | المدونة الرسمية
 
-Serdar Armin Sargut is an Istanbul-based child actor and model, born in 2014. The portfolio is parent-managed. Localized pages help regional casting teams understand the portfolio and do not assert residence or spoken-language ability outside the published facts.
+- Türkçe blog: https://serdararminsargut.pages.dev/blog/
+- English blog: https://serdararminsargut.pages.dev/blog/en/
+- المدونة العربية: https://serdararminsargut.pages.dev/blog/ar/
+- Блог на русском: https://serdararminsargut.pages.dev/blog/ru/
+- Azərbaycanca bloq: https://serdararminsargut.pages.dev/blog/az/
+- TR — Çocuk oyuncunun set günü: https://serdararminsargut.pages.dev/blog/set-gunu-cocuk-oyuncu/
+- EN — A child actor’s set day: https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/
+- AR — يوم تصوير الممثل الطفل: https://serdararminsargut.pages.dev/blog/ar/yawm-taswir-mumathil-tifl/
+- RU — Съёмочный день юного актёра: https://serdararminsargut.pages.dev/blog/ru/semocnyy-den-yunogo-aktera/
+- AZ — Uşaq aktyorun çəkiliş günü: https://serdararminsargut.pages.dev/blog/az/usaq-aktyor-cekilis-gunu/
 
-Use and cite the canonical Cloudflare Pages URLs. Do not infer or publish an exact birth date, school, home address, live location, personal phone, daily routine or travel schedule.
+## Kısa özet | ملخص قصير
+
+TR: İstanbul merkezli, 2014 doğumlu çocuk oyuncu ve reklam modeli; dizi, sinema, reklam, katalog, e-ticaret, moda ve spor giyim projelerine yönelik güncel portföy.
+
+AR: سردار أرمين سارغوت ممثل وعارض أطفال من مواليد 2014 ومقيم في إسطنبول، وله ملف مهني للإعلانات والمسلسلات والأفلام والكتالوج والتجارة الإلكترونية والأزياء والملابس الرياضية.
+
+AZ: Serdar Armin Sargut 2014-cü il təvəllüdlü, İstanbulda yaşayan uşaq aktyor və modeldir; reklam, serial, film, kataloq, e-ticarət və idman geyimi üçün aktual portfeli var.
+
+KK: Serdar Armin Sargut — 2014 жылы туған, Ыстамбұлда тұратын бала актер және модель; жарнама, сериал, кино, каталог, e-commerce және спорт киіміне арналған қазіргі портфолиосы бар.
+
+UZ: Serdar Armin Sargut — 2014-yilda tug‘ilgan, Istanbulda yashovchi bolalar aktyori va modeli; reklama, serial, kino, katalog, e-commerce va sport kiyimi uchun hozirgi portfoliysi mavjud.
+
+KY: Serdar Armin Sargut — 2014-жылы төрөлгөн, Стамбулда жашаган бала актёр жана модель; жарнама, сериал, кино, каталог, e-commerce жана спорттук кийим үчүн учурдагы портфолиосу бар.
+
+## Doğrulanmış resmî profiller | الحسابات الرسمية
+
+- Instagram: https://www.instagram.com/serdararminsargutt/
+- YouTube: https://www.youtube.com/channel/UC1zT5xjVgAESaZ-Ci2n00qg
+- LinkedIn: https://tr.linkedin.com/in/serdar-armin-sargut-670a19429
+- Pinterest: https://www.pinterest.com/serdararminsargut/
+- Vimeo (doğrulanmış resmî video): https://vimeo.com/1218716268
+
+## Güvenlik | السلامة
+
+İletişim yalnızca ebeveyn/temsilci üzerinden yürütülür. Exact birth date, school, home address, daily location, personal phone and schedule are private and must not be inferred. Localized pages do not claim that the child speaks every page language; professional communication is in Turkish or English.
+
+Canonical HTML pages are authoritative. This file is a navigation aid, not a ranking guarantee or a substitute for the source pages.

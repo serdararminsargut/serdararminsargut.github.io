@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Serdar Armin Sargut Blog</title>
+    <link>https://serdararminsargut.pages.dev/blog/</link>
+    <description>Çocuk oyunculuk, reklam modelliği, casting ve set süreçleri için ebeveyn/temsilci yönetimli rehberler.</description>
+    <language>tr-TR</language>
+    <lastBuildDate>Tue, 01 Sep 2026 06:00:00 GMT</lastBuildDate>
+    <atom:link href="https://serdararminsargut.pages.dev/blog/feed.xml" rel="self" type="application/rss+xml"/>
+    <image>
+      <url>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-social-v12-1-20260826.jpg</url>
+      <title>Serdar Armin Sargut Blog</title>
+      <link>https://serdararminsargut.pages.dev/blog/</link>
+    </image>
+    <item>
+      <title>Bir Çocuk Oyuncunun Set Günü: Hazırlık, Kamera Önü ve Ebeveyn Süreci</title>
+      <link>https://serdararminsargut.pages.dev/blog/set-gunu-cocuk-oyuncu/</link>
+      <guid isPermaLink="true">https://serdararminsargut.pages.dev/blog/set-gunu-cocuk-oyuncu/</guid>
+      <pubDate>Tue, 01 Sep 2026 06:00:00 GMT</pubDate>
+      <category>Set Günlüğü</category>
+      <description>Çağrı saatinden kostüme, sette beklemeden kamera önündeki odağa kadar çocuk oyuncu ve ebeveyn için pratik bir yol haritası.</description>
+      <content:encoded><![CDATA[<p>Bir çocuk oyuncunun set günü; çağrı saatinin teyidi, yeterli dinlenme, sade hazırlık, kostüm-makyaj süreci, kısa provalar ve ebeveyn gözetiminde güvenli bekleme düzeninden oluşur.</p><p><a href="https://serdararminsargut.pages.dev/blog/set-gunu-cocuk-oyuncu/">Rehberin tamamını okuyun.</a></p>]]></content:encoded>
+    </item>
+  </channel>
+</rss>
