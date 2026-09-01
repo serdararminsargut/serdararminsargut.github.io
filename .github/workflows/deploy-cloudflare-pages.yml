@@ -64,9 +64,29 @@ jobs:
             fi
           done
 
+      - name: Normalize Cloudflare account id
+        id: cloudflare_account
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          account_id="$raw"
+
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account_id="${BASH_REMATCH[1]}"
+          fi
+
+          if [[ ! "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]; then
+            echo "Cloudflare Account ID is invalid. Use only the 32-character account id or a dashboard URL containing it." >&2
+            exit 1
+          fi
+
+          echo "::add-mask::$account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          accountId: ${{ steps.cloudflare_account.outputs.account_id }}
           command: pages deploy dist --project-name=serdararminsargut --branch=main
