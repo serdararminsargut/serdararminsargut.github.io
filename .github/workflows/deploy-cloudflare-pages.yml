@@ -1,0 +1,72 @@
+name: Deploy Cloudflare Pages
+
+on:
+  push:
+    branches:
+      - cloudflare-production
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: cloudflare-pages-serdararminsargut
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy serdararminsargut.pages.dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production branch
+        uses: actions/checkout@v4
+        with:
+          ref: cloudflare-production
+
+      - name: Prepare static site bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          mkdir -p dist
+
+          for item in \
+            .nojekyll \
+            _headers \
+            404.html \
+            ai.txt \
+            ar \
+            assets \
+            az \
+            blog \
+            card.html \
+            casting-card \
+            en \
+            favicon.svg \
+            index.html \
+            kk \
+            ky \
+            llms.txt \
+            llms-full.txt \
+            postcard.html \
+            rehber \
+            robots.txt \
+            ru \
+            sitemap.xml \
+            uz \
+            yandex_*.html
+          do
+            if compgen -G "$item" > /dev/null; then
+              cp -R $item dist/
+            elif [ -e "$item" ]; then
+              cp -R "$item" dist/
+            fi
+          done
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=main
