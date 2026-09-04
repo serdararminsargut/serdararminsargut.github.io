@@ -76,9 +76,7 @@ jobs:
           python3 - <<'PY'
           import pathlib
           import re
-          import sys
           import xml.etree.ElementTree as ET
-          from urllib.parse import urlparse
 
           root = pathlib.Path('dist')
           sitemap = root / 'sitemap.xml'
@@ -110,8 +108,10 @@ jobs:
 
           bad_noindex = []
           bad_canonical = []
+          intentional_noindex = {'card.html', 'postcard.html', '404.html'}
+
           for path in root.rglob('*.html'):
-              if path.name == '404.html' or path.name.startswith('yandex_'):
+              if path.name in intentional_noindex or path.name.startswith('yandex_'):
                   continue
               text = path.read_text(encoding='utf-8', errors='replace')
               if re.search(r'<meta[^>]+name=["\']robots["\'][^>]+content=["\'][^"\']*noindex', text, re.I) or \
@@ -128,7 +128,7 @@ jobs:
           if bad_canonical:
               raise SystemExit('Canonical URL outside Cloudflare host: ' + ', '.join(bad_canonical))
 
-          print(f'SEO validation passed: {len(locs)} sitemap URLs; no noindex conflicts found.')
+          print(f'SEO validation passed: {len(locs)} sitemap URLs; no unintended noindex conflicts found.')
           PY
 
       - name: Normalize Cloudflare account id
