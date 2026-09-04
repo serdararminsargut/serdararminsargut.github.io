@@ -3,7 +3,7 @@ name: Deploy Cloudflare Pages
 on:
   push:
     branches:
-      - cloudflare-production
+      - main
   workflow_dispatch:
 
 permissions:
@@ -19,10 +19,10 @@ jobs:
     name: Deploy serdararminsargut.pages.dev
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout production branch
+      - name: Checkout production source
         uses: actions/checkout@v4
         with:
-          ref: cloudflare-production
+          ref: main
 
       - name: Prepare static site bundle
         shell: bash
