@@ -8,6 +8,10 @@
   Content-Type: application/xml; charset=UTF-8
   Cache-Control: public, max-age=3600, must-revalidate
 
+/sitemap-google.xml
+  Content-Type: application/xml; charset=UTF-8
+  Cache-Control: public, max-age=3600, must-revalidate
+
 /robots.txt
   Content-Type: text/plain; charset=UTF-8
   Cache-Control: public, max-age=3600, must-revalidate
