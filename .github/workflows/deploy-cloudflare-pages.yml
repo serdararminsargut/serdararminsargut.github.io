@@ -64,6 +64,73 @@ jobs:
             fi
           done
 
+      - name: Validate technical SEO bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -s dist/index.html
+          test -s dist/robots.txt
+          test -s dist/sitemap.xml
+
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import sys
+          import xml.etree.ElementTree as ET
+          from urllib.parse import urlparse
+
+          root = pathlib.Path('dist')
+          sitemap = root / 'sitemap.xml'
+
+          try:
+              tree = ET.parse(sitemap)
+          except ET.ParseError as exc:
+              raise SystemExit(f'Invalid sitemap XML: {exc}')
+
+          ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+          locs = [el.text.strip() for el in tree.findall('.//sm:loc', ns) if el.text]
+          if not locs:
+              raise SystemExit('Sitemap contains no <loc> URLs')
+          if len(locs) != len(set(locs)):
+              raise SystemExit('Sitemap contains duplicate <loc> URLs')
+          if any(not u.startswith('https://serdararminsargut.pages.dev/') for u in locs):
+              raise SystemExit('Sitemap contains a URL outside the canonical Cloudflare host')
+
+          robots = (root / 'robots.txt').read_text(encoding='utf-8')
+          required = [
+              'User-agent: Googlebot',
+              'User-agent: Bingbot',
+              'User-agent: YandexBot',
+              'Sitemap: https://serdararminsargut.pages.dev/sitemap.xml',
+          ]
+          for token in required:
+              if token not in robots:
+                  raise SystemExit(f'robots.txt missing required directive: {token}')
+
+          bad_noindex = []
+          bad_canonical = []
+          for path in root.rglob('*.html'):
+              if path.name == '404.html' or path.name.startswith('yandex_'):
+                  continue
+              text = path.read_text(encoding='utf-8', errors='replace')
+              if re.search(r'<meta[^>]+name=["\']robots["\'][^>]+content=["\'][^"\']*noindex', text, re.I) or \
+                 re.search(r'<meta[^>]+content=["\'][^"\']*noindex[^"\']*["\'][^>]+name=["\']robots["\']', text, re.I):
+                  bad_noindex.append(str(path))
+              canonical = re.search(r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"\']+)', text, re.I)
+              if not canonical:
+                  canonical = re.search(r'<link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\']canonical["\']', text, re.I)
+              if canonical and not canonical.group(1).startswith('https://serdararminsargut.pages.dev/'):
+                  bad_canonical.append(f'{path}: {canonical.group(1)}')
+
+          if bad_noindex:
+              raise SystemExit('Indexable Cloudflare bundle contains noindex: ' + ', '.join(bad_noindex))
+          if bad_canonical:
+              raise SystemExit('Canonical URL outside Cloudflare host: ' + ', '.join(bad_canonical))
+
+          print(f'SEO validation passed: {len(locs)} sitemap URLs; no noindex conflicts found.')
+          PY
+
       - name: Normalize Cloudflare account id
         id: cloudflare_account
         shell: bash
