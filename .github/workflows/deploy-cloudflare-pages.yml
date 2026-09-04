@@ -54,6 +54,7 @@ jobs:
             robots.txt \
             ru \
             sitemap.xml \
+            sitemap-google.xml \
             uz \
             yandex_*.html
           do
@@ -72,6 +73,7 @@ jobs:
           test -s dist/index.html
           test -s dist/robots.txt
           test -s dist/sitemap.xml
+          test -s dist/sitemap-google.xml
 
           python3 - <<'PY'
           import pathlib
@@ -79,21 +81,27 @@ jobs:
           import xml.etree.ElementTree as ET
 
           root = pathlib.Path('dist')
-          sitemap = root / 'sitemap.xml'
+          canonical_host = 'https://serdararminsargut.pages.dev/'
 
-          try:
-              tree = ET.parse(sitemap)
-          except ET.ParseError as exc:
-              raise SystemExit(f'Invalid sitemap XML: {exc}')
+          def validate_sitemap(path):
+              try:
+                  tree = ET.parse(path)
+              except ET.ParseError as exc:
+                  raise SystemExit(f'Invalid sitemap XML in {path.name}: {exc}')
+              ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+              locs = [el.text.strip() for el in tree.findall('.//sm:loc', ns) if el.text]
+              if not locs:
+                  raise SystemExit(f'{path.name} contains no <loc> URLs')
+              if len(locs) != len(set(locs)):
+                  raise SystemExit(f'{path.name} contains duplicate <loc> URLs')
+              if any(not u.startswith(canonical_host) for u in locs):
+                  raise SystemExit(f'{path.name} contains a URL outside the canonical Cloudflare host')
+              return locs
 
-          ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-          locs = [el.text.strip() for el in tree.findall('.//sm:loc', ns) if el.text]
-          if not locs:
-              raise SystemExit('Sitemap contains no <loc> URLs')
-          if len(locs) != len(set(locs)):
-              raise SystemExit('Sitemap contains duplicate <loc> URLs')
-          if any(not u.startswith('https://serdararminsargut.pages.dev/') for u in locs):
-              raise SystemExit('Sitemap contains a URL outside the canonical Cloudflare host')
+          primary_locs = validate_sitemap(root / 'sitemap.xml')
+          google_locs = validate_sitemap(root / 'sitemap-google.xml')
+          if set(primary_locs) != set(google_locs):
+              raise SystemExit('sitemap-google.xml URL set does not match sitemap.xml')
 
           robots = (root / 'robots.txt').read_text(encoding='utf-8')
           required = [
@@ -105,6 +113,13 @@ jobs:
           for token in required:
               if token not in robots:
                   raise SystemExit(f'robots.txt missing required directive: {token}')
+
+          headers = (root / '_headers').read_text(encoding='utf-8')
+          for sitemap_name in ('/sitemap.xml', '/sitemap-google.xml'):
+              if sitemap_name not in headers:
+                  raise SystemExit(f'_headers missing rule for {sitemap_name}')
+          if headers.count('Content-Type: application/xml; charset=UTF-8') < 2:
+              raise SystemExit('_headers must declare XML Content-Type for both sitemap files')
 
           bad_noindex = []
           bad_canonical = []
@@ -120,7 +135,7 @@ jobs:
               canonical = re.search(r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"\']+)', text, re.I)
               if not canonical:
                   canonical = re.search(r'<link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\']canonical["\']', text, re.I)
-              if canonical and not canonical.group(1).startswith('https://serdararminsargut.pages.dev/'):
+              if canonical and not canonical.group(1).startswith(canonical_host):
                   bad_canonical.append(f'{path}: {canonical.group(1)}')
 
           if bad_noindex:
@@ -128,7 +143,7 @@ jobs:
           if bad_canonical:
               raise SystemExit('Canonical URL outside Cloudflare host: ' + ', '.join(bad_canonical))
 
-          print(f'SEO validation passed: {len(locs)} sitemap URLs; no unintended noindex conflicts found.')
+          print(f'SEO validation passed: {len(primary_locs)} URLs in both sitemap files; XML headers configured.')
           PY
 
       - name: Normalize Cloudflare account id
@@ -157,3 +172,54 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ steps.cloudflare_account.outputs.account_id }}
           command: pages deploy dist --project-name=serdararminsargut --branch=main
+
+      - name: Verify live sitemap HTTP responses
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://serdararminsargut.pages.dev'
+
+          verify_sitemap() {
+            local path="$1"
+            local tmp_headers tmp_body meta code ctype effective redirects
+            tmp_headers="$(mktemp)"
+            tmp_body="$(mktemp)"
+
+            for attempt in 1 2 3 4 5 6; do
+              : > "$tmp_headers"
+              : > "$tmp_body"
+              meta="$(curl -sS -L --max-redirs 5 \
+                -H 'Cache-Control: no-cache' \
+                -D "$tmp_headers" \
+                -o "$tmp_body" \
+                -w '%{http_code}|%{content_type}|%{url_effective}|%{num_redirects}' \
+                "$base$path" || true)"
+
+              IFS='|' read -r code ctype effective redirects <<< "$meta"
+              echo "$path attempt=$attempt status=$code content-type=$ctype redirects=$redirects effective-url=$effective"
+
+              if [[ "$code" == '200' && ( "$ctype" == application/xml* || "$ctype" == text/xml* ) ]]; then
+                python3 - "$tmp_body" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          ET.parse(sys.argv[1])
+          print('XML parse: OK')
+          PY
+                echo "Final response headers for $path:"
+                cat "$tmp_headers"
+                rm -f "$tmp_headers" "$tmp_body"
+                return 0
+              fi
+
+              sleep 10
+            done
+
+            echo "Live sitemap verification failed for $path" >&2
+            echo "Last response headers:" >&2
+            cat "$tmp_headers" >&2 || true
+            rm -f "$tmp_headers" "$tmp_body"
+            return 1
+          }
+
+          verify_sitemap '/sitemap.xml'
+          verify_sitemap '/sitemap-google.xml'
