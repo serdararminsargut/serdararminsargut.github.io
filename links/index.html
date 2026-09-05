@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,follow">
+  <meta name="theme-color" content="#090909">
+  <title>Serdar Armin Sargut | Portföy bağlantıları</title>
+  <link rel="canonical" href="https://serdararminsargut.pages.dev/links/">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-H894LKL93J"></script>
+  <script>
+    window.dataLayer=window.dataLayer||[];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js',new Date());
+    gtag('config','G-H894LKL93J');
+  </script>
+  <style>
+    :root{--bg:#090909;--panel:#151412;--ink:#f5f1e8;--muted:#b3ada3;--gold:#cdb17c;--line:#302d28}
+    *{box-sizing:border-box}body{margin:0;min-height:100svh;background:radial-gradient(circle at 50% -10%,#332b20 0,#111 40%,var(--bg) 76%);color:var(--ink);font:16px/1.5 Arial,Helvetica,sans-serif}
+    main{width:min(100% - 32px,480px);margin:auto;padding:40px 0 48px;text-align:center}.portrait{width:116px;height:116px;object-fit:cover;object-position:center 20%;border-radius:50%;border:2px solid var(--gold);box-shadow:0 14px 44px #0008}
+    h1{font:400 clamp(2.1rem,9vw,3.3rem)/.96 Georgia,serif;letter-spacing:-.035em;margin:18px 0 9px}.intro{margin:0 auto 28px;max-width:38ch;color:var(--muted)}
+    .buttons{display:grid;gap:12px}.button{display:flex;align-items:center;justify-content:center;min-height:58px;border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--ink);font-weight:700;text-decoration:none;transition:transform .18s ease,border-color .18s ease}.button:hover,.button:focus-visible{transform:translateY(-2px);border-color:var(--gold);outline:none}.button.primary{background:var(--ink);color:#151412;border-color:var(--ink)}.button.gold{border-color:var(--gold);color:var(--gold)}
+    .note{margin:28px auto 0;max-width:42ch;color:#8f8980;font-size:.82rem}.site{display:inline-block;margin-top:20px;color:var(--gold);font-size:.88rem;text-decoration:none}
+  </style>
+</head>
+<body>
+  <main>
+    <img class="portrait" src="/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-768-v12-1-20260826.webp" width="116" height="116" alt="Serdar Armin Sargut portre fotoğrafı">
+    <h1>Serdar Armin<br>Sargut</h1>
+    <p class="intro">Çocuk oyuncu ve reklam modeli. Güncel portföy, showreel ve casting iletişimi.</p>
+    <nav class="buttons" aria-label="Portföy bağlantıları">
+      <a class="button primary" data-link="portfolio" href="https://serdararminsargut.pages.dev/">Ana portföyü incele</a>
+      <a class="button" data-link="showreel" href="https://serdararminsargut.pages.dev/#showreel">Showreel’i izle</a>
+      <a class="button" data-link="casting_card" href="https://serdararminsargut.pages.dev/card.html">Dijital casting kartı</a>
+      <a class="button gold" data-link="instagram" href="https://www.instagram.com/serdararminsargutt/" target="_blank" rel="noopener noreferrer">Instagram’da güncel çekimler</a>
+      <a class="button" data-link="email" href="mailto:serdararminsargut@gmail.com?subject=Casting%20ve%20marka%20i%C5%9F%20birli%C4%9Fi">Casting ve marka iletişimi</a>
+    </nav>
+    <p class="note">İletişim ebeveyn/temsilci üzerinden yürütülür.</p>
+    <a class="site" data-link="site_footer" href="https://serdararminsargut.pages.dev/">serdararminsargut.pages.dev</a>
+  </main>
+  <script>
+    document.querySelectorAll('[data-link]').forEach(function(link){
+      link.addEventListener('click',function(){
+        gtag('event','social_hub_click',{link_name:link.dataset.link,link_url:link.href,page_path:location.pathname,traffic_source:new URLSearchParams(location.search).get('utm_source')||'direct'});
+      });
+    });
+  </script>
+</body>
+</html>
