@@ -1,264 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
-        xmlns:xhtml="http://www.w3.org/1999/xhtml"
-        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://serdararminsargut.pages.dev/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/az/"/>
-    <xhtml:link rel="alternate" hreflang="kk" href="https://serdararminsargut.pages.dev/kk/"/>
-    <xhtml:link rel="alternate" hreflang="uz" href="https://serdararminsargut.pages.dev/uz/"/>
-    <xhtml:link rel="alternate" hreflang="ky" href="https://serdararminsargut.pages.dev/ky/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
+    <lastmod>2026-09-05</lastmod>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/en/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/az/"/>
-    <xhtml:link rel="alternate" hreflang="kk" href="https://serdararminsargut.pages.dev/kk/"/>
-    <xhtml:link rel="alternate" hreflang="uz" href="https://serdararminsargut.pages.dev/uz/"/>
-    <xhtml:link rel="alternate" hreflang="ky" href="https://serdararminsargut.pages.dev/ky/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-bej-katalog-portre.webp</image:loc></image:image>
+    <lastmod>2026-09-05</lastmod>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/ar/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/az/"/>
-    <xhtml:link rel="alternate" hreflang="kk" href="https://serdararminsargut.pages.dev/kk/"/>
-    <xhtml:link rel="alternate" hreflang="uz" href="https://serdararminsargut.pages.dev/uz/"/>
-    <xhtml:link rel="alternate" hreflang="ky" href="https://serdararminsargut.pages.dev/ky/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-siyah-cizgili-takim-portre.webp</image:loc></image:image>
+    <lastmod>2026-09-05</lastmod>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/ru/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/az/"/>
-    <xhtml:link rel="alternate" hreflang="kk" href="https://serdararminsargut.pages.dev/kk/"/>
-    <xhtml:link rel="alternate" hreflang="uz" href="https://serdararminsargut.pages.dev/uz/"/>
-    <xhtml:link rel="alternate" hreflang="ky" href="https://serdararminsargut.pages.dev/ky/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-mavi-spor-katalog.webp</image:loc></image:image>
+    <lastmod>2026-09-05</lastmod>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/az/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/az/"/>
-    <xhtml:link rel="alternate" hreflang="kk" href="https://serdararminsargut.pages.dev/kk/"/>
-    <xhtml:link rel="alternate" hreflang="uz" href="https://serdararminsargut.pages.dev/uz/"/>
-    <xhtml:link rel="alternate" hreflang="ky" href="https://serdararminsargut.pages.dev/ky/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-gri-takim-yelek.webp</image:loc></image:image>
+    <lastmod>2026-09-05</lastmod>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/kk/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/az/"/>
-    <xhtml:link rel="alternate" hreflang="kk" href="https://serdararminsargut.pages.dev/kk/"/>
-    <xhtml:link rel="alternate" hreflang="uz" href="https://serdararminsargut.pages.dev/uz/"/>
-    <xhtml:link rel="alternate" hreflang="ky" href="https://serdararminsargut.pages.dev/ky/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-futbol-spor-portre.webp</image:loc></image:image>
+    <lastmod>2026-09-05</lastmod>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/uz/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/az/"/>
-    <xhtml:link rel="alternate" hreflang="kk" href="https://serdararminsargut.pages.dev/kk/"/>
-    <xhtml:link rel="alternate" hreflang="uz" href="https://serdararminsargut.pages.dev/uz/"/>
-    <xhtml:link rel="alternate" hreflang="ky" href="https://serdararminsargut.pages.dev/ky/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-bej-takim-tam-boy.webp</image:loc></image:image>
+    <lastmod>2026-09-05</lastmod>
   </url>
   <url>
     <loc>https://serdararminsargut.pages.dev/ky/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/az/"/>
-    <xhtml:link rel="alternate" hreflang="kk" href="https://serdararminsargut.pages.dev/kk/"/>
-    <xhtml:link rel="alternate" hreflang="uz" href="https://serdararminsargut.pages.dev/uz/"/>
-    <xhtml:link rel="alternate" hreflang="ky" href="https://serdararminsargut.pages.dev/ky/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-yesil-bomber-ceket.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/casting-card/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-gri-takim-yelek.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-gri-takim-yelek.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-gri-takim-yelek.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-mavi-spor-katalog.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/blog/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/blog/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/blog/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/blog/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/blog/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/blog/az/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/blog/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/blog/en/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/blog/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/blog/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/blog/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/blog/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/blog/az/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/blog/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/blog/ar/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/blog/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/blog/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/blog/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/blog/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/blog/az/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/blog/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/blog/ru/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/blog/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/blog/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/blog/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/blog/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/blog/az/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/blog/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/blog/az/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/blog/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/blog/en/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/blog/ar/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/blog/ru/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/blog/az/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/blog/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/blog/set-gunu-cocuk-oyuncu/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/blog/set-gunu-cocuk-oyuncu/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/blog/ar/yawm-taswir-mumathil-tifl/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/blog/ru/semocnyy-den-yunogo-aktera/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/blog/az/usaq-aktyor-cekilis-gunu/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/blog/set-gunu-cocuk-oyuncu/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/blog/ar/yawm-taswir-mumathil-tifl/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/blog/ru/semocnyy-den-yunogo-aktera/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/blog/az/usaq-aktyor-cekilis-gunu/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/blog/ar/yawm-taswir-mumathil-tifl/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/blog/set-gunu-cocuk-oyuncu/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/blog/ar/yawm-taswir-mumathil-tifl/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/blog/ru/semocnyy-den-yunogo-aktera/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/blog/az/usaq-aktyor-cekilis-gunu/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/blog/ru/semocnyy-den-yunogo-aktera/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/blog/set-gunu-cocuk-oyuncu/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/blog/ar/yawm-taswir-mumathil-tifl/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/blog/ru/semocnyy-den-yunogo-aktera/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/blog/az/usaq-aktyor-cekilis-gunu/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp</image:loc></image:image>
-  </url>
-  <url>
-    <loc>https://serdararminsargut.pages.dev/blog/az/usaq-aktyor-cekilis-gunu/</loc>
-    <lastmod>2026-09-04</lastmod>
-    <xhtml:link rel="alternate" hreflang="tr" href="https://serdararminsargut.pages.dev/blog/set-gunu-cocuk-oyuncu/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/"/>
-    <xhtml:link rel="alternate" hreflang="ar" href="https://serdararminsargut.pages.dev/blog/ar/yawm-taswir-mumathil-tifl/"/>
-    <xhtml:link rel="alternate" hreflang="ru" href="https://serdararminsargut.pages.dev/blog/ru/semocnyy-den-yunogo-aktera/"/>
-    <xhtml:link rel="alternate" hreflang="az" href="https://serdararminsargut.pages.dev/blog/az/usaq-aktyor-cekilis-gunu/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://serdararminsargut.pages.dev/blog/en/child-actor-set-day/"/>
-    <image:image><image:loc>https://serdararminsargut.pages.dev/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp</image:loc></image:image>
+    <lastmod>2026-09-05</lastmod>
   </url>
 </urlset>
