@@ -1,0 +1,87 @@
+name: Normalize physical data
+
+on:
+  push:
+    paths:
+      - '.github/workflows/normalize-physical-data.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  normalize-height:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate and normalize height
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, sys
+
+          files = [
+              Path('index.html'),
+              Path('en/index.html'),
+              Path('ar/index.html'),
+              Path('ru/index.html'),
+              Path('az/index.html'),
+              Path('kk/index.html'),
+              Path('uz/index.html'),
+              Path('ky/index.html'),
+          ]
+
+          json_pat_158 = re.compile(r'("height"\s*:\s*\{[^{}]*?"value"\s*:\s*)158(?=\s*,)', re.S)
+          visible_pat_158 = re.compile(r'(<div\s+class="fact">\s*<span>[^<]+</span>\s*<b>)158(\s*(?:cm|см|سم))(?=</b>)', re.S)
+          json_pat_162 = re.compile(r'("height"\s*:\s*\{[^{}]*?"value"\s*:\s*)162(?=\s*,)', re.S)
+          visible_pat_162 = re.compile(r'(<div\s+class="fact">\s*<span>[^<]+</span>\s*<b>)162(\s*(?:cm|см|سم))(?=</b>)', re.S)
+
+          for path in files:
+              if not path.exists():
+                  sys.exit(f'FAIL: missing file {path}')
+              text = path.read_text(encoding='utf-8')
+              j158 = len(json_pat_158.findall(text))
+              v158 = len(visible_pat_158.findall(text))
+              j162 = len(json_pat_162.findall(text))
+              v162 = len(visible_pat_162.findall(text))
+              print(f'PRE {path}: json158={j158}, visible158={v158}, json162={j162}, visible162={v162}')
+              if (j158, v158, j162, v162) not in {(1,1,0,0),(0,0,1,1)}:
+                  sys.exit(f'FAIL: unexpected height structure in {path}')
+
+          for path in files:
+              text = path.read_text(encoding='utf-8')
+              text, n1 = json_pat_158.subn(r'\g<1>162', text)
+              text, n2 = visible_pat_158.subn(r'\g<1>162\g<2>', text)
+              text = text.replace('"dateModified":"2026-09-01"', '"dateModified":"2026-09-05"', 1)
+              path.write_text(text, encoding='utf-8')
+              print(f'WRITE {path}: json replacements={n1}, visible replacements={n2}')
+
+          for path in files:
+              text = path.read_text(encoding='utf-8')
+              j158 = len(json_pat_158.findall(text))
+              v158 = len(visible_pat_158.findall(text))
+              j162 = len(json_pat_162.findall(text))
+              v162 = len(visible_pat_162.findall(text))
+              print(f'POST {path}: json158={j158}, visible158={v158}, json162={j162}, visible162={v162}')
+              if (j158, v158, j162, v162) != (0,0,1,1):
+                  sys.exit(f'FAIL: post-validation failed in {path}')
+
+          print('PASS: all 8 language pages normalized to 162 cm')
+          PY
+
+      - name: Commit normalized pages
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html en/index.html ar/index.html ru/index.html az/index.html kk/index.html uz/index.html ky/index.html
+          if git diff --cached --quiet; then
+            echo "No changes required"
+            exit 0
+          fi
+          git commit -m "Normalize height to 162 cm across language pages"
+          git push origin HEAD:main
