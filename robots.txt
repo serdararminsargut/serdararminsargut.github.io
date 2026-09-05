@@ -1,5 +1,6 @@
 # Serdar Armin Sargut
 # Production robots.txt
+# Canonical sitemap: /sitemap.xml
 # Updated: 2026-09-05
 
 User-agent: *
