@@ -54,6 +54,7 @@ jobs:
             robots.txt \
             ru \
             sitemap.xml \
+            sitemap-google.xml \
             uz \
             yandex_*.html
           do
