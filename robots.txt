@@ -1,6 +1,9 @@
-# Serdar Armin Sargut — search, answer and AI crawler policy
+# Serdar Armin Sargut
+# Production robots.txt
 # Updated: 2026-09-05
-# Public search/retrieval is allowed; selected training-only crawlers are blocked.
+
+User-agent: *
+Allow: /
 
 User-agent: Googlebot
 Allow: /
@@ -10,7 +13,6 @@ Allow: /
 
 User-agent: YandexBot
 Allow: /
-Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&utm_id&fbclid&gclid /
 
 User-agent: OAI-SearchBot
 Allow: /
@@ -21,32 +23,4 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
-User-agent: Perplexity-User
-Allow: /
-
-User-agent: Claude-SearchBot
-Allow: /
-
-User-agent: Claude-User
-Allow: /
-
-User-agent: GPTBot
-Disallow: /
-
-User-agent: ClaudeBot
-Disallow: /
-
-User-agent: Google-Extended
-Disallow: /
-
-User-agent: CCBot
-Disallow: /
-
-User-agent: Bytespider
-Disallow: /
-
-User-agent: *
-Allow: /
-
 Sitemap: https://serdararminsargut.pages.dev/sitemap.xml
-Sitemap: https://serdararminsargut.pages.dev/sitemap-google.xml
