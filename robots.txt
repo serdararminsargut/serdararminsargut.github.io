@@ -1,16 +1,16 @@
 # Serdar Armin Sargut — search, answer and AI crawler policy
-# Search/retrieval bots may crawl public pages. Training-only crawlers are
-# separated so child-portfolio privacy does not reduce search visibility.
-
-User-agent: YandexBot
-Allow: /
-Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&utm_id&fbclid&gclid /
+# Updated: 2026-09-05
+# Public search/retrieval is allowed; selected training-only crawlers are blocked.
 
 User-agent: Googlebot
 Allow: /
 
 User-agent: Bingbot
 Allow: /
+
+User-agent: YandexBot
+Allow: /
+Clean-param: utm_source&utm_medium&utm_campaign&utm_content&utm_term&utm_id&fbclid&gclid /
 
 User-agent: OAI-SearchBot
 Allow: /
@@ -28,15 +28,6 @@ User-agent: Claude-SearchBot
 Allow: /
 
 User-agent: Claude-User
-Allow: /
-
-User-agent: FalconBot
-Allow: /
-
-User-agent: JaisBot
-Allow: /
-
-User-agent: ALLaMBot
 Allow: /
 
 User-agent: GPTBot
@@ -58,3 +49,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://serdararminsargut.pages.dev/sitemap.xml
+Sitemap: https://serdararminsargut.pages.dev/sitemap-google.xml
