@@ -58,3 +58,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://serdararminsargut.pages.dev/sitemap.xml
+Sitemap: https://serdararminsargut.pages.dev/sitemap-google.xml
