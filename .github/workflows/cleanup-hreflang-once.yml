@@ -57,3 +57,5 @@ jobs:
           git add az/index.html kk/index.html uz/index.html ky/index.html
           git commit -m "Fix duplicate hreflang tags in Turkic pages"
           git push
+
+# one-time trigger: 2026-09-05
