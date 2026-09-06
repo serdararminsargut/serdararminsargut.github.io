@@ -2,148 +2,31 @@ name: Apply site routing sync
 
 on:
   push:
-    branches:
-      - site-routing-sync
+    branches: [site-routing-sync]
     paths:
       - .github/workflows/apply-site-routing-sync.yml
+      - scripts/apply_site_routing_sync.py
 
 permissions:
   contents: write
 
 jobs:
   patch:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout sync branch
+        uses: actions/checkout@v4
         with:
           ref: site-routing-sync
 
-      - name: Patch main page links, filters and birth date
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
+      - name: Apply verified source patch
+        run: python3 scripts/apply_site_routing_sync.py
 
-          path = Path('index.html')
-          s = path.read_text(encoding='utf-8')
-
-          def replace_once(old, new, label):
-              global s
-              count = s.count(old)
-              if count != 1:
-                  raise SystemExit(f'{label}: expected 1 match, found {count}')
-              s = s.replace(old, new, 1)
-
-          replace_once('"birthDate":"2014"', '"birthDate":"2014-07-08"', 'JSON-LD birthDate')
-          replace_once('<span>Doğum Yılı</span>\n<b>2014</b>', '<span>Doğum Tarihi</span>\n<b>08/07/2014</b>', 'visible birth date')
-          s = s.replace('<meta content="V15.1-CLOUDFLARE-BLOG" name="sas-version"/>', '<meta content="V15.3-COMP-CARD-ROUTING" name="sas-version"/>')
-
-          chip_css = '.categories{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 26px}.chip{border:1px solid var(--line);padding:9px 14px;border-radius:999px;color:#ded8ce;background:#111}'
-          chip_css_new = '.categories{display:flex;gap:9px;flex-wrap:wrap;margin:0 0 26px}.chip{border:1px solid var(--line);padding:9px 14px;border-radius:999px;color:#ded8ce;background:#111;font:inherit;cursor:pointer;transition:.18s ease}.chip:hover,.chip:focus-visible{border-color:var(--accent);color:var(--accent);outline:none}.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#111;font-weight:800}'
-          replace_once(chip_css, chip_css_new, 'chip CSS')
-
-          categories_old = '''<div class="categories">
-<span class="chip">Spor Giyim</span>
-<span class="chip">Klasik / Takım Elbise</span>
-<span class="chip">Ayakkabı</span>
-<span class="chip">Katalog</span>
-<span class="chip">E-ticaret</span>
-<span class="chip">Reklam</span>
-</div>'''
-          categories_new = '''<div class="categories" aria-label="Portföy fotoğraf filtreleri">
-<button class="chip" type="button" data-model-filter="sport" aria-pressed="false">Spor Giyim</button>
-<button class="chip" type="button" data-model-filter="classic" aria-pressed="false">Klasik / Takım Elbise</button>
-<button class="chip" type="button" data-model-filter="shoe" aria-pressed="false">Ayakkabı</button>
-<button class="chip" type="button" data-model-filter="catalog" aria-pressed="false">Katalog</button>
-<button class="chip" type="button" data-model-filter="ecommerce" aria-pressed="false">E-ticaret</button>
-<button class="chip" type="button" data-model-filter="commercial" aria-pressed="false">Reklam</button>
-</div>'''
-          replace_once(categories_old, categories_new, 'category controls')
-
-          replace_once('<a href="#portfolio">Portföy</a>\n<a href="#showreel">Showreel</a>', '<a href="#portfolio">Portföy</a>\n<a href="/casting-card/v2.html" data-comp-card-link="nav">Comp Card</a>\n<a href="#showreel">Showreel</a>', 'nav comp card link')
-          replace_once('<a href="./card.html">Digital Casting Card</a>', '<a href="/casting-card/v2.html" data-comp-card-link="contact">Comp Card / Casting Card</a>', 'contact comp card link')
-
-          tag_map = {
-              '/assets/photos/serdar-armin-sargut-siyah-cizgili-takim-portre.webp': 'classic catalog ecommerce commercial',
-              '/assets/photos/serdar-armin-sargut-kahverengi-takim-oturan.webp': 'classic catalog ecommerce shoe',
-              '/assets/photos/serdar-armin-sargut-bej-takim-tam-boy.webp': 'classic catalog shoe',
-              '/assets/photos/serdar-armin-sargut-gri-takim-yelek.webp': 'classic catalog ecommerce commercial',
-              '/assets/photos/serdar-armin-sargut-mavi-spor-katalog.webp': 'sport catalog ecommerce shoe',
-              '/assets/photos/serdar-armin-sargut-bej-katalog-portre.webp': 'classic catalog ecommerce',
-              '/assets/photos/serdar-armin-sargut-siyah-moda-tam-boy.webp': 'classic catalog ecommerce shoe',
-              '/assets/photos/serdar-armin-sargut-siyah-moda-yakin-plan.webp': 'classic catalog ecommerce',
-              '/assets/photos/serdar-armin-sargut-beyaz-tisort-lifestyle.webp': 'catalog ecommerce commercial shoe',
-              '/assets/photos/serdar-armin-sargut-yesil-bomber-ceket.webp': 'catalog ecommerce commercial',
-              '/assets/photos/serdar-armin-sargut-futbol-spor-portre.webp': 'sport commercial shoe',
-              '/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp': 'commercial catalog',
-          }
-          for lightbox, tags in tag_map.items():
-              marker = f'data-lightbox="{lightbox}"'
-              if s.count(marker) != 1:
-                  raise SystemExit(f'gallery marker mismatch: {lightbox} => {s.count(marker)}')
-              s = s.replace(marker, marker + f' data-model-tags="{tags}"', 1)
-
-          js_marker = "  const lb=document.querySelector('.lightbox'),lbImg=lb?.querySelector('img'),close=lb?.querySelector('button');"
-          filter_js = '''  const modelFilterButtons=[...document.querySelectorAll('[data-model-filter]')];
-  const modelItems=[...document.querySelectorAll('.gallery [data-model-tags]')];
-  modelFilterButtons.forEach(btn=>btn.addEventListener('click',()=>{
-    const filter=btn.dataset.modelFilter;
-    const clear=btn.getAttribute('aria-pressed')==='true';
-    modelFilterButtons.forEach(other=>other.setAttribute('aria-pressed','false'));
-    const active=clear?'all':filter;
-    if(!clear) btn.setAttribute('aria-pressed','true');
-    modelItems.forEach(item=>{
-      const tags=(item.dataset.modelTags||'').split(/\\s+/);
-      item.hidden=active!=='all'&&!tags.includes(active);
-    });
-    sendGA('model_filter_click',{filter:active,language:lang,page_path:location.pathname});
-    document.querySelector('#portfolio')?.scrollIntoView({behavior:'smooth',block:'start'});
-  }));
-  document.querySelectorAll('[data-comp-card-link]').forEach(a=>a.addEventListener('click',()=>{
-    sendGA('comp_card_click',{placement:a.dataset.compCardLink||'site_link',language:lang,page_path:location.pathname,link_url:a.href});
-  }));
-
-'''
-          replace_once(js_marker, filter_js + js_marker, 'filter JavaScript')
-
-          if s.count('data-model-filter=') != 6:
-              raise SystemExit('expected six model filter buttons')
-          if s.count('data-model-tags=') != 12:
-              raise SystemExit('expected twelve tagged gallery items')
-          if '"birthDate":"2014-07-08"' not in s:
-              raise SystemExit('birthDate sync missing')
-          if '/casting-card/v2.html' not in s:
-              raise SystemExit('Comp Card direct link missing')
-
-          path.write_text(s, encoding='utf-8')
-          PY
-
-      - name: Verify patched HTML
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          s=Path('index.html').read_text(encoding='utf-8')
-          checks={
-            'full DOB visible':'<span>Doğum Tarihi</span>\n<b>08/07/2014</b>' in s,
-            'ISO DOB schema':'"birthDate":"2014-07-08"' in s,
-            'Comp Card nav':'data-comp-card-link="nav"' in s,
-            '6 filters':s.count('data-model-filter=')==6,
-            '12 tagged photos':s.count('data-model-tags=')==12,
-            'filter analytics':'model_filter_click' in s,
-            'comp card analytics':'comp_card_click' in s,
-          }
-          failed=[name for name,ok in checks.items() if not ok]
-          print(checks)
-          if failed: raise SystemExit('Verification failed: '+', '.join(failed))
-          PY
-
-      - name: Commit changes to sync branch
-        shell: bash
+      - name: Commit patched index
         run: |
           git config user.name "sargutportfolio-bot"
           git config user.email "actions@users.noreply.github.com"
           git add index.html
+          git diff --cached --check
           git commit -m "Activate model filters and Comp Card routing"
           git push origin HEAD:site-routing-sync
