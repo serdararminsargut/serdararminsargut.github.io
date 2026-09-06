@@ -24,6 +24,31 @@ jobs:
         with:
           ref: main
 
+      - name: Validate sitemap before deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          expected = 15
+          root = ET.parse('sitemap.xml').getroot()
+          ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+          urls = root.findall('sm:url', ns)
+          if root.tag != '{http://www.sitemaps.org/schemas/sitemap/0.9}urlset':
+              raise SystemExit(f'Unexpected sitemap root: {root.tag}')
+          if len(urls) != expected:
+              raise SystemExit(f'Expected {expected} sitemap URLs, found {len(urls)}')
+          for node in urls:
+              loc = node.find('sm:loc', ns)
+              if loc is None or not (loc.text or '').startswith('https://serdararminsargut.pages.dev/'):
+                  raise SystemExit(f'Invalid sitemap location: {ET.tostring(node, encoding="unicode")}')
+          if Path('sitemap.xml').read_bytes() != Path('sitemap-google.xml').read_bytes():
+              raise SystemExit('sitemap.xml and sitemap-google.xml are not synchronized')
+          print(f'Validated sitemap XML with {len(urls)} canonical URLs')
+          PY
+
       - name: Prepare static site bundle
         shell: bash
         run: |
@@ -91,3 +116,49 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ steps.cloudflare_account.outputs.account_id }}
           command: pages deploy dist --project-name=serdararminsargut --branch=main
+
+      - name: Verify live sitemap as Googlebot
+        shell: bash
+        run: |
+          set -euo pipefail
+          sitemap='https://serdararminsargut.pages.dev/sitemap.xml'
+          robots='https://serdararminsargut.pages.dev/robots.txt'
+          ua='Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+
+          ok=0
+          for attempt in $(seq 1 12); do
+            rm -f /tmp/sitemap.headers /tmp/sitemap.body
+            code=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 25 \
+              -A "$ua" -D /tmp/sitemap.headers -o /tmp/sitemap.body -w '%{http_code}' "$sitemap" || true)
+            ctype=$(awk 'BEGIN{IGNORECASE=1} /^content-type:/ {gsub("\r",""); v=$0} END{sub(/^[^:]*:[[:space:]]*/,"",v); print v}' /tmp/sitemap.headers)
+            echo "Attempt $attempt: HTTP=$code Content-Type=$ctype"
+            if [[ "$code" == "200" ]] && [[ "$ctype" == application/xml* || "$ctype" == text/xml* ]]; then
+              if python - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('/tmp/sitemap.body').getroot()
+          ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
+          urls = root.findall('sm:url', ns)
+          if root.tag != '{http://www.sitemaps.org/schemas/sitemap/0.9}urlset' or len(urls) != 15:
+              raise SystemExit(1)
+          print('Live sitemap parsed successfully with 15 URLs')
+          PY
+              then
+                ok=1
+                break
+              fi
+            fi
+            sleep 5
+          done
+
+          if [[ "$ok" != "1" ]]; then
+            echo 'Live sitemap failed Googlebot HTTP/content-type/XML validation' >&2
+            cat /tmp/sitemap.headers >&2 || true
+            head -c 500 /tmp/sitemap.body >&2 || true
+            exit 1
+          fi
+
+          robots_code=$(curl -sS -L --connect-timeout 10 --max-time 25 -A "$ua" -o /tmp/robots.body -w '%{http_code}' "$robots")
+          [[ "$robots_code" == "200" ]]
+          grep -Fq 'User-agent: Googlebot' /tmp/robots.body
+          grep -Fq 'Sitemap: https://serdararminsargut.pages.dev/sitemap.xml' /tmp/robots.body
+          echo 'Live robots.txt is reachable by Googlebot and declares the canonical sitemap'
