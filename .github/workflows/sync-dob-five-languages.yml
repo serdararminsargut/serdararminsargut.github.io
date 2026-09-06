@@ -1,0 +1,148 @@
+name: Sync DOB on five language pages
+
+on:
+  push:
+    branches: [dob-five-lang-sync]
+    paths:
+      - .github/workflows/sync-dob-five-languages.yml
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dob-five-lang-sync
+
+      - name: Update birth date fields and structured data
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json
+
+          DOB_DISPLAY = '08/07/2014'
+          DOB_ISO = '2014-07-08'
+
+          pages = {
+              'en/index.html': {
+                  'old_label': 'Year of birth', 'new_label': 'Date of birth',
+                  'phrases': [('Born in 2014', 'Born on 08/07/2014'), ('Born 2014', 'Born 08/07/2014')],
+                  'lang': 'en'
+              },
+              'ar/index.html': {
+                  'old_label': 'سنة الميلاد', 'new_label': 'تاريخ الميلاد',
+                  'phrases': [('من مواليد 2014', 'من مواليد 08/07/2014'), ('مواليد 2014', 'مواليد 08/07/2014')],
+                  'lang': 'ar'
+              },
+              'ru/index.html': {
+                  'old_label': 'Год рождения', 'new_label': 'Дата рождения',
+                  'phrases': [('родился в 2014 году', 'родился 08/07/2014'), ('2014 года рождения', 'дата рождения 08/07/2014')],
+                  'lang': 'ru'
+              },
+              'az/index.html': {
+                  'old_label': 'Doğum ili', 'new_label': 'Doğum tarixi',
+                  'phrases': [('2014-cü il təvəllüdlü', '08/07/2014 tarixində anadan olan'), ('2014-cü ildə anadan olub', '08/07/2014 tarixində anadan olub')],
+                  'lang': 'az'
+              },
+              'kk/index.html': {
+                  'old_label': 'Туған жылы', 'new_label': 'Туған күні',
+                  'phrases': [('2014 жылы туған', '08/07/2014 күні туған'), ('2014 ж. туған', '08/07/2014 туған')],
+                  'lang': 'kk'
+              },
+          }
+
+          changed = []
+          for filename, cfg in pages.items():
+              path = Path(filename)
+              s = path.read_text(encoding='utf-8')
+              original = s
+
+              # JSON-LD Person birthDate must use ISO 8601.
+              s, schema_n = re.subn(r'("birthDate"\s*:\s*")2014(?:-07-08)?(")', rf'\g<1>{DOB_ISO}\2', s)
+              if schema_n < 1:
+                  raise SystemExit(f'{filename}: no birthDate field found')
+
+              # Visible profile fact: replace year-only field with full date.
+              fact_pattern = re.compile(
+                  rf'<span>{re.escape(cfg["old_label"])}</span>\s*<b>2014</b>'
+              )
+              s, fact_n = fact_pattern.subn(
+                  f'<span>{cfg["new_label"]}</span>\n<b>{DOB_DISPLAY}</b>', s, count=1
+              )
+              if fact_n != 1:
+                  # Allow reruns only if the already-correct field is present.
+                  correct = f'<span>{cfg["new_label"]}</span>\n<b>{DOB_DISPLAY}</b>'
+                  if correct not in s:
+                      raise SystemExit(f'{filename}: visible birth-date field not found')
+
+              # Replace year-only birth wording in metadata/body where present.
+              for old, new in cfg['phrases']:
+                  s = s.replace(old, new)
+
+              s = s.replace('"dateModified":"2026-09-05"', '"dateModified":"2026-09-06"')
+
+              # Validation: language, visible date, schema date, no stale fact.
+              if f'lang="{cfg["lang"]}"' not in s:
+                  raise SystemExit(f'{filename}: html lang mismatch')
+              if f'<span>{cfg["new_label"]}</span>\n<b>{DOB_DISPLAY}</b>' not in s:
+                  raise SystemExit(f'{filename}: full visible DOB missing')
+              if not re.search(r'"birthDate"\s*:\s*"2014-07-08"', s):
+                  raise SystemExit(f'{filename}: ISO birthDate missing')
+              if re.search(rf'<span>{re.escape(cfg["old_label"])}</span>\s*<b>2014</b>', s):
+                  raise SystemExit(f'{filename}: stale year-only fact remains')
+              if re.search(r'"birthDate"\s*:\s*"2014"', s):
+                  raise SystemExit(f'{filename}: stale schema year remains')
+
+              # Parse every JSON-LD block to catch accidental syntax damage.
+              blocks = re.findall(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', s, re.S | re.I)
+              if not blocks:
+                  raise SystemExit(f'{filename}: no JSON-LD blocks found')
+              for i, block in enumerate(blocks, 1):
+                  try:
+                      json.loads(block.strip())
+                  except Exception as e:
+                      raise SystemExit(f'{filename}: JSON-LD block {i} invalid: {e}')
+
+              if s != original:
+                  path.write_text(s, encoding='utf-8')
+                  changed.append(filename)
+
+          print('Updated:', ', '.join(changed))
+          if len(changed) != 5:
+              raise SystemExit(f'Expected 5 changed pages, got {len(changed)}')
+          PY
+
+      - name: Verify five language pages
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          checks = {
+            'en/index.html': ('Date of birth','en'),
+            'ar/index.html': ('تاريخ الميلاد','ar'),
+            'ru/index.html': ('Дата рождения','ru'),
+            'az/index.html': ('Doğum tarixi','az'),
+            'kk/index.html': ('Туған күні','kk'),
+          }
+          for filename, (label, lang) in checks.items():
+              s=Path(filename).read_text(encoding='utf-8')
+              assert f'lang="{lang}"' in s, filename
+              assert f'<span>{label}</span>\n<b>08/07/2014</b>' in s, filename
+              assert re.search(r'"birthDate"\s*:\s*"2014-07-08"', s), filename
+              assert not re.search(r'"birthDate"\s*:\s*"2014"', s), filename
+              print('PASS', filename)
+          PY
+
+      - name: Commit synchronized pages
+        shell: bash
+        run: |
+          git config user.name "sargutportfolio-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add en/index.html ar/index.html ru/index.html az/index.html kk/index.html
+          git commit -m "Sync full birth date across five language pages"
+          git push origin HEAD:dob-five-lang-sync
