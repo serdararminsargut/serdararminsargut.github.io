@@ -1,0 +1,79 @@
+name: Clean stale birth-year wording
+
+on:
+  push:
+    branches: [dob-five-lang-sync]
+    paths:
+      - .github/workflows/clean-stale-birth-year.yml
+
+permissions:
+  contents: write
+
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dob-five-lang-sync
+
+      - name: Remove remaining bare 2014 birth wording
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json
+
+          files = ['en/index.html','ar/index.html','ru/index.html','az/index.html','kk/index.html']
+          replacements = {
+            'en/index.html': [('born in 2014','born on 08/07/2014'), ('Born in 2014','Born on 08/07/2014')],
+            'ar/index.html': [('من مواليد 2014','من مواليد 08/07/2014'), ('مواليد 2014','مواليد 08/07/2014')],
+            'ru/index.html': [('родившегося в 2014 году','родившегося 08/07/2014'), ('родился в 2014 году','родился 08/07/2014')],
+            'az/index.html': [('2014-cü il təvəllüdlü','08/07/2014 tarixində anadan olan')],
+            'kk/index.html': [('2014 жылы туған','08/07/2014 күні туған')],
+          }
+
+          changed=[]
+          for filename in files:
+              path=Path(filename)
+              s=path.read_text(encoding='utf-8')
+              original=s
+              for old,new in replacements[filename]:
+                  s=s.replace(old,new)
+
+              # Allow 2014 only inside 08/07/2014 or ISO 2014-07-08, not as a standalone birth year.
+              bare=[m.start() for m in re.finditer(r'(?<![0-9/])2014(?![-/0-9])', s)]
+              if bare:
+                  snippets=[s[max(0,p-45):p+65].replace('\n',' ') for p in bare[:8]]
+                  raise SystemExit(f'{filename}: stale bare 2014 remains: {snippets}')
+
+              if '08/07/2014' not in s:
+                  raise SystemExit(f'{filename}: display DOB missing')
+              if not re.search(r'"birthDate"\s*:\s*"2014-07-08"', s):
+                  raise SystemExit(f'{filename}: ISO schema DOB missing')
+
+              blocks=re.findall(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', s, re.S|re.I)
+              if not blocks:
+                  raise SystemExit(f'{filename}: no JSON-LD found')
+              for i,block in enumerate(blocks,1):
+                  json.loads(block.strip())
+
+              if s!=original:
+                  path.write_text(s,encoding='utf-8')
+                  changed.append(filename)
+
+          print('Changed:', changed)
+          PY
+
+      - name: Commit cleanup
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No residual changes needed"
+            exit 0
+          fi
+          git config user.name "sargutportfolio-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add en/index.html ar/index.html ru/index.html az/index.html kk/index.html
+          git commit -m "Remove residual year-only birth wording"
+          git push origin HEAD:dob-five-lang-sync
