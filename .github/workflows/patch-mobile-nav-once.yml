@@ -119,3 +119,5 @@ jobs:
           git add index.html
           git commit -m 'fix: keep Blog and Comp Card visible on mobile'
           git push origin main
+
+# second push triggers this one-time workflow after creation
