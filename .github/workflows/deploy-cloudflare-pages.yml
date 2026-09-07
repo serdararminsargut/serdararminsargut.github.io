@@ -32,21 +32,32 @@ jobs:
           import xml.etree.ElementTree as ET
           from pathlib import Path
 
-          expected = 15
+          canonical_prefix = 'https://serdararminsargut.pages.dev/'
           root = ET.parse('sitemap.xml').getroot()
           ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-          urls = root.findall('sm:url', ns)
+
           if root.tag != '{http://www.sitemaps.org/schemas/sitemap/0.9}urlset':
               raise SystemExit(f'Unexpected sitemap root: {root.tag}')
-          if len(urls) != expected:
-              raise SystemExit(f'Expected {expected} sitemap URLs, found {len(urls)}')
+
+          urls = root.findall('sm:url', ns)
+          if not urls:
+              raise SystemExit('Sitemap contains no URLs')
+
+          locs = []
           for node in urls:
               loc = node.find('sm:loc', ns)
-              if loc is None or not (loc.text or '').startswith('https://serdararminsargut.pages.dev/'):
+              value = (loc.text or '').strip() if loc is not None else ''
+              if not value.startswith(canonical_prefix):
                   raise SystemExit(f'Invalid sitemap location: {ET.tostring(node, encoding="unicode")}')
+              locs.append(value)
+
+          if len(locs) != len(set(locs)):
+              raise SystemExit('Duplicate URLs found in sitemap.xml')
+
           if Path('sitemap.xml').read_bytes() != Path('sitemap-google.xml').read_bytes():
               raise SystemExit('sitemap.xml and sitemap-google.xml are not synchronized')
-          print(f'Validated sitemap XML with {len(urls)} canonical URLs')
+
+          print(f'Validated sitemap XML with {len(locs)} canonical URLs')
           PY
 
       - name: Prepare static site bundle
@@ -80,6 +91,7 @@ jobs:
             ru \
             sitemap.xml \
             sitemap-google.xml \
+            sitemap.txt \
             uz \
             yandex_*.html
           do
@@ -135,12 +147,30 @@ jobs:
             if [[ "$code" == "200" ]] && [[ "$ctype" == application/xml* || "$ctype" == text/xml* ]]; then
               if python - <<'PY'
           import xml.etree.ElementTree as ET
-          root = ET.parse('/tmp/sitemap.body').getroot()
+
           ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-          urls = root.findall('sm:url', ns)
-          if root.tag != '{http://www.sitemaps.org/schemas/sitemap/0.9}urlset' or len(urls) != 15:
-              raise SystemExit(1)
-          print('Live sitemap parsed successfully with 15 URLs')
+          expected_root = '{http://www.sitemaps.org/schemas/sitemap/0.9}urlset'
+
+          def extract(path):
+              root = ET.parse(path).getroot()
+              if root.tag != expected_root:
+                  raise SystemExit(f'Unexpected sitemap root in {path}: {root.tag}')
+              locs = []
+              for node in root.findall('sm:url', ns):
+                  loc = node.find('sm:loc', ns)
+                  value = (loc.text or '').strip() if loc is not None else ''
+                  if not value:
+                      raise SystemExit(f'Missing loc in {path}')
+                  locs.append(value)
+              if not locs:
+                  raise SystemExit(f'No sitemap URLs in {path}')
+              return locs
+
+          source_locs = extract('sitemap.xml')
+          live_locs = extract('/tmp/sitemap.body')
+          if live_locs != source_locs:
+              raise SystemExit(f'Live sitemap differs from source: source={len(source_locs)} live={len(live_locs)}')
+          print(f'Live sitemap parsed successfully and matches source with {len(live_locs)} URLs')
           PY
               then
                 ok=1
@@ -151,7 +181,7 @@ jobs:
           done
 
           if [[ "$ok" != "1" ]]; then
-            echo 'Live sitemap failed Googlebot HTTP/content-type/XML validation' >&2
+            echo 'Live sitemap failed Googlebot HTTP/content-type/XML/source validation' >&2
             cat /tmp/sitemap.headers >&2 || true
             head -c 500 /tmp/sitemap.body >&2 || true
             exit 1
