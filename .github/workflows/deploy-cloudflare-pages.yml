@@ -24,13 +24,12 @@ jobs:
         with:
           ref: main
 
-      - name: Validate sitemap before deploy
+      - name: Validate canonical sitemap before deploy
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import xml.etree.ElementTree as ET
-          from pathlib import Path
 
           canonical_prefix = 'https://serdararminsargut.pages.dev/'
           root = ET.parse('sitemap.xml').getroot()
@@ -54,10 +53,7 @@ jobs:
           if len(locs) != len(set(locs)):
               raise SystemExit('Duplicate URLs found in sitemap.xml')
 
-          if Path('sitemap.xml').read_bytes() != Path('sitemap-google.xml').read_bytes():
-              raise SystemExit('sitemap.xml and sitemap-google.xml are not synchronized')
-
-          print(f'Validated sitemap XML with {len(locs)} canonical URLs')
+          print(f'Validated canonical sitemap.xml with {len(locs)} URLs')
           PY
 
       - name: Prepare static site bundle
@@ -129,7 +125,7 @@ jobs:
           accountId: ${{ steps.cloudflare_account.outputs.account_id }}
           command: pages deploy dist --project-name=serdararminsargut --branch=main
 
-      - name: Verify live sitemap as Googlebot
+      - name: Verify live canonical sitemap as Googlebot
         shell: bash
         run: |
           set -euo pipefail
@@ -191,4 +187,4 @@ jobs:
           [[ "$robots_code" == "200" ]]
           grep -Fq 'User-agent: Googlebot' /tmp/robots.body
           grep -Fq 'Sitemap: https://serdararminsargut.pages.dev/sitemap.xml' /tmp/robots.body
-          echo 'Live robots.txt is reachable by Googlebot and declares the canonical sitemap'
+          echo 'Live robots.txt is reachable by Googlebot and declares only the canonical sitemap.xml'
