@@ -1,7 +1,7 @@
 # Serdar Armin Sargut
 # Production robots.txt
 # Canonical sitemap: /sitemap.xml
-# Updated: 2026-09-07 17:10 TRT — deployment trigger only
+# Updated: 2026-09-07
 
 User-agent: *
 Allow: /
@@ -25,5 +25,3 @@ User-agent: PerplexityBot
 Allow: /
 
 Sitemap: https://serdararminsargut.pages.dev/sitemap.xml
-Sitemap: https://serdararminsargut.pages.dev/sitemap-google.xml
-Sitemap: https://serdararminsargut.pages.dev/sitemap.txt
