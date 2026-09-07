@@ -1,0 +1,93 @@
+name: One-time nav color consistency patch
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply active-state navigation colors
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re
+          from pathlib import Path
+
+          # 1) Main page: all five compact mobile menu items stay neutral.
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          s2, n = re.subn(
+              r'\n\s*nav \.wrap > a\[href="/casting-card/v2\.html"\],\s*\n\s*nav \.wrap > a\[href="/blog/"\]\{\s*\n\s*color:var\(--accent\);\s*\n\s*border-color:rgba\(205,177,124,\.72\);\s*\n\s*font-weight:800;\s*\n\s*\}',
+              '',
+              s,
+              count=1,
+          )
+          if n != 1:
+              raise SystemExit('Expected main-page Comp Card/Blog gold override was not found exactly once')
+          p.write_text(s2, encoding='utf-8')
+
+          # 2) Comp Card: active page is gold; utility Save PDF is neutral.
+          p = Path('casting-card/v2.html')
+          s = p.read_text(encoding='utf-8')
+          old_css = '.nav-btn{border:1px solid var(--gold);padding:7px 12px;border-radius:999px;color:var(--gold)!important}'
+          new_css = '.nav-btn{border:1px solid var(--line);padding:7px 12px;border-radius:999px;color:var(--muted)!important}.nav-current{color:var(--gold)!important;border-color:var(--gold)!important;font-weight:800}'
+          if old_css not in s:
+              raise SystemExit('Comp Card nav button CSS not found')
+          s = s.replace(old_css, new_css, 1)
+
+          old_nav = '<nav><div class="wrap"><a class="brand" href="/">SAS</a><a href="/">Portfolio</a><a href="#looks">Looks</a><a href="#contact">Contact</a><a class="nav-btn" href="javascript:window.print()">Save PDF</a></div></nav>'
+          new_nav = '<nav><div class="wrap"><a class="brand" href="/">SAS</a><a href="/">Portfolio</a><a class="nav-current" aria-current="page" href="/casting-card/v2.html">Comp Card</a><a href="/#showreel">Showreel</a><a href="/blog/">Blog</a><a href="/#iletisim">Contact</a><a class="nav-btn" href="javascript:window.print()">Save PDF</a></div></nav>'
+          if old_nav not in s:
+              raise SystemExit('Comp Card nav markup not found')
+          s = s.replace(old_nav, new_nav, 1)
+
+          marker = '/* V15.5 — Comp Card compact primary nav */'
+          if marker not in s:
+              mobile_css = '''\n/* V15.5 — Comp Card compact primary nav */\n@media(max-width:820px){\n  nav .wrap{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;overflow-x:visible;padding:8px 0}\n  nav .brand,nav .nav-btn{display:none}\n  nav .wrap>a:not(.brand):not(.nav-btn){display:flex;align-items:center;justify-content:center;min-width:0;min-height:36px;padding:7px 5px;border:1px solid var(--line);border-radius:10px;text-align:center;white-space:normal;font-size:.72rem;line-height:1.1}\n  nav .wrap>a.nav-current{border-color:var(--gold);color:var(--gold)!important}\n}\n'''
+              if '\n@page{' not in s:
+                  raise SystemExit('Comp Card @page marker not found')
+              s = s.replace('\n@page{', mobile_css + '\n@page{', 1)
+          p.write_text(s, encoding='utf-8')
+
+          # Assertions for the intended semantics.
+          main = Path('index.html').read_text(encoding='utf-8')
+          if 'nav .wrap > a[href="/casting-card/v2.html"],\n  nav .wrap > a[href="/blog/"]{' in main:
+              raise SystemExit('Main page still contains forced gold Comp Card/Blog rule')
+          if '.lang a.current{color:var(--accent);border-color:var(--accent)}' not in main:
+              raise SystemExit('Active TR language styling is missing')
+
+          card = Path('casting-card/v2.html').read_text(encoding='utf-8')
+          required = [
+              'class="nav-current" aria-current="page" href="/casting-card/v2.html">Comp Card</a>',
+              'href="/blog/">Blog</a>',
+              'href="/#showreel">Showreel</a>',
+              'href="/#iletisim">Contact</a>',
+              '/* V15.5 — Comp Card compact primary nav */',
+          ]
+          for needle in required:
+              if needle not in card:
+                  raise SystemExit(f'Missing Comp Card nav requirement: {needle}')
+          print('Navigation color consistency patch validated')
+          PY
+
+      - name: Commit patch and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'sargutportfolio'
+          git config user.email 'aydinsargut@gmail.com'
+          git rm .github/workflows/patch-nav-color-once.yml
+          git add index.html casting-card/v2.html
+          git commit -m 'fix: use active-state nav colors consistently'
+          git push origin main
