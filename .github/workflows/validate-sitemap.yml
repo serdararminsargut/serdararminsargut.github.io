@@ -1,0 +1,87 @@
+name: Validate sitemap consistency
+
+on:
+  push:
+    paths:
+      - "sitemap.xml"
+      - "sitemap-google.xml"
+      - "sitemap.txt"
+      - "robots.txt"
+      - "casting-card/v2.html"
+      - ".github/workflows/validate-sitemap.yml"
+  pull_request:
+    paths:
+      - "sitemap.xml"
+      - "sitemap-google.xml"
+      - "sitemap.txt"
+      - "robots.txt"
+      - "casting-card/v2.html"
+      - ".github/workflows/validate-sitemap.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate sitemap URLs and Comp Card canonical
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from urllib.parse import urlparse
+          import re
+          import xml.etree.ElementTree as ET
+
+          origin = "https://serdararminsargut.pages.dev"
+          primary = Path("sitemap.xml")
+          secondary = Path("sitemap-google.xml")
+          textmap = Path("sitemap.txt")
+          robots = Path("robots.txt")
+
+          def xml_urls(path):
+              root = ET.parse(path).getroot()
+              urls = []
+              for node in root.iter():
+                  if node.tag.endswith("loc"):
+                      urls.append((node.text or "").strip())
+              if not urls:
+                  raise SystemExit(f"{path}: no <loc> URLs found")
+              return urls
+
+          primary_urls = xml_urls(primary)
+          secondary_urls = xml_urls(secondary)
+          text_urls = [line.strip() for line in textmap.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+          for name, urls in (("sitemap.xml", primary_urls), ("sitemap-google.xml", secondary_urls), ("sitemap.txt", text_urls)):
+              if len(urls) != len(set(urls)):
+                  raise SystemExit(f"{name}: duplicate URLs found")
+              for url in urls:
+                  parsed = urlparse(url)
+                  if parsed.scheme != "https" or parsed.netloc != "serdararminsargut.pages.dev":
+                      raise SystemExit(f"{name}: non-canonical origin: {url}")
+                  if parsed.path.endswith(".html"):
+                      raise SystemExit(f"{name}: Cloudflare clean URL required, not .html: {url}")
+
+          if primary_urls != secondary_urls or primary_urls != text_urls:
+              raise SystemExit("All public sitemap variants must contain the same URL list in the same order")
+
+          canonical_url = origin + "/casting-card/v2"
+          if canonical_url not in primary_urls:
+              raise SystemExit("Primary sitemap is missing the canonical Comp Card URL")
+
+          comp_card = Path("casting-card/v2.html").read_text(encoding="utf-8")
+          canonical = re.search(r'<link\s+rel="canonical"\s+href="([^"]+)"', comp_card)
+          if not canonical or canonical.group(1) != canonical_url:
+              raise SystemExit("Comp Card rel=canonical does not match its sitemap URL")
+          if comp_card.count(canonical_url) < 4:
+              raise SystemExit("Comp Card canonical URL must also be used by OG, schema, and internal navigation")
+
+          expected_robots_line = "Sitemap: " + origin + "/sitemap.xml"
+          if expected_robots_line not in robots.read_text(encoding="utf-8"):
+              raise SystemExit("robots.txt does not reference the primary sitemap")
+
+          print(f"Validated {len(primary_urls)} canonical sitemap URLs.")
+          PY
