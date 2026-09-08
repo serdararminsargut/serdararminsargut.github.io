@@ -76,7 +76,7 @@ jobs:
           canonical = re.search(r'<link\s+rel="canonical"\s+href="([^"]+)"', comp_card)
           if not canonical or canonical.group(1) != canonical_url:
               raise SystemExit("Comp Card rel=canonical does not match its sitemap URL")
-          if comp_card.count(canonical_url) < 4:
+          if comp_card.count(canonical_url) < 3 or 'href="/casting-card/v2"' not in comp_card:
               raise SystemExit("Comp Card canonical URL must also be used by OG, schema, and internal navigation")
 
           expected_robots_line = "Sitemap: " + origin + "/sitemap.xml"
