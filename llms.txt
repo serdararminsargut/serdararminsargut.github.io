@@ -14,7 +14,7 @@ Canonical website: [https://serdararminsargut.pages.dev/](https://serdararminsar
 - [Қазақша](https://serdararminsargut.pages.dev/kk/)
 - [O‘zbekcha](https://serdararminsargut.pages.dev/uz/)
 - [Кыргызча](https://serdararminsargut.pages.dev/ky/)
-- [Casting card](https://serdararminsargut.pages.dev/casting-card/)
+- [Casting card](https://serdararminsargut.pages.dev/casting-card/v2)
 - [Türkçe ajans rehberi](https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/)
 - [English agency portfolio](https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/)
 - [ملف الوكالات بالعربية](https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/)
