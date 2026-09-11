@@ -3,6 +3,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
   X-Frame-Options: SAMEORIGIN
+  Content-Security-Policy-Report-Only: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://mc.yandex.ru https://yastatic.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://i.vimeocdn.com https://mc.yandex.ru; frame-src 'self' blob: https://player.vimeo.com https://mc.yandex.ru; child-src 'self' blob: https://player.vimeo.com https://mc.yandex.ru; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://mc.yandex.ru https://mc.webvisor.com https://mc.webvisor.org; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self';
 
 /sitemap.xml
   Content-Type: application/xml; charset=UTF-8
