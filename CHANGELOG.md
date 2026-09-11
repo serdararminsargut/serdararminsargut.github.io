@@ -34,3 +34,5 @@ These documentation/agent-instruction changes do not intentionally modify site c
 - Added the same guide to the Turkish blog hub and its structured `ItemList` in commit `a14b9ff`.
 - Production verification: on 11 September 2026, the live blog hub returned HTTP 200 and exposed the new internal link; the guide and homepage also returned HTTP 200.
 - No URL, canonical, sitemap, robots, analytics or structured-data route was changed.
+
+- Linked `/blog/cocuk-model-portfoyu/` to the product-model guide in commit `3585470`; live verification confirmed the link, updated Article dateModified value and HTTP 200 responses for the source, target and blog hub.
