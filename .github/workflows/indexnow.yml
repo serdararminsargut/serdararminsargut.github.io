@@ -39,7 +39,7 @@ jobs:
               *) continue ;;
             esac
 
-            payload=$(printf '{"host":"serdararminsargut.pages.dev","key":"%s","keyLocation":"%s/%s.txt","urlList":["%s"]}' "$INDEXNOW_KEY" "$SITE_ORIGIN" "$INDEXNOW_KEY" "$url")
+            payload=$(printf '{"host":"serdararminsargut.pages.dev","key":"%s","keyLocation":"%s/assets/indexnow/%s.txt","urlList":["%s"]}' "$INDEXNOW_KEY" "$SITE_ORIGIN" "$INDEXNOW_KEY" "$url")
             curl --fail --silent --show-error --request POST \
               --header 'Content-Type: application/json; charset=utf-8' \
               --data "$payload" \
