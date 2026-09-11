@@ -77,6 +77,7 @@ jobs:
             en \
             favicon.svg \
             index.html \
+            indexnow-key.txt \
             kk \
             ky \
             llms.txt \
