@@ -26,3 +26,11 @@ This file records meaningful project and AI-coordination changes. It is not a su
 ### Production impact
 
 These documentation/agent-instruction changes do not intentionally modify site content, `robots.txt`, `sitemap.xml`, analytics, canonical URLs or SEO markup.
+
+
+### Verified commercial SEO content deployment
+
+- Added manufacturer/brand-intent content to `/blog/erkek-cocuk-urun-modeli/` in commit `c581ca5`.
+- Added the same guide to the Turkish blog hub and its structured `ItemList` in commit `a14b9ff`.
+- Production verification: on 11 September 2026, the live blog hub returned HTTP 200 and exposed the new internal link; the guide and homepage also returned HTTP 200.
+- No URL, canonical, sitemap, robots, analytics or structured-data route was changed.
