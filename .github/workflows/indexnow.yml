@@ -1,0 +1,48 @@
+name: Notify IndexNow
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.html'
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Wait for Cloudflare Pages deployment
+        run: sleep 90
+      - name: Notify IndexNow of changed pages
+        env:
+          INDEXNOW_KEY: 72f0dad836e29ffcc2d9dd42a794dbf0
+          SITE_ORIGIN: https://serdararminsargut.pages.dev
+          BASE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            exit 0
+          fi
+
+          git diff --name-only "$BASE_SHA" "$GITHUB_SHA" -- '*.html' |
+          while IFS= read -r file; do
+            [ -n "$file" ] || continue
+            case "$file" in
+              index.html) url="$SITE_ORIGIN/" ;;
+              */index.html) url="$SITE_ORIGIN/${file%index.html}" ;;
+              *.html) url="$SITE_ORIGIN/${file%.html}" ;;
+              *) continue ;;
+            esac
+
+            payload=$(printf '{"host":"serdararminsargut.pages.dev","key":"%s","keyLocation":"%s/%s.txt","urlList":["%s"]}' "$INDEXNOW_KEY" "$SITE_ORIGIN" "$INDEXNOW_KEY" "$url")
+            curl --fail --silent --show-error --request POST \
+              --header 'Content-Type: application/json; charset=utf-8' \
+              --data "$payload" \
+              https://api.indexnow.org/indexnow
+            echo "Submitted: $url"
+          done
