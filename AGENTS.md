@@ -571,10 +571,13 @@ Repository files and Git history are the shared source of truth.
 Before beginning work:
 
 1. read this `AGENTS.md`
-2. inspect `git status`
-3. inspect recent commits
-4. inspect relevant files
-5. verify production where needed
+2. read `docs/PRODUCTION_STATUS.md`
+3. read `NEXT_ACTIONS.md`
+4. inspect recent commits
+5. inspect relevant files
+6. verify production where needed
+
+After meaningful work, update the appropriate continuity files so the next AI agent can continue from the same state.
 
 If another agent has already implemented a valid solution, preserve it.
 
@@ -678,3 +681,53 @@ Technical stability takes priority over experimental optimization.
 If production is working and there is no verified defect, preserve the current implementation.
 
 All AI agents working on this repository must treat stability, reversibility, traceability and live verification as mandatory.
+
+---
+
+## 28. Verified Recommendations and Alternatives
+
+Recommendations, alternatives and proposed fixes must be evidence-based.
+
+Classify important technical findings and alternatives using one of these states:
+
+- **VERIFIED** — directly tested or confirmed from authoritative/current evidence.
+- **SUPPORTED** — strongly supported by evidence but not fully reproduced in the current environment.
+- **UNVERIFIED** — plausible but not yet tested or confirmed.
+- **REJECTED** — tested and found false, ineffective, unsafe or unsuitable for this project.
+
+When recommending an alternative tool, configuration, SEO tactic, crawler rule, deployment method or technical fix:
+
+1. Prefer solutions already tested successfully in this repository.
+2. Otherwise verify current authoritative documentation before recommending implementation.
+3. Where safe, perform a non-destructive test before production use.
+4. State the evidence level clearly.
+5. Explain expected benefit, risk and rollback path.
+6. Never present an `UNVERIFIED` theory as a confirmed root cause.
+7. Never apply an `UNVERIFIED` production change merely because it is theoretically possible.
+8. If evidence is incomplete, say so explicitly instead of guessing.
+
+For Search Console, sitemap, robots, crawler and Cloudflare issues in particular, separate hypotheses from verified causes.
+
+---
+
+## 29. Shared Project State and Handoff
+
+All AI agents must use repository files—not assumed conversational memory—to understand where the project stopped.
+
+The shared continuity files are:
+
+- `docs/PRODUCTION_STATUS.md` — latest known production/project state and evidence labels
+- `NEXT_ACTIONS.md` — unresolved tasks and next safe actions
+- `CHANGELOG.md` — human-readable record of meaningful changes
+- Git history — immutable implementation evidence
+
+Before starting a technical task, read these files together with `AGENTS.md`.
+
+After meaningful work:
+
+- update `docs/PRODUCTION_STATUS.md` when the known state changes
+- update `NEXT_ACTIONS.md` when a task is completed, blocked or replaced
+- update `CHANGELOG.md` for meaningful project/process changes
+- include commit/date/test evidence where applicable
+
+This handoff process exists so Claude, Codex, Copilot and other AI agents can continue from the same verified project state without repeating old tests, reintroducing rejected ideas or treating previous hypotheses as facts.
