@@ -1,0 +1,45 @@
+name: IndexNow HTTP Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-indexnow:
+    name: Test IndexNow HTTP status
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Submit homepage and show HTTP status
+        shell: bash
+        run: |
+          URL="https://www.bing.com/indexnow?url=https%3A%2F%2Fserdararminsargut.pages.dev%2F&key=72f0dad836e29ffcc2d9dd42a794dbf0"
+
+          HTTP_CODE=$(curl -sS \
+            --connect-timeout 15 \
+            --max-time 30 \
+            -o /tmp/indexnow-response.txt \
+            -w "%{http_code}" \
+            "$URL")
+
+          echo "INDEXNOW_HTTP_STATUS=$HTTP_CODE"
+
+          echo "----- RESPONSE BODY -----"
+          cat /tmp/indexnow-response.txt || true
+          echo
+          echo "-------------------------"
+
+          case "$HTTP_CODE" in
+            200)
+              echo "SUCCESS: IndexNow accepted the URL."
+              ;;
+            202)
+              echo "PENDING: IndexNow accepted the request; key validation may still be pending."
+              ;;
+            *)
+              echo "ERROR: IndexNow returned HTTP $HTTP_CODE"
+              exit 1
+              ;;
+          esac
