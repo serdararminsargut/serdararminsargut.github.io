@@ -2,7 +2,7 @@
 
 **Purpose:** Shared current-state record for Claude, Codex, Copilot and other AI agents.
 
-**Last updated:** 2026-09-11
+**Last updated:** 2026-09-12
 
 ## Production
 
@@ -42,6 +42,14 @@ Last observed project state:
 - Do not change working production files without evidence of a defect.
 - Do not infer that a GitHub commit is live until production is verified.
 - Preserve existing SEO metadata, canonical URLs, structured data, analytics and multilingual routes unless a verified issue requires a change.
+
+## Performance Verification
+
+- On 12 September 2026, mobile PageSpeed Insights laboratory measurements were rerun after production performance adjustments.
+- Commit `c428e7830de83f4b85239b160f259ded1b46f42b` changed only `index.html`: the LCP hero image now uses `decoding="sync"`; existing GA4 and Yandex scripts use `defer` so parsing is not blocked.
+- Live source verification and W3C Nu validation completed: 0 errors, 0 warnings (71 informational void-element notices).
+- PageSpeed Insight test runs were materially variable: one run reported LCP 2.5 s / performance 96; a second run reported LCP 4.6 s / performance 83. Treat the 2.5 s result as an observed laboratory run, not a guaranteed or stable field result.
+- The experimental body-end analytics placement was reverted in commit `ee2bf06217636b985b367d5894f1bbfeb70fb94c` because it did not demonstrate an additional repeatable benefit. The current production implementation remains the verified low-risk deferred-head version.
 
 ## Current Strategic Direction
 
