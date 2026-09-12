@@ -1,0 +1,125 @@
+name: Normalize P0 hreflang once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/p0-hreflang-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Normalize hreflang on remaining 15 P0 pages
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          base = 'https://serdararminsargut.pages.dev'
+          groups = [
+              {
+                  'tr': '/erkek-cocuk-model/',
+                  'en': '/en/boy-model/',
+                  'ar': '/ar/model-walad/',
+                  'ru': '/ru/model-malchik/',
+                  'files': [
+                      'en/boy-model/index.html',
+                      'ar/model-walad/index.html',
+                      'ru/model-malchik/index.html',
+                  ],
+              },
+              {
+                  'tr': '/spor-giyim-cocuk-modeli/',
+                  'en': '/en/kids-sportswear-model/',
+                  'ar': '/ar/model-atfal-malabis-riyadiya/',
+                  'ru': '/ru/detskaya-sportivnaya-model/',
+                  'files': [
+                      'spor-giyim-cocuk-modeli/index.html',
+                      'en/kids-sportswear-model/index.html',
+                      'ar/model-atfal-malabis-riyadiya/index.html',
+                      'ru/detskaya-sportivnaya-model/index.html',
+                  ],
+              },
+              {
+                  'tr': '/cocuk-giyim-modeli/',
+                  'en': '/en/kidswear-model/',
+                  'ar': '/ar/model-atfal-malabis/',
+                  'ru': '/ru/model-detskoy-odezhdy/',
+                  'files': [
+                      'cocuk-giyim-modeli/index.html',
+                      'en/kidswear-model/index.html',
+                      'ar/model-atfal-malabis/index.html',
+                      'ru/model-detskoy-odezhdy/index.html',
+                  ],
+              },
+              {
+                  'tr': '/e-ticaret-cocuk-modeli/',
+                  'en': '/en/ecommerce-child-model/',
+                  'ar': '/ar/model-atfal-tijara-elektroniya/',
+                  'ru': '/ru/model-dlya-internet-magazina/',
+                  'files': [
+                      'e-ticaret-cocuk-modeli/index.html',
+                      'en/ecommerce-child-model/index.html',
+                      'ar/model-atfal-tijara-elektroniya/index.html',
+                      'ru/model-dlya-internet-magazina/index.html',
+                  ],
+              },
+          ]
+
+          alt_re = re.compile(r'<link\s+rel="alternate"\s+hreflang="(?:tr|en|ar|ru|x-default)"\s+href="[^"]+"\s*/?>\s*')
+          canon_re = re.compile(r'(<link\s+rel="canonical"\s+href="[^"]+"\s*/?>)')
+
+          changed = []
+          for group in groups:
+              block = ''.join([
+                  f'\n<link rel="alternate" hreflang="tr" href="{base}{group["tr"]}">',
+                  f'\n<link rel="alternate" hreflang="en" href="{base}{group["en"]}">',
+                  f'\n<link rel="alternate" hreflang="ar" href="{base}{group["ar"]}">',
+                  f'\n<link rel="alternate" hreflang="ru" href="{base}{group["ru"]}">',
+                  f'\n<link rel="alternate" hreflang="x-default" href="{base}{group["tr"]}">',
+              ])
+              for rel in group['files']:
+                  path = Path(rel)
+                  if not path.exists():
+                      raise SystemExit(f'Missing target file: {rel}')
+                  original = path.read_text(encoding='utf-8')
+                  cleaned = alt_re.sub('', original)
+                  if not canon_re.search(cleaned):
+                      raise SystemExit(f'Canonical not found: {rel}')
+                  updated = canon_re.sub(lambda m: m.group(1) + block, cleaned, count=1)
+
+                  # Validation: canonical preserved and exactly five expected hreflang tags.
+                  old_canon = canon_re.search(original).group(1)
+                  new_canon = canon_re.search(updated).group(1)
+                  if old_canon != new_canon:
+                      raise SystemExit(f'Canonical changed unexpectedly: {rel}')
+                  for lang in ('tr','en','ar','ru','x-default'):
+                      if updated.count(f'hreflang="{lang}"') != 1:
+                          raise SystemExit(f'Invalid {lang} hreflang count in {rel}')
+
+                  if updated != original:
+                      path.write_text(updated, encoding='utf-8')
+                      changed.append(rel)
+
+          if len(changed) != 15:
+              raise SystemExit(f'Expected 15 changed files, got {len(changed)}: {changed}')
+
+          print('Updated 15 P0 pages:')
+          for rel in changed:
+              print(rel)
+
+      - name: Commit P0 hreflang normalization and remove one-time workflow
+        run: |
+          rm .github/workflows/p0-hreflang-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "SEO: complete reciprocal hreflang across 16 P0 pages"
+          git push
