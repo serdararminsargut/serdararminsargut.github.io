@@ -77,13 +77,21 @@ jobs:
           canon_re = re.compile(r'(<link\s+rel="canonical"\s+href="[^"]+"\s*/?>)')
 
           changed = []
+          checked = []
           for group in groups:
+              expected = {
+                  'tr': f'{base}{group["tr"]}',
+                  'en': f'{base}{group["en"]}',
+                  'ar': f'{base}{group["ar"]}',
+                  'ru': f'{base}{group["ru"]}',
+                  'x-default': f'{base}{group["tr"]}',
+              }
               block = ''.join([
-                  f'\n<link rel="alternate" hreflang="tr" href="{base}{group["tr"]}">',
-                  f'\n<link rel="alternate" hreflang="en" href="{base}{group["en"]}">',
-                  f'\n<link rel="alternate" hreflang="ar" href="{base}{group["ar"]}">',
-                  f'\n<link rel="alternate" hreflang="ru" href="{base}{group["ru"]}">',
-                  f'\n<link rel="alternate" hreflang="x-default" href="{base}{group["tr"]}">',
+                  f'\n<link rel="alternate" hreflang="tr" href="{expected["tr"]}">',
+                  f'\n<link rel="alternate" hreflang="en" href="{expected["en"]}">',
+                  f'\n<link rel="alternate" hreflang="ar" href="{expected["ar"]}">',
+                  f'\n<link rel="alternate" hreflang="ru" href="{expected["ru"]}">',
+                  f'\n<link rel="alternate" hreflang="x-default" href="{expected["x-default"]}">',
               ])
               for rel in group['files']:
                   path = Path(rel)
@@ -95,23 +103,24 @@ jobs:
                       raise SystemExit(f'Canonical not found: {rel}')
                   updated = canon_re.sub(lambda m: m.group(1) + block, cleaned, count=1)
 
-                  # Validation: canonical preserved and exactly five expected hreflang tags.
                   old_canon = canon_re.search(original).group(1)
                   new_canon = canon_re.search(updated).group(1)
                   if old_canon != new_canon:
                       raise SystemExit(f'Canonical changed unexpectedly: {rel}')
-                  for lang in ('tr','en','ar','ru','x-default'):
-                      if updated.count(f'hreflang="{lang}"') != 1:
-                          raise SystemExit(f'Invalid {lang} hreflang count in {rel}')
+                  for lang, href in expected.items():
+                      tag = f'<link rel="alternate" hreflang="{lang}" href="{href}">'
+                      if updated.count(tag) != 1:
+                          raise SystemExit(f'Invalid {lang} hreflang in {rel}')
 
+                  checked.append(rel)
                   if updated != original:
                       path.write_text(updated, encoding='utf-8')
                       changed.append(rel)
 
-          if len(changed) != 15:
-              raise SystemExit(f'Expected 15 changed files, got {len(changed)}: {changed}')
+          if len(checked) != 15:
+              raise SystemExit(f'Expected 15 checked files, got {len(checked)}')
 
-          print('Updated 15 P0 pages:')
+          print(f'Validated 15 P0 pages; changed {len(changed)} files.')
           for rel in changed:
               print(rel)
 
