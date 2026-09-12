@@ -75,39 +75,47 @@
       window.open(IG_URL,'_blank','noopener,noreferrer');
     },true);
   });
-
-  const modelFilterButtons=[...document.querySelectorAll('[data-model-filter]')];
-  const modelItems=[...document.querySelectorAll('.gallery [data-model-tags]')];
-  modelFilterButtons.forEach(btn=>btn.addEventListener('click',()=>{
-    const filter=btn.dataset.modelFilter;
-    const clear=btn.getAttribute('aria-pressed')==='true';
-    modelFilterButtons.forEach(other=>other.setAttribute('aria-pressed','false'));
-    const active=clear?'all':filter;
-    if(!clear) btn.setAttribute('aria-pressed','true');
-    modelItems.forEach(item=>{
-      const tags=(item.dataset.modelTags||'').split(/\s+/);
-      item.hidden=active!=='all'&&!tags.includes(active);
-    });
-    sendGA('model_filter_click',{filter:active,language:lang,page_path:location.pathname});
-    document.querySelector('#portfolio')?.scrollIntoView({behavior:'smooth',block:'start'});
-  }));
   document.querySelectorAll('[data-comp-card-link]').forEach(a=>a.addEventListener('click',()=>{
     sendGA('comp_card_click',{placement:a.dataset.compCardLink||'site_link',language:lang,page_path:location.pathname,link_url:a.href});
   }));
 
-  const lb=document.querySelector('.lightbox'),lbImg=lb?.querySelector('img'),close=lb?.querySelector('button');
-  document.querySelectorAll('[data-lightbox]').forEach(b=>b.addEventListener('click',()=>{
-    if(b.dataset.instagramTile==='true') return;
-    lbImg.src=b.dataset.lightbox;lbImg.alt=b.querySelector('img').alt;lb.classList.add('open');document.body.classList.add('modal-open')
-  }));
-  const shut=()=>{lb?.classList.remove('open');if(lbImg)lbImg.src='';if(!document.querySelector('.video-modal.open')) document.body.classList.remove('modal-open')};
-  close?.addEventListener('click',shut);lb?.addEventListener('click',e=>{if(e.target===lb)shut()});
+  const initDeferredUI=()=>{
+    const modelFilterButtons=[...document.querySelectorAll('[data-model-filter]')];
+    const modelItems=[...document.querySelectorAll('.gallery [data-model-tags]')];
+    modelFilterButtons.forEach(btn=>btn.addEventListener('click',()=>{
+      const filter=btn.dataset.modelFilter;
+      const clear=btn.getAttribute('aria-pressed')==='true';
+      modelFilterButtons.forEach(other=>other.setAttribute('aria-pressed','false'));
+      const active=clear?'all':filter;
+      if(!clear) btn.setAttribute('aria-pressed','true');
+      modelItems.forEach(item=>{
+        const tags=(item.dataset.modelTags||'').split(/\s+/);
+        item.hidden=active!=='all'&&!tags.includes(active);
+      });
+      sendGA('model_filter_click',{filter:active,language:lang,page_path:location.pathname});
+      document.querySelector('#portfolio')?.scrollIntoView({behavior:'smooth',block:'start'});
+    }));
 
-  const videoModal=document.querySelector('.video-modal'),videoInner=videoModal?.querySelector('.video-modal-inner'),videoFrame=videoModal?.querySelector('iframe'),videoClose=videoModal?.querySelector('.video-close');
-  let lastVideoTrigger=null;
-  const openFullscreen=()=>{const req=videoInner&&(videoInner.requestFullscreen||videoInner.webkitRequestFullscreen||videoInner.msRequestFullscreen);if(req){try{req.call(videoInner)}catch(e){}}};
-  const closeFullscreen=()=>{const exit=document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen;if((document.fullscreenElement||document.webkitFullscreenElement||document.msFullscreenElement)&&exit){try{exit.call(document)}catch(e){}}};
-  const shutVideo=()=>{videoModal?.classList.remove('open');videoInner?.classList.remove('portrait');closeFullscreen();if(videoFrame){videoFrame.src='about:blank';videoFrame.title='Serdar Armin Sargut showreel video oynatıcısı';}if(!document.querySelector('.lightbox.open')) document.body.classList.remove('modal-open');const trigger=lastVideoTrigger;lastVideoTrigger=null;trigger?.focus()};
-  videoClose?.addEventListener('click',shutVideo);videoModal?.addEventListener('click',e=>{if(e.target===videoModal)shutVideo()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){shut();shutVideo()}});
-  document.querySelectorAll('[data-video]').forEach(btn=>btn.addEventListener('click',()=>{lastVideoTrigger=btn;videoInner?.classList.toggle('portrait',btn.dataset.aspect==='portrait');sendGA('showreel_play',{placement:'showreel_grid',video_id:btn.dataset.video,video_title:btn.dataset.title||'Showreel video',language:lang,page_path:location.pathname});if(videoFrame){videoFrame.src='https://player.vimeo.com/video/'+btn.dataset.video+'?autoplay=1&title=0&byline=0&portrait=0';videoFrame.title=btn.dataset.title||'Showreel video';}videoModal?.classList.add('open');document.body.classList.add('modal-open');setTimeout(openFullscreen,80)}));
+    const lb=document.querySelector('.lightbox'),lbImg=lb?.querySelector('img'),close=lb?.querySelector('button');
+    document.querySelectorAll('[data-lightbox]').forEach(b=>b.addEventListener('click',()=>{
+      if(b.dataset.instagramTile==='true') return;
+      lbImg.src=b.dataset.lightbox;lbImg.alt=b.querySelector('img').alt;lb.classList.add('open');document.body.classList.add('modal-open');
+    }));
+    const shut=()=>{lb?.classList.remove('open');if(lbImg)lbImg.src='';if(!document.querySelector('.video-modal.open')) document.body.classList.remove('modal-open');};
+    close?.addEventListener('click',shut);lb?.addEventListener('click',e=>{if(e.target===lb)shut();});
+
+    const videoModal=document.querySelector('.video-modal'),videoInner=videoModal?.querySelector('.video-modal-inner'),videoFrame=videoModal?.querySelector('iframe'),videoClose=videoModal?.querySelector('.video-close');
+    let lastVideoTrigger=null;
+    const openFullscreen=()=>{const req=videoInner&&(videoInner.requestFullscreen||videoInner.webkitRequestFullscreen||videoInner.msRequestFullscreen);if(req){try{req.call(videoInner);}catch(e){}}};
+    const closeFullscreen=()=>{const exit=document.exitFullscreen||document.webkitExitFullscreen||document.msExitFullscreen;if((document.fullscreenElement||document.webkitFullscreenElement||document.msFullscreenElement)&&exit){try{exit.call(document);}catch(e){}}};
+    const shutVideo=()=>{videoModal?.classList.remove('open');videoInner?.classList.remove('portrait');closeFullscreen();if(videoFrame){videoFrame.src='about:blank';videoFrame.title='Serdar Armin Sargut showreel video oynatıcısı';}if(!document.querySelector('.lightbox.open')) document.body.classList.remove('modal-open');const trigger=lastVideoTrigger;lastVideoTrigger=null;trigger?.focus();};
+    videoClose?.addEventListener('click',shutVideo);videoModal?.addEventListener('click',e=>{if(e.target===videoModal)shutVideo();});document.addEventListener('keydown',e=>{if(e.key==='Escape'){shut();shutVideo();}});
+    document.querySelectorAll('[data-video]').forEach(btn=>btn.addEventListener('click',()=>{lastVideoTrigger=btn;videoInner?.classList.toggle('portrait',btn.dataset.aspect==='portrait');sendGA('showreel_play',{placement:'showreel_grid',video_id:btn.dataset.video,video_title:btn.dataset.title||'Showreel video',language:lang,page_path:location.pathname});if(videoFrame){videoFrame.src='https://player.vimeo.com/video/'+btn.dataset.video+'?autoplay=1&title=0&byline=0&portrait=0';videoFrame.title=btn.dataset.title||'Showreel video';}videoModal?.classList.add('open');document.body.classList.add('modal-open');setTimeout(openFullscreen,80);}));
+  };
+
+  if('requestIdleCallback' in window){
+    window.requestIdleCallback(initDeferredUI,{timeout:1500});
+  }else{
+    window.setTimeout(initDeferredUI,800);
+  }
 })();
