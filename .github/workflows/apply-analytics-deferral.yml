@@ -1,0 +1,45 @@
+name: Apply analytics deferral fix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-analytics-deferral.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Remove early third-party GA loader
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          old = '<script defer src="https://www.googletagmanager.com/gtag/js?id=G-H894LKL93J"></script>\n'
+          if old not in s:
+              raise SystemExit('Expected early GA loader not found; refusing to modify index.html')
+          s2 = s.replace(old, '', 1)
+          if s2 == s:
+              raise SystemExit('No change made')
+          p.write_text(s2, encoding='utf-8')
+          PY
+      - name: Verify analytics bootstrap remains
+        run: |
+          grep -F '<script defer src="/assets/js/analytics.js"></script>' index.html
+          ! grep -F '<script defer src="https://www.googletagmanager.com/gtag/js?id=G-H894LKL93J"></script>' index.html
+          grep -F "requestIdleCallback" assets/js/analytics.js
+      - name: Commit fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html assets/js/analytics.js
+          git diff --cached --quiet && exit 0
+          git commit -m "perf: complete analytics deferral for initial render"
+          git push origin main
