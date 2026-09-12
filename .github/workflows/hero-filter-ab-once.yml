@@ -1,0 +1,52 @@
+name: Hero filter A/B once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hero-filter-ab-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  hero-filter-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove hero image filters only
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('assets/css/site.css')
+          original = path.read_text(encoding='utf-8')
+
+          desktop = 'filter:brightness(.66) saturate(.92)'
+          mobile = 'filter:brightness(.82) saturate(.94)'
+
+          if original.count(desktop) != 1:
+              raise SystemExit(f'Expected exactly one desktop hero filter, found {original.count(desktop)}')
+          if original.count(mobile) != 1:
+              raise SystemExit(f'Expected exactly one mobile hero filter, found {original.count(mobile)}')
+
+          updated = original.replace(desktop, 'filter:none', 1)
+          updated = updated.replace(mobile, 'filter:none', 1)
+
+          # Guardrail: no layout, gradient, or hero sizing selectors are altered here.
+          if updated == original:
+              raise SystemExit('No CSS change produced')
+
+          path.write_text(updated, encoding='utf-8')
+          print('Hero image filters removed; all other CSS preserved.')
+
+      - name: Commit A/B change and remove one-time workflow
+        run: |
+          rm .github/workflows/hero-filter-ab-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "perf: remove hero image filters for LCP A/B test"
+          git push
