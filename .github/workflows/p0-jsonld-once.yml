@@ -1,0 +1,117 @@
+name: P0 JSON-LD once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/p0-jsonld-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  add-jsonld:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Add WebPage JSON-LD to 16 P0 pages
+        shell: python
+        run: |
+          from pathlib import Path
+          import re, json
+
+          files = [
+            'erkek-cocuk-model/index.html',
+            'spor-giyim-cocuk-modeli/index.html',
+            'cocuk-giyim-modeli/index.html',
+            'e-ticaret-cocuk-modeli/index.html',
+            'en/boy-model/index.html',
+            'en/kids-sportswear-model/index.html',
+            'en/kidswear-model/index.html',
+            'en/ecommerce-child-model/index.html',
+            'ar/model-walad/index.html',
+            'ar/model-atfal-malabis-riyadiya/index.html',
+            'ar/model-atfal-malabis/index.html',
+            'ar/model-atfal-tijara-elektroniya/index.html',
+            'ru/model-malchik/index.html',
+            'ru/detskaya-sportivnaya-model/index.html',
+            'ru/model-detskoy-odezhdy/index.html',
+            'ru/model-dlya-internet-magazina/index.html',
+          ]
+
+          canonical_re = re.compile(r'<link\s+rel="canonical"\s+href="([^"]+)"\s*/?>')
+          hreflang_re = re.compile(r'<link\s+rel="alternate"\s+hreflang="(?:tr|en|ar|ru|x-default)"\s+href="[^"]+"\s*/?>')
+          title_re = re.compile(r'<title>(.*?)</title>', re.S)
+          desc_re = re.compile(r'<meta\s+name="description"\s+content="([^"]*)"\s*/?>', re.I)
+          lang_re = re.compile(r'<html[^>]*\blang="([^"]+)"', re.I)
+          marker = '<!-- P0_JSONLD_WEBPAGE -->'
+          changed = []
+
+          for rel in files:
+            path = Path(rel)
+            original = path.read_text(encoding='utf-8')
+            if marker in original:
+              raise SystemExit(f'JSON-LD marker already exists: {rel}')
+            if 'application/ld+json' in original:
+              raise SystemExit(f'Existing JSON-LD found unexpectedly: {rel}')
+
+            canonical_match = canonical_re.search(original)
+            title_match = title_re.search(original)
+            desc_match = desc_re.search(original)
+            lang_match = lang_re.search(original)
+            if not all([canonical_match, title_match, desc_match, lang_match]):
+              raise SystemExit(f'Required metadata missing: {rel}')
+
+            canonical_before = canonical_re.findall(original)
+            hreflang_before = hreflang_re.findall(original)
+            internal_before = re.findall(r'<!-- P0_INTERNAL_LINKS_START -->.*?<!-- P0_INTERNAL_LINKS_END -->', original, re.S)
+            if len(canonical_before) != 1 or len(hreflang_before) != 5 or len(internal_before) != 1:
+              raise SystemExit(f'Invariant failed before update: {rel}; canon={len(canonical_before)} hreflang={len(hreflang_before)} internal={len(internal_before)}')
+
+            canonical = canonical_match.group(1)
+            title = re.sub(r'\s+', ' ', title_match.group(1)).strip()
+            description = desc_match.group(1)
+            lang = lang_match.group(1).split('-')[0].lower()
+
+            data = {
+              '@context': 'https://schema.org',
+              '@type': 'WebPage',
+              '@id': canonical + '#webpage',
+              'url': canonical,
+              'name': title,
+              'description': description,
+              'inLanguage': lang,
+              'isPartOf': {'@id': 'https://serdararminsargut.pages.dev/#website'},
+              'mainEntity': {'@id': 'https://serdararminsargut.pages.dev/#person'}
+            }
+            block = '\n' + marker + '\n<script type="application/ld+json">' + json.dumps(data, ensure_ascii=False, separators=(',', ':')) + '</script>\n'
+            if '</head>' not in original:
+              raise SystemExit(f'No </head>: {rel}')
+            updated = original.replace('</head>', block + '</head>', 1)
+
+            if canonical_re.findall(updated) != canonical_before:
+              raise SystemExit(f'Canonical changed: {rel}')
+            if hreflang_re.findall(updated) != hreflang_before:
+              raise SystemExit(f'Hreflang changed: {rel}')
+            if re.findall(r'<!-- P0_INTERNAL_LINKS_START -->.*?<!-- P0_INTERNAL_LINKS_END -->', updated, re.S) != internal_before:
+              raise SystemExit(f'Internal links changed: {rel}')
+            if updated.count(marker) != 1 or updated.count('application/ld+json') != 1:
+              raise SystemExit(f'JSON-LD insert failed: {rel}')
+
+            path.write_text(updated, encoding='utf-8')
+            changed.append(rel)
+
+          if len(changed) != 16:
+            raise SystemExit(f'Expected 16 changed files, got {len(changed)}')
+          print('Updated 16 P0 pages with WebPage JSON-LD')
+
+      - name: Commit JSON-LD update and remove one-time workflow
+        run: |
+          rm .github/workflows/p0-jsonld-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "SEO: add WebPage JSON-LD across 16 P0 pages"
+          git push
