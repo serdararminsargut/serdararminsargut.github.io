@@ -2,6 +2,16 @@
 
 This file records meaningful project and AI-coordination changes. It is not a substitute for Git history; it is a human-readable handoff layer for Claude, Codex, Copilot and other agents.
 
+## 2026-09-12
+
+### Mobile LCP loading adjustment
+
+- Commit `c428e7830de83f4b85239b160f259ded1b46f42b` updates only `index.html`: LCP hero image decoding is synchronous and GA4/Yandex bootstrap scripts are deferred.
+- The hero preload, responsive sources, fetch priority, visible copy, SEO metadata and analytics IDs remain unchanged.
+- Live source check confirmed the intended loading attributes; W3C Nu validation returned 0 errors and 0 warnings.
+- A short experimental body-end analytics placement was reverted in `ee2bf06217636b985b367d5894f1bbfeb70fb94c` because PageSpeed lab results did not show a repeatable additional gain.
+- Mobile PageSpeed Insights lab measurements varied (LCP 2.5 s and 4.6 s); no stable field-data conclusion is claimed.
+
 ## 2026-09-11
 
 ### Added shared AI operating policy
