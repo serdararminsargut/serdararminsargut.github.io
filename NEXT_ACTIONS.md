@@ -1,6 +1,6 @@
 # Next Actions — Serdar Armin Sargut
 
-**Last updated:** 2026-09-11
+**Last updated:** 2026-09-12
 
 This file records unresolved work so Claude, Codex, Copilot and other AI agents can continue without relying on conversational memory.
 
@@ -53,6 +53,17 @@ After technical stability is confirmed, continue Turkish commercial-intent SEO a
 - product/commercial photography
 
 Any new keyword or content recommendation must be evaluated for search intent, relevance to Serdar's profile and spam risk before production use.
+
+## Priority 4 — Mobile LCP Field Validation
+
+Current state: the production source uses an early-preloaded high-priority hero image, synchronous LCP-image decoding and deferred GA4/Yandex bootstrap. These are verified source/live changes.
+
+Next safe action:
+
+1. Do not treat a single PageSpeed Insights lab run as a release guarantee; recent mobile runs varied between 2.5 s and 4.6 s LCP.
+2. Collect enough real-user CrUX/Search Console data once traffic volume is sufficient; the current PageSpeed report reports no field data.
+3. If further work is required, first inspect the LCP breakdown and network trace from a reproducibly slow run. Do not remove analytics or reduce approved hero-image quality without evidence.
+4. Preserve the current GA4/Yandex IDs and existing event tracking when testing alternatives.
 
 ## Recommendation Gate
 
