@@ -5,10 +5,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - .github/workflows/indexnow-submit-p0.yml
 
 jobs:
   submit:
-    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'chore: submit P0 URLs to IndexNow'
     runs-on: ubuntu-latest
     steps:
       - name: Submit four Turkish P0 URLs
