@@ -1,0 +1,22 @@
+name: Submit Turkish P0 URLs to IndexNow
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  submit:
+    if: github.event_name == 'workflow_dispatch' || github.event.head_commit.message == 'chore: submit P0 URLs to IndexNow'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Submit four Turkish P0 URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload='{"host":"serdararminsargut.pages.dev","key":"72f0dad836e29ffcc2d9dd42a794dbf0","keyLocation":"https://serdararminsargut.pages.dev/indexnow-key.txt","urlList":["https://serdararminsargut.pages.dev/erkek-cocuk-model/","https://serdararminsargut.pages.dev/spor-giyim-cocuk-modeli/","https://serdararminsargut.pages.dev/cocuk-giyim-modeli/","https://serdararminsargut.pages.dev/e-ticaret-cocuk-modeli/"]}'
+          code=$(curl -sS --connect-timeout 15 --max-time 45 -o /tmp/indexnow-response -w '%{http_code}' -X POST 'https://api.indexnow.org/IndexNow' -H 'Content-Type: application/json; charset=utf-8' --data "$payload")
+          echo "IndexNow HTTP status: $code"
+          cat /tmp/indexnow-response || true
+          case "$code" in 200|202) ;; *) exit 1 ;; esac
