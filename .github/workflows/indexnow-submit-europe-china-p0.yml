@@ -1,0 +1,106 @@
+name: Submit DE FR IT ZH P0 URLs to IndexNow
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/indexnow-submit-europe-china-p0.yml
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Submit 16 URLs individually to IndexNow
+        shell: bash
+        run: |
+          set -euo pipefail
+          host='serdararminsargut.pages.dev'
+          key='72f0dad836e29ffcc2d9dd42a794dbf0'
+          key_location='https://serdararminsargut.pages.dev/indexnow-key.txt'
+          urls=(
+            'https://serdararminsargut.pages.dev/de/jungen-model/'
+            'https://serdararminsargut.pages.dev/de/kinder-sportmode-model/'
+            'https://serdararminsargut.pages.dev/de/kindermode-model/'
+            'https://serdararminsargut.pages.dev/de/ecommerce-kinder-model/'
+            'https://serdararminsargut.pages.dev/fr/mannequin-garcon/'
+            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-sportswear/'
+            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-vetements/'
+            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-ecommerce/'
+            'https://serdararminsargut.pages.dev/it/modello-bambino/'
+            'https://serdararminsargut.pages.dev/it/modello-bambino-abbigliamento-sportivo/'
+            'https://serdararminsargut.pages.dev/it/modello-bambino-abbigliamento/'
+            'https://serdararminsargut.pages.dev/it/modello-bambino-ecommerce/'
+            'https://serdararminsargut.pages.dev/zh-cn/nantong-mote/'
+            'https://serdararminsargut.pages.dev/zh-cn/ertong-yundongfu-mote/'
+            'https://serdararminsargut.pages.dev/zh-cn/ertong-fuzhuang-mote/'
+            'https://serdararminsargut.pages.dev/zh-cn/dianshang-ertong-mote/'
+          )
+
+          failures=0
+          for url in "${urls[@]}"; do
+            payload=$(printf '{"host":"%s","key":"%s","keyLocation":"%s","urlList":["%s"]}' "$host" "$key" "$key_location" "$url")
+            code=''
+            for attempt in 1 2 3; do
+              code=$(curl -sS --connect-timeout 15 --max-time 45 -o /tmp/indexnow-response -w '%{http_code}' \
+                -X POST 'https://api.indexnow.org/IndexNow' \
+                -H 'Content-Type: application/json; charset=utf-8' \
+                --data "$payload" || true)
+              if [[ "$code" == '200' || "$code" == '202' ]]; then
+                break
+              fi
+              if [[ "$code" == '429' || "$code" =~ ^5 ]]; then
+                sleep $((attempt * 3))
+              else
+                break
+              fi
+            done
+            body=$(cat /tmp/indexnow-response 2>/dev/null || true)
+            echo "INDEXNOW | $code | $url | $body"
+            if [[ "$code" != '200' && "$code" != '202' ]]; then
+              failures=$((failures + 1))
+            fi
+            sleep 1
+          done
+
+          echo "IndexNow failures: $failures"
+          test "$failures" -eq 0
+
+      - name: Verify all 16 live URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+          urls=(
+            'https://serdararminsargut.pages.dev/de/jungen-model/'
+            'https://serdararminsargut.pages.dev/de/kinder-sportmode-model/'
+            'https://serdararminsargut.pages.dev/de/kindermode-model/'
+            'https://serdararminsargut.pages.dev/de/ecommerce-kinder-model/'
+            'https://serdararminsargut.pages.dev/fr/mannequin-garcon/'
+            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-sportswear/'
+            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-vetements/'
+            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-ecommerce/'
+            'https://serdararminsargut.pages.dev/it/modello-bambino/'
+            'https://serdararminsargut.pages.dev/it/modello-bambino-abbigliamento-sportivo/'
+            'https://serdararminsargut.pages.dev/it/modello-bambino-abbigliamento/'
+            'https://serdararminsargut.pages.dev/it/modello-bambino-ecommerce/'
+            'https://serdararminsargut.pages.dev/zh-cn/nantong-mote/'
+            'https://serdararminsargut.pages.dev/zh-cn/ertong-yundongfu-mote/'
+            'https://serdararminsargut.pages.dev/zh-cn/ertong-fuzhuang-mote/'
+            'https://serdararminsargut.pages.dev/zh-cn/dianshang-ertong-mote/'
+          )
+
+          failures=0
+          for url in "${urls[@]}"; do
+            result=$(curl -sS -L --max-redirs 5 --connect-timeout 15 --max-time 45 \
+              -A 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)' \
+              -o /dev/null -w '%{http_code} %{url_effective}' "$url" || true)
+            echo "LIVE | $result | $url"
+            case "$result" in
+              200\ https://serdararminsargut.pages.dev/*) ;;
+              *) failures=$((failures + 1)) ;;
+            esac
+          done
+
+          echo "Live URL failures: $failures"
+          test "$failures" -eq 0
