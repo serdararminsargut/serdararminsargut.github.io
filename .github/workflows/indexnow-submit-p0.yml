@@ -21,3 +21,21 @@ jobs:
           echo "IndexNow HTTP status: $code"
           cat /tmp/indexnow-response || true
           case "$code" in 200|202) ;; *) exit 1 ;; esac
+      - name: Verify live P0 responses
+        shell: bash
+        run: |
+          set -euo pipefail
+          urls=(
+            "https://serdararminsargut.pages.dev/erkek-cocuk-model/"
+            "https://serdararminsargut.pages.dev/spor-giyim-cocuk-modeli/"
+            "https://serdararminsargut.pages.dev/cocuk-giyim-modeli/"
+            "https://serdararminsargut.pages.dev/e-ticaret-cocuk-modeli/"
+          )
+          for ua in "Mozilla/5.0" "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)"; do
+            echo "User-Agent: $ua"
+            for url in "${urls[@]}"; do
+              result=$(curl -sS -L --max-redirs 5 --connect-timeout 15 --max-time 45 -A "$ua" -o /dev/null -w '%{http_code} %{url_effective}' "$url")
+              echo "$result $url"
+              case "$result" in 200\ https://serdararminsargut.pages.dev/*) ;; *) exit 1 ;; esac
+            done
+          done
