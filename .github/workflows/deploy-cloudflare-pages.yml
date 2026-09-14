@@ -75,9 +75,11 @@ jobs:
             blog \
             card.html \
             casting-card \
+            de \
             en \
             fa \
             favicon.svg \
+            fr \
             index.html \
             indexnow-key.txt \
             72f0dad836e29ffcc2d9dd42a794dbf0.txt \
@@ -85,6 +87,7 @@ jobs:
             spor-giyim-cocuk-modeli \
             cocuk-giyim-modeli \
             e-ticaret-cocuk-modeli \
+            it \
             kk \
             ky \
             llms.txt \
@@ -99,6 +102,7 @@ jobs:
             sitemap.txt \
             tk \
             uz \
+            zh-cn \
             yandex_*.html
           do
             if compgen -G "$item" > /dev/null; then
