@@ -1,0 +1,108 @@
+name: Normalize main-page hreflang cluster once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hreflang-sync-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  normalize-hreflang:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Normalize and verify hreflang cluster
+        shell: python
+        run: |
+          import re
+          from pathlib import Path
+
+          root = 'https://serdararminsargut.pages.dev'
+          alternates = [
+              ('tr', f'{root}/erkek-cocuk-model/'),
+              ('en', f'{root}/en/boy-model/'),
+              ('ar', f'{root}/ar/model-walad/'),
+              ('ru', f'{root}/ru/model-malchik/'),
+              ('az', f'{root}/az/oglan-usaq-modeli/'),
+              ('kk', f'{root}/kk/ul-bala-modeli/'),
+              ('uz', f'{root}/uz/ogil-bola-modeli/'),
+              ('ky', f'{root}/ky/ul-bala-modeli/'),
+              ('fa', f'{root}/fa/model-pesar/'),
+              ('tk', f'{root}/tk/oglan-caga-modeli/'),
+              ('de', f'{root}/de/jungen-model/'),
+              ('fr', f'{root}/fr/mannequin-garcon/'),
+              ('it', f'{root}/it/modello-bambino/'),
+              ('zh-CN', f'{root}/zh-cn/nantong-mote/'),
+              ('x-default', f'{root}/erkek-cocuk-model/'),
+          ]
+          files = [
+              'erkek-cocuk-model/index.html',
+              'en/boy-model/index.html',
+              'ar/model-walad/index.html',
+              'ru/model-malchik/index.html',
+              'az/oglan-usaq-modeli/index.html',
+              'kk/ul-bala-modeli/index.html',
+              'uz/ogil-bola-modeli/index.html',
+              'ky/ul-bala-modeli/index.html',
+              'fa/model-pesar/index.html',
+              'tk/oglan-caga-modeli/index.html',
+              'de/jungen-model/index.html',
+              'fr/mannequin-garcon/index.html',
+              'it/modello-bambino/index.html',
+              'zh-cn/nantong-mote/index.html',
+          ]
+          canonical_by_file = {path: url for path, (_, url) in zip(files, alternates[:-1])}
+          block = ''.join(f'<link rel="alternate" hreflang="{lang}" href="{url}">' for lang, url in alternates)
+          alt_re = re.compile(r'<link\s+rel=["\']alternate["\']\s+hreflang=["\'][^"\']+["\']\s+href=["\'][^"\']+["\']\s*/?>', re.I)
+          canonical_re = re.compile(r'(<link\s+rel=["\']canonical["\']\s+href=["\'][^"\']+["\']\s*/?>)', re.I)
+
+          for file in files:
+              p = Path(file)
+              text = p.read_text(encoding='utf-8')
+              canonical_match = canonical_re.search(text)
+              if not canonical_match:
+                  raise SystemExit(f'Missing canonical in {file}')
+              canonical_href = re.search(r'href=["\']([^"\']+)', canonical_match.group(1), re.I).group(1)
+              expected_canonical = canonical_by_file[file]
+              if canonical_href != expected_canonical:
+                  raise SystemExit(f'Canonical mismatch in {file}: {canonical_href} != {expected_canonical}')
+              cleaned = alt_re.sub('', text)
+              canonical_match = canonical_re.search(cleaned)
+              updated = cleaned[:canonical_match.end()] + block + cleaned[canonical_match.end():]
+              p.write_text(updated, encoding='utf-8', newline='')
+
+          expected = dict(alternates)
+          for file in files:
+              text = Path(file).read_text(encoding='utf-8')
+              found = re.findall(r'<link\s+rel=["\']alternate["\']\s+hreflang=["\']([^"\']+)["\']\s+href=["\']([^"\']+)["\']\s*/?>', text, re.I)
+              if len(found) != len(alternates):
+                  raise SystemExit(f'{file}: expected {len(alternates)} alternates, found {len(found)}')
+              if dict(found) != expected:
+                  raise SystemExit(f'{file}: hreflang map mismatch: {dict(found)}')
+              if len({lang for lang, _ in found}) != len(alternates):
+                  raise SystemExit(f'{file}: duplicate hreflang detected')
+          print(f'OK: {len(files)} main pages normalized to {len(alternates)} symmetric hreflang entries each.')
+
+      - name: Validate diff
+        run: |
+          git diff --check
+          git diff --stat
+
+      - name: Commit normalized hreflang tags
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add erkek-cocuk-model/index.html en/boy-model/index.html ar/model-walad/index.html ru/model-malchik/index.html az/oglan-usaq-modeli/index.html kk/ul-bala-modeli/index.html uz/ogil-bola-modeli/index.html ky/ul-bala-modeli/index.html fa/model-pesar/index.html tk/oglan-caga-modeli/index.html de/jungen-model/index.html fr/mannequin-garcon/index.html it/modello-bambino/index.html zh-cn/nantong-mote/index.html
+          if git diff --cached --quiet; then
+            echo "No hreflang changes required."
+            exit 0
+          fi
+          git commit -m "Normalize main-page hreflang cluster"
+          git push origin HEAD:main
