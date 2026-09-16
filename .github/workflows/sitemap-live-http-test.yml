@@ -1,0 +1,35 @@
+name: Sitemap Live HTTP Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify live sitemap response
+        shell: bash
+        run: |
+          set -u
+          url="https://serdararminsargut.pages.dev/sitemap.xml"
+          headers="$(mktemp)"
+          body="$(mktemp)"
+
+          echo "REQUEST_URL=$url"
+          curl --silent --show-error --location \
+            --connect-timeout 15 --max-time 45 \
+            --dump-header "$headers" \
+            --output "$body" \
+            --write-out 'HTTP_CODE=%{http_code}\nFINAL_URL=%{url_effective}\n' \
+            "$url"
+
+          content_type="$(grep -i '^content-type:' "$headers" | tail -n1 | sed 's/^[^:]*:[[:space:]]*//' | tr -d '\r')"
+          echo "CONTENT_TYPE=${content_type:-MISSING}"
+          echo "XML_FIRST_LINES_BEGIN"
+          head -n 5 "$body"
+          echo "XML_FIRST_LINES_END"
+
+          rm -f "$headers" "$body"
