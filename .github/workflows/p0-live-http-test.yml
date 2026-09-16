@@ -14,6 +14,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           urls=(
             "https://serdararminsargut.pages.dev/erkek-cocuk-model/"
             "https://serdararminsargut.pages.dev/cocuk-giyim-modeli/"
@@ -27,15 +28,40 @@ jobs:
             headers="$(mktemp)"
             body="$(mktemp)"
 
-            curl --fail-with-body --silent --show-error --location \
+            curl --silent --show-error --location \
               --connect-timeout 15 --max-time 45 \
               --dump-header "$headers" --output "$body" \
               --write-out 'HTTP_CODE=%{http_code}\nFINAL_URL=%{url_effective}\n' \
               "$url"
 
-            canonical="$(grep -Eio '<link[^>]+rel=["'"']canonical["'"'][^>]*>|<link[^>]+href=["'"'][^"'"']+["'"'][^>]+rel=["'"']canonical["'"'][^>]*>' "$body" | head -n1 | grep -Eio 'href=["'"'][^"'"']+["'"']' | sed -E 's/^href=["'"']|["'"']$//g' || true)"
-            echo "CANONICAL=${canonical:-MISSING}"
-            echo "FINAL_RESPONSE_STATUS=$(awk 'toupper($1) ~ /^HTTP\// {code=$2} END {print code}' "$headers")"
+            canonical="$(python3 - "$body" <<'PY'
+import re
+import sys
+from html.parser import HTMLParser
+
+class CanonicalParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.canonical = ""
+
+    def handle_starttag(self, tag, attrs):
+        if self.canonical or tag.lower() != "link":
+            return
+        data = {str(k).lower(): (v or "") for k, v in attrs}
+        rel_tokens = re.split(r"\\s+", data.get("rel", "").strip().lower())
+        if "canonical" in rel_tokens and data.get("href"):
+            self.canonical = data["href"].strip()
+
+parser = CanonicalParser()
+with open(sys.argv[1], "r", encoding="utf-8", errors="replace") as f:
+    parser.feed(f.read())
+print(parser.canonical or "MISSING")
+PY
+            )"
+
+            final_status="$(awk 'toupper($1) ~ /^HTTP\// {code=$2} END {print code}' "$headers")"
+            echo "FINAL_RESPONSE_STATUS=${final_status:-UNKNOWN}"
+            echo "CANONICAL=$canonical"
 
             rm -f "$headers" "$body"
           done
