@@ -14,54 +14,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           urls=(
             "https://serdararminsargut.pages.dev/erkek-cocuk-model/"
             "https://serdararminsargut.pages.dev/cocuk-giyim-modeli/"
             "https://serdararminsargut.pages.dev/spor-giyim-cocuk-modeli/"
             "https://serdararminsargut.pages.dev/e-ticaret-cocuk-modeli/"
           )
-
           for url in "${urls[@]}"; do
             echo "============================================================"
             echo "REQUEST_URL=$url"
-            headers="$(mktemp)"
             body="$(mktemp)"
-
-            curl --silent --show-error --location \
-              --connect-timeout 15 --max-time 45 \
-              --dump-header "$headers" --output "$body" \
-              --write-out 'HTTP_CODE=%{http_code}\nFINAL_URL=%{url_effective}\n' \
-              "$url"
-
-            canonical="$(python3 - "$body" <<'PY'
-import re
-import sys
-from html.parser import HTMLParser
-
-class CanonicalParser(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.canonical = ""
-
-    def handle_starttag(self, tag, attrs):
-        if self.canonical or tag.lower() != "link":
-            return
-        data = {str(k).lower(): (v or "") for k, v in attrs}
-        rel_tokens = re.split(r"\\s+", data.get("rel", "").strip().lower())
-        if "canonical" in rel_tokens and data.get("href"):
-            self.canonical = data["href"].strip()
-
-parser = CanonicalParser()
-with open(sys.argv[1], "r", encoding="utf-8", errors="replace") as f:
-    parser.feed(f.read())
-print(parser.canonical or "MISSING")
-PY
-            )"
-
-            final_status="$(awk 'toupper($1) ~ /^HTTP\// {code=$2} END {print code}' "$headers")"
-            echo "FINAL_RESPONSE_STATUS=${final_status:-UNKNOWN}"
+            result="$(curl --silent --show-error --location --connect-timeout 15 --max-time 45 --output "$body" --write-out 'HTTP_CODE=%{http_code} FINAL_URL=%{url_effective}' "$url")"
+            echo "$result"
+            canonical="$(python3 -c 'import re,sys; s=open(sys.argv[1],encoding="utf-8",errors="replace").read(); m=re.search(r"<link[^>]*rel=[\"'\"']canonical[\"'\"'][^>]*href=[\"'\"']([^\"'\"']+)[\"'\"']|<link[^>]*href=[\"'\"']([^\"'\"']+)[\"'\"'][^>]*rel=[\"'\"']canonical[\"'\"']",s,re.I); print((m.group(1) or m.group(2)) if m else "MISSING")' "$body")"
             echo "CANONICAL=$canonical"
-
-            rm -f "$headers" "$body"
+            rm -f "$body"
           done
