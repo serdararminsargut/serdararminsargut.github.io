@@ -76,6 +76,7 @@ jobs:
             card.html \
             casting-card \
             de \
+            downloads \
             en \
             fa \
             favicon.svg \
