@@ -6,7 +6,6 @@ https://serdararminsargut.pages.dev/az/
 https://serdararminsargut.pages.dev/kk/
 https://serdararminsargut.pages.dev/uz/
 https://serdararminsargut.pages.dev/ky/
-https://serdararminsargut.pages.dev/casting-card/v2
 https://serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/
 https://serdararminsargut.pages.dev/en/gulf-child-model-portfolio/
 https://serdararminsargut.pages.dev/ar/dalil-malaf-model-atfal-al-khalij/
@@ -83,3 +82,5 @@ https://serdararminsargut.pages.dev/zh-cn/ertong-fuzhuang-mote/
 https://serdararminsargut.pages.dev/zh-cn/dianshang-ertong-mote/
 https://serdararminsargut.pages.dev/casting-card/tr
 https://serdararminsargut.pages.dev/casting-card/ru
+https://serdararminsargut.pages.dev/casting-card/en
+https://serdararminsargut.pages.dev/casting-card/ar
