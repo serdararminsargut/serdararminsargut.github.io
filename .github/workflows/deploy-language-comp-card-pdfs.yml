@@ -1,0 +1,141 @@
+name: Deploy language comp card PDFs
+
+on:
+  workflow_run:
+    workflows: ["Deploy Cloudflare Pages"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: cloudflare-pages-serdararminsargut
+  cancel-in-progress: false
+
+jobs:
+  generate-and-deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Generate TR EN AR RU comp card PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p downloads
+
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/comp-card-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8765/casting-card/tr.html >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          chrome_bin=""
+          for candidate in google-chrome-stable google-chrome chromium chromium-browser; do
+            if command -v "$candidate" >/dev/null 2>&1; then
+              chrome_bin=$(command -v "$candidate")
+              break
+            fi
+          done
+          if [[ -z "$chrome_bin" ]]; then
+            echo "No Chrome/Chromium executable found on runner" >&2
+            exit 1
+          fi
+
+          for lang in tr en ar ru; do
+            code=$(printf '%s' "$lang" | tr '[:lower:]' '[:upper:]')
+            out="$PWD/downloads/Serdar-Armin-Sargut-Comp-Card-${code}.pdf"
+            "$chrome_bin" \
+              --headless \
+              --no-sandbox \
+              --disable-gpu \
+              --disable-dev-shm-usage \
+              --run-all-compositor-stages-before-draw \
+              --virtual-time-budget=4000 \
+              --print-to-pdf="$out" \
+              --no-pdf-header-footer \
+              "http://127.0.0.1:8765/casting-card/${lang}.html"
+
+            test -s "$out"
+            head -c 5 "$out" | grep -q '%PDF-'
+            echo "$lang PDF generated: $(stat -c%s "$out") bytes"
+          done
+
+      - name: Prepare static site bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          mkdir -p dist
+
+          for item in \
+            .nojekyll _headers _redirects 404.html ai.txt ar assets az blog card.html \
+            casting-card de downloads en fa favicon.svg fr index.html indexnow-key.txt \
+            72f0dad836e29ffcc2d9dd42a794dbf0.txt erkek-cocuk-model spor-giyim-cocuk-modeli \
+            cocuk-giyim-modeli e-ticaret-cocuk-modeli it kk ky llms.txt llms-full.txt \
+            postcard.html projeler rehber robots.txt ru sitemap.xml sitemap-google.xml sitemap.txt \
+            tk uz zh-cn yandex_*.html
+          do
+            if compgen -G "$item" > /dev/null; then
+              cp -R $item dist/
+            elif [ -e "$item" ]; then
+              cp -R "$item" dist/
+            fi
+          done
+
+      - name: Normalize Cloudflare account id
+        id: cloudflare_account
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          account_id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account_id="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]; then
+            echo "Cloudflare Account ID is invalid" >&2
+            exit 1
+          fi
+          echo "::add-mask::$account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cloudflare_account.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=main
+
+      - name: Verify four live PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for code in TR EN AR RU; do
+            url="https://serdararminsargut.pages.dev/downloads/Serdar-Armin-Sargut-Comp-Card-${code}.pdf"
+            ok=0
+            for attempt in $(seq 1 12); do
+              code_http=$(curl -sS -L --connect-timeout 10 --max-time 30 -o "/tmp/${code}.pdf" -w '%{http_code}' "$url" || true)
+              if [[ "$code_http" == "200" ]] && head -c 5 "/tmp/${code}.pdf" | grep -q '%PDF-'; then
+                ok=1
+                break
+              fi
+              sleep 5
+            done
+            if [[ "$ok" != "1" ]]; then
+              echo "Live PDF verification failed: $url" >&2
+              exit 1
+            fi
+            echo "Verified $url"
+          done
