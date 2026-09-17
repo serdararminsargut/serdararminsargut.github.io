@@ -7,7 +7,11 @@ on:
       - "sitemap-google.xml"
       - "sitemap.txt"
       - "robots.txt"
-      - "casting-card/v2.html"
+      - "casting-card/tr.html"
+      - "casting-card/en.html"
+      - "casting-card/ar.html"
+      - "casting-card/ru.html"
+      - "_redirects"
       - ".github/workflows/validate-sitemap.yml"
   pull_request:
     paths:
@@ -15,7 +19,11 @@ on:
       - "sitemap-google.xml"
       - "sitemap.txt"
       - "robots.txt"
-      - "casting-card/v2.html"
+      - "casting-card/tr.html"
+      - "casting-card/en.html"
+      - "casting-card/ar.html"
+      - "casting-card/ru.html"
+      - "_redirects"
       - ".github/workflows/validate-sitemap.yml"
 
 permissions:
@@ -68,16 +76,26 @@ jobs:
           if primary_urls != secondary_urls or primary_urls != text_urls:
               raise SystemExit("All public sitemap variants must contain the same URL list in the same order")
 
-          canonical_url = origin + "/casting-card/v2"
-          if canonical_url not in primary_urls:
-              raise SystemExit("Primary sitemap is missing the canonical Comp Card URL")
+          comp_cards = {
+              origin + "/casting-card/tr": Path("casting-card/tr.html"),
+              origin + "/casting-card/en": Path("casting-card/en.html"),
+              origin + "/casting-card/ar": Path("casting-card/ar.html"),
+              origin + "/casting-card/ru": Path("casting-card/ru.html"),
+          }
+          for canonical_url, comp_path in comp_cards.items():
+              if canonical_url not in primary_urls:
+                  raise SystemExit(f"Primary sitemap is missing Comp Card URL: {canonical_url}")
+              comp_card = comp_path.read_text(encoding="utf-8")
+              canonical = re.search(r'<link\s+rel="canonical"\s+href="([^"]+)"', comp_card)
+              if not canonical or canonical.group(1) != canonical_url:
+                  raise SystemExit(f"{comp_path}: rel=canonical does not match its sitemap URL")
+              route = urlparse(canonical_url).path
+              if comp_card.count(canonical_url) < 3 or f'href="{route}"' not in comp_card:
+                  raise SystemExit(f"{comp_path}: canonical URL must also be used by OG, hreflang, and internal navigation")
 
-          comp_card = Path("casting-card/v2.html").read_text(encoding="utf-8")
-          canonical = re.search(r'<link\s+rel="canonical"\s+href="([^"]+)"', comp_card)
-          if not canonical or canonical.group(1) != canonical_url:
-              raise SystemExit("Comp Card rel=canonical does not match its sitemap URL")
-          if comp_card.count(canonical_url) < 3 or 'href="/casting-card/v2"' not in comp_card:
-              raise SystemExit("Comp Card canonical URL must also be used by OG, schema, and internal navigation")
+          redirects = Path("_redirects").read_text(encoding="utf-8")
+          if "/casting-card/v2" not in redirects or "/casting-card/en" not in redirects:
+              raise SystemExit("Legacy Comp Card route must redirect to the English page")
 
           expected_robots_line = "Sitemap: " + origin + "/sitemap.xml"
           if expected_robots_line not in robots.read_text(encoding="utf-8"):
