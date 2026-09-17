@@ -30,6 +30,22 @@ jobs:
           set -euo pipefail
           mkdir -p downloads
 
+          # PDF-only print override: keep the language selector on the live web pages,
+          # but remove it from all generated language-specific PDFs.
+          python3 - <<'PY'
+          from pathlib import Path
+          marker = "</head>"
+          css = "<style media=\"print\">.language-switch{display:none!important}</style>\n"
+          for lang in ("tr", "en", "ar", "ru"):
+              path = Path(f"casting-card/{lang}.html")
+              text = path.read_text(encoding="utf-8")
+              if ".language-switch{display:none!important}" not in text:
+                  if marker not in text:
+                      raise SystemExit(f"Missing </head> in {path}")
+                  text = text.replace(marker, css + marker, 1)
+                  path.write_text(text, encoding="utf-8")
+          PY
+
           python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/comp-card-http.log 2>&1 &
           server_pid=$!
           trap 'kill $server_pid 2>/dev/null || true' EXIT
@@ -71,6 +87,9 @@ jobs:
             head -c 5 "$out" | grep -q '%PDF-'
             echo "$lang PDF generated: $(stat -c%s "$out") bytes"
           done
+
+          # Restore source HTML so the deployed web pages retain their language selector.
+          git checkout -- casting-card/tr.html casting-card/en.html casting-card/ar.html casting-card/ru.html
 
       - name: Prepare static site bundle
         shell: bash
