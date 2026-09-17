@@ -28,3 +28,7 @@
 
 /blog/blog.css
   Cache-Control: public, max-age=86400, must-revalidate
+
+/downloads/Serdar-Armin-Sargut-Comp-Card-EN-AR.pdf
+  Content-Disposition: attachment; filename="Serdar-Armin-Sargut-Comp-Card-EN-AR.pdf"
+  Content-Type: application/pdf
