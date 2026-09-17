@@ -91,14 +91,18 @@ jobs:
           forbidden = {
               "tr": ["Professional Contact", "Профессиональный контакт"],
               "en": ["Profesyonel İletişim", "Профессиональный контакт"],
-              "ar": ["Professional Contact", "Profesyonel İletişim", "Профессиональный контакт"],
-              "ru": ["Professional Contact", "Profesyonel İletişim"],
+              "ar": ["Professional Contact", "Profesyonel İletişim", "Профессиональный контакт", "Green", "Blonde", "Parent / Guardian", "Lifestyle"],
+              "ru": ["Professional Contact", "Profesyonel İletişim", "Green", "Blonde", "Parent / Guardian", "Lifestyle"],
           }
           for lang, (code, marker) in specs.items():
               txt = Path(f"test-artifacts/{lang}.txt").read_text(encoding="utf-8", errors="replace")
-              # pdftotext can reorder Arabic glyphs; source/RTL is checked separately.
+              # pdftotext can reorder Arabic glyphs; source/RTL and Arabic visible markers are checked separately.
               if lang != "ar":
                   assert marker in txt, f"{lang}: expected language text missing from rendered PDF"
+              else:
+                  source = Path("casting-card/ar.html").read_text(encoding="utf-8")
+                  for required in ["أخضر", "أشقر · مموج", "ولي الأمر", "التواصل المهني"]:
+                      assert required in source, f"ar: required localized visible text missing: {required}"
               for bad in forbidden[lang]:
                   assert bad not in txt, f"{lang}: foreign-language marker found: {bad}"
               # The selector contains all four short labels. If it leaked into print,
