@@ -92,7 +92,7 @@ jobs:
               "tr": ["Professional Contact", "Профессиональный контакт"],
               "en": ["Profesyonel İletişim", "Профессиональный контакт"],
               "ar": ["Professional Contact", "Profesyonel İletişim", "Профессиональный контакт", "Green", "Blonde", "Parent / Guardian", "Lifestyle"],
-              "ru": ["Professional Contact", "Profesyonel İletişim", "Green", "Blonde", "Parent / Guardian", "Lifestyle"],
+              "ru": ["Professional Contact", "Profesyonel İletişim", "Green", "Blonde", "Parent / Guardian", "Lifestyle", "lifestyle-проектов"],
           }
           for lang, (code, marker) in specs.items():
               txt = Path(f"test-artifacts/{lang}.txt").read_text(encoding="utf-8", errors="replace")
