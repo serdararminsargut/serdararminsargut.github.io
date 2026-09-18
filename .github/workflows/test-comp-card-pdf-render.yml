@@ -1,0 +1,132 @@
+name: Test comp card PDF render
+
+on:
+  push:
+    branches:
+      - test/tr-comp-card-localization
+    paths:
+      - 'casting-card/**'
+      - '.github/workflows/test-comp-card-pdf-render.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Chromium and PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser poppler-utils || sudo apt-get install -y chromium poppler-utils
+          command -v chromium-browser || command -v chromium
+          command -v pdftotext
+
+      - name: Start local test server
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/comp-card-server.log 2>&1 &
+          echo $! > /tmp/comp-card-server.pid
+          for i in {1..20}; do
+            curl -fsS http://127.0.0.1:8765/casting-card/tr.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/comp-card-server.log
+          exit 1
+
+      - name: Verify source language, download targets and print CSS
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          specs = {
+              "tr": ("TR", 'lang="tr"', "Profesyonel İletişim"),
+              "en": ("EN", 'lang="en"', "Professional Contact"),
+              "ar": ("AR", 'lang="ar"', "التواصل المهني"),
+              "ru": ("RU", 'lang="ru"', "Профессиональный контакт"),
+          }
+          for lang, (code, lang_attr, marker) in specs.items():
+              html = Path(f"casting-card/{lang}.html").read_text(encoding="utf-8")
+              expected = f"/downloads/Serdar-Armin-Sargut-Comp-Card-{code}.pdf"
+              filename = f'Serdar-Armin-Sargut-Comp-Card-{code}.pdf'
+              assert lang_attr in html, f"{lang}: wrong/missing html lang"
+              if lang == "ar":
+                  assert 'dir="rtl"' in html, "ar: RTL missing"
+              assert marker in html, f"{lang}: expected language marker missing"
+              assert f'data-download-url="{expected}"' in html, f"{lang}: wrong download URL"
+              assert f'data-filename="{filename}"' in html, f"{lang}: wrong filename"
+              assert ".actions,nav,.extras,footer,.language-switch{display:none!important}" in html, f"{lang}: print rule does not hide language switch"
+              assert "Comp-Card-EN-AR.pdf" not in html, f"{lang}: legacy combined PDF target remains"
+              legacy_notes = ["İndirilen PDF İngilizce–Arapça sürümüdür.", "Скачиваемый PDF представлен на английском и арабском языках."]
+              assert not any(note in html for note in legacy_notes), f"{lang}: legacy EN-AR PDF note remains"
+              expected_notes = {"tr": "İndirilen PDF Türkçe sürümdür.", "ru": "Скачиваемый PDF представлен на русском языке."}
+              if lang in expected_notes:
+                  assert expected_notes[lang] in html, f"{lang}: language-specific PDF note missing"
+              if lang == "tr":
+                  for marker_tr in ("<strong>Konum:</strong>", "<strong>Portföyü Tara</strong>", "Portföy, showreel, güncel fotoğraflar ve iletişim."):
+                      assert marker_tr in html, f"tr: localized contact marker missing: {marker_tr}"
+                  for legacy_tr in ("<strong>Location:</strong>", "<strong>Scan Portfolio</strong>", "Portfolio, showreel, current photos and contact."):
+                      assert legacy_tr not in html, f"tr: English contact marker remains: {legacy_tr}"
+              print(f"PASS source {lang}: {expected}")
+          PY
+
+      - name: Render four PDFs with Chromium
+        run: |
+          mkdir -p test-artifacts
+          CHROME="$(command -v chromium-browser || command -v chromium)"
+          for spec in "tr:TR" "en:EN" "ar:AR" "ru:RU"; do
+            lang="${spec%%:*}"
+            code="${spec##*:}"
+            out="$PWD/test-artifacts/Serdar-Armin-Sargut-Comp-Card-${code}.pdf"
+            "$CHROME" --headless --no-sandbox --disable-gpu               --run-all-compositor-stages-before-draw               --virtual-time-budget=5000               --print-to-pdf-no-header               --print-to-pdf="$out"               "http://127.0.0.1:8765/casting-card/${lang}.html"
+            test -s "$out"
+            head -c 5 "$out" | grep -q '%PDF-'
+            pdfinfo "$out" | grep -q '^Pages:'
+            pdftotext -layout "$out" "test-artifacts/${lang}.txt"
+            echo "PASS render ${lang}: $(stat -c%s "$out") bytes"
+          done
+
+      - name: Verify rendered PDF text and hidden language switch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          specs = {
+              "tr": ("TR", "Profesyonel İletişim"),
+              "en": ("EN", "Professional Contact"),
+              "ar": ("AR", "التواصل المهني"),
+              "ru": ("RU", "Профессиональный контакт"),
+          }
+          # Cross-language markers catch accidental mixed-language output.
+          forbidden = {
+              "tr": ["Professional Contact", "Профессиональный контакт"],
+              "en": ["Profesyonel İletişim", "Профессиональный контакт"],
+              "ar": ["Professional Contact", "Profesyonel İletişim", "Профессиональный контакт", "Green", "Blonde", "Parent / Guardian", "Lifestyle"],
+              "ru": ["Professional Contact", "Profesyonel İletişim", "Green", "Blonde", "Parent / Guardian", "Lifestyle", "lifestyle-проектов"],
+          }
+          for lang, (code, marker) in specs.items():
+              txt = Path(f"test-artifacts/{lang}.txt").read_text(encoding="utf-8", errors="replace")
+              # pdftotext can reorder Arabic glyphs; source/RTL and Arabic visible markers are checked separately.
+              if lang != "ar":
+                  assert marker in txt, f"{lang}: expected language text missing from rendered PDF"
+              else:
+                  source = Path("casting-card/ar.html").read_text(encoding="utf-8")
+                  for required in ["أخضر", "أشقر · مموج", "ولي الأمر", "التواصل المهني"]:
+                      assert required in source, f"ar: required localized visible text missing: {required}"
+              for bad in forbidden[lang]:
+                  assert bad not in txt, f"{lang}: foreign-language marker found: {bad}"
+              # The selector contains all four short labels. If it leaked into print,
+              # they appear together in the extracted text near one another.
+              compact = " ".join(txt.split())
+              assert not ("TR" in compact and "EN" in compact and "AR" in compact and "RU" in compact), f"{lang}: language switch labels leaked into PDF"
+              print(f"PASS PDF text {lang}")
+          PY
+
+      - name: Upload rendered PDFs for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: comp-card-pdf-render-test
+          path: |
+            test-artifacts/*.pdf
+            test-artifacts/*.txt
+          retention-days: 7
