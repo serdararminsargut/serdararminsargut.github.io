@@ -58,6 +58,11 @@ jobs:
               assert f'data-filename="{filename}"' in html, f"{lang}: wrong filename"
               assert ".actions,nav,.extras,footer,.language-switch{display:none!important}" in html, f"{lang}: print rule does not hide language switch"
               assert "Comp-Card-EN-AR.pdf" not in html, f"{lang}: legacy combined PDF target remains"
+              legacy_notes = ["İndirilen PDF İngilizce–Arapça sürümüdür.", "Скачиваемый PDF представлен на английском и арабском языках."]
+              assert not any(note in html for note in legacy_notes), f"{lang}: legacy EN-AR PDF note remains"
+              expected_notes = {"tr": "İndirilen PDF Türkçe sürümdür.", "ru": "Скачиваемый PDF представлен на русском языке."}
+              if lang in expected_notes:
+                  assert expected_notes[lang] in html, f"{lang}: language-specific PDF note missing"
               print(f"PASS source {lang}: {expected}")
           PY
 
