@@ -30,50 +30,9 @@ jobs:
           set -euo pipefail
           mkdir -p downloads
 
-          # PDF-only localization cleanup for AR and RU. Source HTML is restored
-          # after PDF generation, so this affects only the generated PDFs.
-          python3 - <<'PY'
-          from pathlib import Path
-
-          replacements = {
-              "ar": {
-                  "<strong>162 cm</strong>": "<strong>162 سم</strong>",
-                  "<strong>Green</strong>": "<strong>أخضر</strong>",
-                  "<strong>Blonde · Wavy</strong>": "<strong>أشقر · مموج</strong>",
-                  "<strong>37 EU</strong>": "<strong>37 أوروبي</strong>",
-                  "<strong>Parent / Guardian</strong>": "<strong>ولي الأمر</strong>",
-              },
-              "ru": {
-                  "Классика · Спорт · Lifestyle": "Классика · Спорт · Повседневный стиль",
-                  "<span>Lifestyle</span>": "<span>Повседневный стиль</span>",
-                  "<strong>Email:</strong>": "<strong>Эл. почта:</strong>",
-                  "<strong>Location:</strong>": "<strong>Местоположение:</strong>",
-                  "<strong>Scan Portfolio</strong>": "<strong>Сканировать портфолио</strong>",
-                  "<span>Portfolio, showreel, current photos and contact.</span>": "<span>Портфолио, шоурил, актуальные фотографии и контакты.</span>",
-              },
-          }
-
-          for lang, mapping in replacements.items():
-              path = Path(f"casting-card/{lang}.html")
-              text = path.read_text(encoding="utf-8")
-              for old, new in mapping.items():
-                  if old not in text:
-                      raise SystemExit(f"Expected PDF text not found in {path}: {old}")
-                  text = text.replace(old, new)
-              path.write_text(text, encoding="utf-8")
-
-          # Keep language selectors on web pages but hide them in printed PDFs.
-          marker = "</head>"
-          css = "<style media=\"print\">.language-switch{display:none!important}</style>\n"
-          for lang in ("tr", "en", "ar", "ru"):
-              path = Path(f"casting-card/{lang}.html")
-              text = path.read_text(encoding="utf-8")
-              if ".language-switch{display:none!important}" not in text:
-                  if marker not in text:
-                      raise SystemExit(f"Missing </head> in {path}")
-                  text = text.replace(marker, css + marker, 1)
-                  path.write_text(text, encoding="utf-8")
-          PY
+          # Language-specific source pages are already fully localized and were
+          # Chromium-render tested before publication. Generate PDFs directly
+          # from those production sources; do not rewrite visible language text.
 
           python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/comp-card-http.log 2>&1 &
           server_pid=$!
@@ -116,9 +75,6 @@ jobs:
             head -c 5 "$out" | grep -q '%PDF-'
             echo "$lang PDF generated: $(stat -c%s "$out") bytes"
           done
-
-          # Restore source HTML so deployed web pages remain unchanged.
-          git checkout -- casting-card/tr.html casting-card/en.html casting-card/ar.html casting-card/ru.html
 
       - name: Prepare static site bundle
         shell: bash
