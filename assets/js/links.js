@@ -218,6 +218,12 @@
     try {
       localStorage.setItem("sas_links_lang", selected);
     } catch (_) {}
+
+    try {
+      const nextUrl = new URL(window.location.href);
+      nextUrl.searchParams.set("lang", selected);
+      history.replaceState({}, "", nextUrl);
+    } catch (_) {}
   }
 
   let initialLang = params.get("lang");
@@ -226,7 +232,14 @@
       initialLang = localStorage.getItem("sas_links_lang");
     } catch (_) {}
   }
-  setLanguage(translations[initialLang] ? initialLang : "tr");
+  if (!translations[initialLang]) {
+    const browserLang = (navigator.language || "").toLowerCase();
+    if (browserLang.startsWith("ar")) initialLang = "ar";
+    else if (browserLang.startsWith("ru")) initialLang = "ru";
+    else if (browserLang.startsWith("en")) initialLang = "en";
+    else initialLang = "tr";
+  }
+  setLanguage(initialLang);
 
   document.querySelectorAll("[data-lang]").forEach((button) => {
     button.addEventListener("click", () => setLanguage(button.dataset.lang));
