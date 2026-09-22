@@ -5,6 +5,7 @@
     tr: {
       page_title: "Serdar Armin Sargut | Çocuk Oyuncu & Reklam Modeli",
       page_description: "Serdar Armin Sargut’un oyunculuk, reklam modelliği, showreel, profesyonel portföy ve casting bağlantılarına ulaşın.",
+      skip_link: "Portföy bağlantılarına geç",
       location: "İstanbul, Türkiye",
       role: "Çocuk Oyuncu • Reklam Modeli",
       intro: "Showreel, profesyonel portföy ve casting bağlantıları.",
@@ -35,6 +36,7 @@
     en: {
       page_title: "Serdar Armin Sargut | Child Actor & Commercial Model",
       page_description: "Access Serdar Armin Sargut’s acting, commercial modeling, showreel, professional portfolio and casting links.",
+      skip_link: "Skip to portfolio links",
       location: "Istanbul, Türkiye",
       role: "Child Actor • Commercial Model",
       intro: "Showreel, professional portfolio and casting links.",
@@ -65,6 +67,7 @@
     ar: {
       page_title: "Serdar Armin Sargut | ممثل طفل وموديل إعلاني",
       page_description: "روابط الشوريل والتمثيل والموديل الإعلاني والملف المهني والكاستينغ لـ Serdar Armin Sargut.",
+      skip_link: "انتقل إلى روابط الملف",
       location: "إسطنبول، تركيا",
       role: "ممثل طفل • موديل إعلاني",
       intro: "الشوريل، الملف المهني وروابط الكاستينغ.",
@@ -95,6 +98,7 @@
     ru: {
       page_title: "Serdar Armin Sargut | Детский актёр и рекламная модель",
       page_description: "Шоурил, актёрское и модельное портфолио, профессиональные материалы и ссылки для кастинга Serdar Armin Sargut.",
+      skip_link: "Перейти к ссылкам портфолио",
       location: "Стамбул, Турция",
       role: "Детский актёр • Рекламная модель",
       intro: "Шоурил, профессиональное портфолио и ссылки для кастинга.",
