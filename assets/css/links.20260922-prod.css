@@ -67,6 +67,9 @@ a{color:inherit}
   direction:ltr;
 }
 .lang-switch a{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   min-width:44px;
   min-height:44px;
   border:1px solid var(--line);
@@ -77,6 +80,7 @@ a{color:inherit}
   font-size:.72rem;
   font-weight:800;
   cursor:pointer;
+  text-decoration:none;
 }
 .lang-switch a[aria-current="page"]{
   border-color:var(--accent);
