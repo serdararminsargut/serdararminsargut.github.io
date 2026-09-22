@@ -93,6 +93,7 @@ jobs:
             ky \
             llms.txt \
             llms-full.txt \
+            links \
             postcard.html \
             projeler \
             rehber \
@@ -203,3 +204,26 @@ jobs:
           grep -Fq 'User-agent: Googlebot' /tmp/robots.body
           grep -Fq 'Sitemap: https://serdararminsargut.pages.dev/sitemap.xml' /tmp/robots.body
           echo 'Live robots.txt is reachable by Googlebot and declares only the canonical sitemap.xml'
+
+      - name: Verify live link hub after deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://serdararminsargut.pages.dev'
+          for path in /links/ /links/en/ /links/ar/ /links/ru; do
+            rm -f /tmp/link.headers /tmp/link.body
+            code=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 -D /tmp/link.headers -o /tmp/link.body -w '%{http_code}' "$base$path")
+            echo "$path -> HTTP $code"
+            [[ "$code" == "200" ]]
+            ! grep -Eiq '^x-robots-tag:.*noindex' /tmp/link.headers
+            grep -Fq '<meta name="robots" content="index,follow">' /tmp/link.body
+            grep -Fq 'https://serdararminsargut.pages.dev/links' /tmp/link.body
+            ! grep -Fq 'TEST PREVIEW' /tmp/link.body
+            ! grep -Fq 'test-link-in-bio-20260922.serdararminsargut.pages.dev' /tmp/link.body
+          done
+          for asset in /assets/css/links.20260922-prod.css /assets/js/links.20260922-prod.js /assets/js/analytics.6e100445.js; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "$base$asset")
+            echo "$asset -> HTTP $code"
+            [[ "$code" == "200" ]]
+          done
+          echo 'Production link hub live verification PASS'

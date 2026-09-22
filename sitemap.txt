@@ -84,3 +84,7 @@ https://serdararminsargut.pages.dev/casting-card/tr
 https://serdararminsargut.pages.dev/casting-card/ru
 https://serdararminsargut.pages.dev/casting-card/en
 https://serdararminsargut.pages.dev/casting-card/ar
+https://serdararminsargut.pages.dev/links/
+https://serdararminsargut.pages.dev/links/en/
+https://serdararminsargut.pages.dev/links/ar/
+https://serdararminsargut.pages.dev/links/ru
