@@ -3,6 +3,8 @@
 
   const translations = {
     tr: {
+      page_title: "Serdar Armin Sargut | Çocuk Oyuncu & Reklam Modeli",
+      page_description: "Serdar Armin Sargut’un oyunculuk, reklam modelliği, showreel, profesyonel portföy ve casting bağlantılarına ulaşın.",
       location: "İstanbul, Türkiye",
       role: "Çocuk Oyuncu • Reklam Modeli",
       intro: "Showreel, profesyonel portföy ve casting bağlantıları.",
@@ -31,6 +33,8 @@
       contact_aria: "Casting ve marka iletişimi bölümünü aç"
     },
     en: {
+      page_title: "Serdar Armin Sargut | Child Actor & Commercial Model",
+      page_description: "Access Serdar Armin Sargut’s acting, commercial modeling, showreel, professional portfolio and casting links.",
       location: "Istanbul, Türkiye",
       role: "Child Actor • Commercial Model",
       intro: "Showreel, professional portfolio and casting links.",
@@ -57,7 +61,74 @@
       casting_aria: "Open Serdar Armin Sargut casting card",
       instagram_aria: "Open and follow Serdar Armin Sargut on Instagram",
       contact_aria: "Open casting and brand inquiries section"
+    },
+    ar: {
+      page_title: "Serdar Armin Sargut | ممثل طفل وموديل إعلاني",
+      page_description: "روابط الشوريل والتمثيل والموديل الإعلاني والملف المهني والكاستينغ لـ Serdar Armin Sargut.",
+      location: "إسطنبول، تركيا",
+      role: "ممثل طفل • موديل إعلاني",
+      intro: "الشوريل، الملف المهني وروابط الكاستينغ.",
+      showreel_title: "شاهد الشوريل",
+      showreel_sub: "مختارات من التمثيل والأداء أمام الكاميرا",
+      portfolio_title: "الملف الرسمي",
+      portfolio_sub: "صور، أعمال تمثيل وملف مهني",
+      modeling_title: "ملف الإعلانات والموديل",
+      modeling_sub: "كتالوج، منتجات، أزياء وإعلانات",
+      acting_title: "ملف التمثيل",
+      acting_sub: "تلفزيون، سينما وأعمال إعلانية",
+      casting_title: "بطاقة الكاستينغ",
+      casting_sub: "بطاقة الملف للتقييم في الكاستينغ",
+      instagram_title: "تابع Serdar على Instagram",
+      instagram_sub: "صور جديدة وReels وتحديثات الملف",
+      contact_title: "استفسارات الكاستينغ والعلامات",
+      contact_sub: "للتعاون المهني وطلبات الكاستينغ",
+      footer: "الملف الرسمي لـ Serdar Armin Sargut • إسطنبول، تركيا",
+      privacy: "التواصل بإدارة الوالدين / الوصي.",
+      showreel_aria: "شاهد شوريل Serdar Armin Sargut",
+      portfolio_aria: "افتح الملف الرسمي لـ Serdar Armin Sargut",
+      modeling_aria: "افتح ملف الإعلانات والموديل لـ Serdar Armin Sargut",
+      acting_aria: "افتح ملف التمثيل لـ Serdar Armin Sargut",
+      casting_aria: "افتح بطاقة الكاستينغ لـ Serdar Armin Sargut",
+      instagram_aria: "افتح حساب Serdar Armin Sargut على Instagram وتابعه",
+      contact_aria: "افتح قسم استفسارات الكاستينغ والعلامات"
+    },
+    ru: {
+      page_title: "Serdar Armin Sargut | Детский актёр и рекламная модель",
+      page_description: "Шоурил, актёрское и модельное портфолио, профессиональные материалы и ссылки для кастинга Serdar Armin Sargut.",
+      location: "Стамбул, Турция",
+      role: "Детский актёр • Рекламная модель",
+      intro: "Шоурил, профессиональное портфолио и ссылки для кастинга.",
+      showreel_title: "Смотреть шоурил",
+      showreel_sub: "Избранные актёрские и экранные работы",
+      portfolio_title: "Официальное портфолио",
+      portfolio_sub: "Фотографии, актёрские работы и профессиональный профиль",
+      modeling_title: "Реклама и модельное портфолио",
+      modeling_sub: "Каталог, товары, мода и рекламные съёмки",
+      acting_title: "Актёрское портфолио",
+      acting_sub: "Телевидение, кино и рекламные работы",
+      casting_title: "Casting Card",
+      casting_sub: "Профильная карточка для кастинга",
+      instagram_title: "Подписаться на Serdar в Instagram",
+      instagram_sub: "Новые фото, Reels и обновления портфолио",
+      contact_title: "Кастинг и запросы брендов",
+      contact_sub: "Профессиональное сотрудничество и кастинг-запросы",
+      footer: "Официальное портфолио Serdar Armin Sargut • Стамбул, Турция",
+      privacy: "Контакты управляются родителем / опекуном.",
+      showreel_aria: "Смотреть шоурил Serdar Armin Sargut",
+      portfolio_aria: "Открыть официальное портфолио Serdar Armin Sargut",
+      modeling_aria: "Открыть рекламное и модельное портфолио Serdar Armin Sargut",
+      acting_aria: "Открыть актёрское портфолио Serdar Armin Sargut",
+      casting_aria: "Открыть Casting Card Serdar Armin Sargut",
+      instagram_aria: "Открыть Instagram Serdar Armin Sargut и подписаться",
+      contact_aria: "Открыть раздел кастинга и запросов брендов"
     }
+  };
+
+  const routes = {
+    tr: {base: "/", casting: "/casting-card/tr.html"},
+    en: {base: "/en/", casting: "/casting-card/en.html"},
+    ar: {base: "/ar/", casting: "/casting-card/ar.html"},
+    ru: {base: "/ru/", casting: "/casting-card/ru.html"}
   };
 
   const params = new URLSearchParams(window.location.search);
@@ -80,16 +151,13 @@
   const trafficSource = (params.get("utm_source") || referrerSource()).toLowerCase();
   const campaign = params.get("utm_campaign") || "";
   const content = params.get("utm_content") || "";
-
   const list = document.getElementById("cta-list");
 
   function moveToTop(keys) {
     const nodes = keys
       .map((key) => list.querySelector('[data-key="' + key + '"]'))
       .filter(Boolean);
-    for (let i = nodes.length - 1; i >= 0; i -= 1) {
-      list.prepend(nodes[i]);
-    }
+    for (let i = nodes.length - 1; i >= 0; i -= 1) list.prepend(nodes[i]);
   }
 
   if (trafficSource === "direct" || (!["instagram","pinterest","tiktok","youtube","google"].includes(trafficSource) && !trafficSource.includes("casting") && !trafficSource.includes("agency"))) {
@@ -104,20 +172,49 @@
     moveToTop(["casting", "showreel", "portfolio"]);
   }
 
+  function updateRoutes(lang) {
+    const route = routes[lang];
+    const targets = {
+      portfolio: route.base,
+      showreel: route.base + "#showreel",
+      modeling: route.base + "#model",
+      acting: route.base + "#oyunculuk",
+      contact: route.base + "#iletisim",
+      casting: route.casting
+    };
+    Object.entries(targets).forEach(([key, href]) => {
+      const link = list.querySelector('[data-key="' + key + '"]');
+      if (link) link.setAttribute("href", href);
+    });
+  }
+
   function setLanguage(lang) {
     const selected = translations[lang] ? lang : "tr";
+    const t = translations[selected];
+
     document.documentElement.lang = selected;
+    document.documentElement.dir = selected === "ar" ? "rtl" : "ltr";
+    document.title = t.page_title;
+
+    const description = document.querySelector('meta[name="description"]');
+    if (description) description.setAttribute("content", t.page_description);
+
     document.querySelectorAll("[data-i18n]").forEach((node) => {
       const key = node.getAttribute("data-i18n");
-      if (translations[selected][key]) node.textContent = translations[selected][key];
+      if (t[key]) node.textContent = t[key];
     });
+
     document.querySelectorAll("[data-lang]").forEach((button) => {
       button.setAttribute("aria-pressed", String(button.dataset.lang === selected));
     });
+
     document.querySelectorAll("[data-aria]").forEach((link) => {
       const key = link.getAttribute("data-aria");
-      if (translations[selected][key]) link.setAttribute("aria-label", translations[selected][key]);
+      if (t[key]) link.setAttribute("aria-label", t[key]);
     });
+
+    updateRoutes(selected);
+
     try {
       localStorage.setItem("sas_links_lang", selected);
     } catch (_) {}
@@ -152,6 +249,7 @@
         language: document.documentElement.lang,
         outbound_url: link.href
       };
+
       if (typeof window.gtag === "function") {
         window.gtag("event", link.dataset.event, payload);
       } else {
