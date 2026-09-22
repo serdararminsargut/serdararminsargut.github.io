@@ -128,3 +128,21 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ steps.cloudflare_account.outputs.account_id }}
           command: pages deploy dist --project-name=serdararminsargut --branch=link-in-bio-production-ready-20260922
+
+
+      - name: Verify live preview headers and content
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://link-in-bio-production-ready.serdararminsargut.pages.dev'
+          for path in /links/ /links/en/ /links/ar/ /links/ru; do
+            rm -f /tmp/headers /tmp/body
+            code=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 -D /tmp/headers -o /tmp/body -w '%{http_code}' "$base$path")
+            echo "$path -> HTTP $code"
+            [[ "$code" == "200" ]]
+            grep -Eiq '^x-robots-tag:.*noindex' /tmp/headers
+            grep -Fq '<meta name="robots" content="index,follow">' /tmp/body
+            grep -Fq 'https://serdararminsargut.pages.dev/links' /tmp/body
+            ! grep -Fq 'TEST PREVIEW' /tmp/body
+          done
+          echo 'Preview HTTP/header/content verification PASS'
