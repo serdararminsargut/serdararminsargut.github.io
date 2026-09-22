@@ -159,7 +159,7 @@
     tr: "/links/",
     en: "/links/en/",
     ar: "/links/ar/",
-    ru: "/links/ru/"
+    ru: "/links/ru.html"
   };
 
   const params = new URLSearchParams(window.location.search);
