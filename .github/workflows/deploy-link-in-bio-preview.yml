@@ -1,0 +1,130 @@
+name: Deploy Link-in-Bio Preview
+
+on:
+  push:
+    branches:
+      - test/link-in-bio-production-ready-20260922
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-pages-link-in-bio-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release candidate
+        uses: actions/checkout@v4
+
+      - name: Validate release candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq '<meta name="robots" content="index,follow">' links/index.html
+          grep -Fq 'data-release-state="production"' links/index.html
+          ! grep -R -Fq 'test-link-in-bio-20260922.serdararminsargut.pages.dev' links
+          ! grep -Fq 'X-Robots-Tag: noindex' _headers
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          paths = ["sitemap.xml", "sitemap-google.xml"]
+          lists = []
+          for path in paths:
+              root = ET.parse(path).getroot()
+              lists.append([(n.text or "").strip() for n in root.iter() if n.tag.endswith("loc")])
+          text_urls = [x.strip() for x in open("sitemap.txt", encoding="utf-8") if x.strip()]
+          assert lists[0] == lists[1] == text_urls
+          expected = [
+              "https://serdararminsargut.pages.dev/links/",
+              "https://serdararminsargut.pages.dev/links/en/",
+              "https://serdararminsargut.pages.dev/links/ar/",
+              "https://serdararminsargut.pages.dev/links/ru",
+          ]
+          for url in expected:
+              assert url in lists[0]
+          print("Release candidate validation PASS")
+          PY
+
+      - name: Prepare preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          mkdir -p dist
+          for item in \
+            .nojekyll \
+            _headers \
+            _redirects \
+            404.html \
+            ai.txt \
+            ar \
+            assets \
+            az \
+            blog \
+            card.html \
+            casting-card \
+            de \
+            downloads \
+            en \
+            fa \
+            favicon.svg \
+            fr \
+            index.html \
+            indexnow-key.txt \
+            72f0dad836e29ffcc2d9dd42a794dbf0.txt \
+            erkek-cocuk-model \
+            spor-giyim-cocuk-modeli \
+            cocuk-giyim-modeli \
+            e-ticaret-cocuk-modeli \
+            it \
+            kk \
+            ky \
+            links \
+            llms.txt \
+            llms-full.txt \
+            postcard.html \
+            projeler \
+            rehber \
+            robots.txt \
+            ru \
+            sitemap.xml \
+            sitemap-google.xml \
+            sitemap.txt \
+            tk \
+            uz \
+            zh-cn \
+            yandex_*.html
+          do
+            if compgen -G "$item" > /dev/null; then
+              cp -R $item dist/
+            elif [ -e "$item" ]; then
+              cp -R "$item" dist/
+            fi
+          done
+
+      - name: Normalize Cloudflare account id
+        id: cloudflare_account
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          account_id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account_id="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]; then
+            echo "Cloudflare Account ID is invalid." >&2
+            exit 1
+          fi
+          echo "::add-mask::$account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy preview to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cloudflare_account.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=link-in-bio-production-ready-20260922
