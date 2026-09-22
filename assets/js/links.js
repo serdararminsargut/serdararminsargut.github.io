@@ -155,6 +155,13 @@
     ru: {base: "/ru/", casting: "/casting-card/ru.html"}
   };
 
+  const languagePaths = {
+    tr: "/links/",
+    en: "/links/en/",
+    ar: "/links/ar/",
+    ru: "/links/ru/"
+  };
+
   const params = new URLSearchParams(window.location.search);
 
   function referrerSource() {
@@ -272,34 +279,24 @@
       localStorage.setItem("sas_links_lang", selected);
     } catch (_) {}
 
-    try {
-      const nextUrl = new URL(window.location.href);
-      nextUrl.searchParams.set("lang", selected);
-      history.replaceState({}, "", nextUrl);
-    } catch (_) {}
+    // The selected language is represented by the URL path.
   }
 
-  let initialLang = params.get("lang");
-  if (!translations[initialLang]) {
-    try {
-      initialLang = localStorage.getItem("sas_links_lang");
-    } catch (_) {}
+  function languageFromPath() {
+    const path = window.location.pathname.replace(/\/+$/, "");
+    if (path === "/links/en") return "en";
+    if (path === "/links/ar") return "ar";
+    if (path === "/links/ru") return "ru";
+    return "tr";
   }
-  if (!translations[initialLang]) {
-    const browserLang = (navigator.language || "").toLowerCase();
-    if (browserLang.startsWith("ar")) initialLang = "ar";
-    else if (browserLang.startsWith("ru")) initialLang = "ru";
-    else if (browserLang.startsWith("en")) initialLang = "en";
-    else initialLang = "tr";
-  }
+
+  const initialLang = languageFromPath();
   setLanguage(initialLang);
 
   document.querySelectorAll("[data-lang]").forEach((button) => {
     button.addEventListener("click", () => {
       const fromLanguage = document.documentElement.lang || "tr";
       const toLanguage = button.dataset.lang;
-      setLanguage(toLanguage);
-
       if (fromLanguage === toLanguage) return;
 
       const payload = {
@@ -318,6 +315,12 @@
         window.dataLayer = window.dataLayer || [];
         window.dataLayer.push({event: "language_change", ...payload});
       }
+
+      const nextUrl = new URL(languagePaths[toLanguage], window.location.origin);
+      for (const [key, value] of params.entries()) {
+        if (key !== "lang") nextUrl.searchParams.append(key, value);
+      }
+      window.location.assign(nextUrl.pathname + nextUrl.search);
     });
   });
 
