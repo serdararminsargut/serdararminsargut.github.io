@@ -6,6 +6,8 @@
       page_title: "Serdar Armin Sargut | Çocuk Oyuncu & Reklam Modeli",
       page_description: "Serdar Armin Sargut’un oyunculuk, reklam modelliği, showreel, profesyonel portföy ve casting bağlantılarına ulaşın.",
       skip_link: "Portföy bağlantılarına geç",
+      preview_banner: "TEST PREVIEW • PRODUCTION DEĞİL",
+      og_locale: "tr_TR",
       lang_switch_aria: "Dil seçimi",
       profile_alt: "Serdar Armin Sargut — çocuk oyuncu ve reklam modeli",
       cta_list_aria: "Portföy bağlantıları",
@@ -40,6 +42,8 @@
       page_title: "Serdar Armin Sargut | Child Actor & Commercial Model",
       page_description: "Access Serdar Armin Sargut’s acting, commercial modeling, showreel, professional portfolio and casting links.",
       skip_link: "Skip to portfolio links",
+      preview_banner: "TEST PREVIEW • NOT PRODUCTION",
+      og_locale: "en_US",
       lang_switch_aria: "Language selection",
       profile_alt: "Serdar Armin Sargut — child actor and commercial model",
       cta_list_aria: "Portfolio links",
@@ -74,6 +78,8 @@
       page_title: "Serdar Armin Sargut | ممثل طفل وموديل إعلاني",
       page_description: "روابط الشوريل والتمثيل والموديل الإعلاني والملف المهني والكاستينغ لـ Serdar Armin Sargut.",
       skip_link: "انتقل إلى روابط الملف",
+      preview_banner: "نسخة اختبار • ليست للإنتاج",
+      og_locale: "ar_AR",
       lang_switch_aria: "اختيار اللغة",
       profile_alt: "Serdar Armin Sargut — ممثل طفل وموديل إعلاني",
       cta_list_aria: "روابط الملف",
@@ -108,6 +114,8 @@
       page_title: "Serdar Armin Sargut | Детский актёр и рекламная модель",
       page_description: "Шоурил, актёрское и модельное портфолио, профессиональные материалы и ссылки для кастинга Serdar Armin Sargut.",
       skip_link: "Перейти к ссылкам портфолио",
+      preview_banner: "ТЕСТОВАЯ ВЕРСИЯ • НЕ PRODUCTION",
+      og_locale: "ru_RU",
       lang_switch_aria: "Выбор языка",
       profile_alt: "Serdar Armin Sargut — детский актёр и рекламная модель",
       cta_list_aria: "Ссылки портфолио",
@@ -122,7 +130,7 @@
       modeling_sub: "Каталог, товары, мода и рекламные съёмки",
       acting_title: "Актёрское портфолио",
       acting_sub: "Телевидение, кино и рекламные работы",
-      casting_title: "Casting Card",
+      casting_title: "Кастинг-карта",
       casting_sub: "Профильная карточка для кастинга",
       instagram_title: "Подписаться на Serdar в Instagram",
       instagram_sub: "Новые фото, Reels и обновления портфолио",
@@ -134,7 +142,7 @@
       portfolio_aria: "Открыть официальное портфолио Serdar Armin Sargut",
       modeling_aria: "Открыть рекламное и модельное портфолио Serdar Armin Sargut",
       acting_aria: "Открыть актёрское портфолио Serdar Armin Sargut",
-      casting_aria: "Открыть Casting Card Serdar Armin Sargut",
+      casting_aria: "Открыть кастинг-карту Serdar Armin Sargut",
       instagram_aria: "Открыть Instagram Serdar Armin Sargut и подписаться",
       contact_aria: "Открыть раздел кастинга и запросов брендов"
     }
@@ -214,6 +222,27 @@
 
     const description = document.querySelector('meta[name="description"]');
     if (description) description.setAttribute("content", t.page_description);
+
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute("content", t.page_title);
+
+    const ogDescription = document.querySelector('meta[property="og:description"]');
+    if (ogDescription) ogDescription.setAttribute("content", t.page_description);
+
+    const ogLocale = document.querySelector('meta[property="og:locale"]');
+    if (ogLocale) ogLocale.setAttribute("content", t.og_locale);
+
+    const ogImageAlt = document.querySelector('meta[property="og:image:alt"]');
+    if (ogImageAlt) ogImageAlt.setAttribute("content", t.profile_alt);
+
+    const twitterTitle = document.querySelector('meta[name="twitter:title"]');
+    if (twitterTitle) twitterTitle.setAttribute("content", t.page_title);
+
+    const twitterDescription = document.querySelector('meta[name="twitter:description"]');
+    if (twitterDescription) twitterDescription.setAttribute("content", t.page_description);
+
+    const twitterImageAlt = document.querySelector('meta[name="twitter:image:alt"]');
+    if (twitterImageAlt) twitterImageAlt.setAttribute("content", t.profile_alt);
 
     const languageSwitch = document.querySelector(".lang-switch");
     if (languageSwitch) languageSwitch.setAttribute("aria-label", t.lang_switch_aria);
