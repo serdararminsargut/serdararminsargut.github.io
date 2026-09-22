@@ -266,7 +266,30 @@
   setLanguage(initialLang);
 
   document.querySelectorAll("[data-lang]").forEach((button) => {
-    button.addEventListener("click", () => setLanguage(button.dataset.lang));
+    button.addEventListener("click", () => {
+      const fromLanguage = document.documentElement.lang || "tr";
+      const toLanguage = button.dataset.lang;
+      setLanguage(toLanguage);
+
+      if (fromLanguage === toLanguage) return;
+
+      const payload = {
+        talent_name: "serdar_armin_sargut",
+        from_language: fromLanguage,
+        to_language: toLanguage,
+        traffic_source: trafficSource,
+        utm_source: params.get("utm_source") || "",
+        utm_campaign: campaign,
+        utm_content: content
+      };
+
+      if (typeof window.gtag === "function") {
+        window.gtag("event", "language_change", payload);
+      } else {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({event: "language_change", ...payload});
+      }
+    });
   });
 
   function currentPosition(link) {
