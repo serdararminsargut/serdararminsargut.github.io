@@ -1,5 +1,13 @@
 /* Analytics bootstrap: defer third-party network work until after initial render. */
-if (document.documentElement.dataset.releaseState === "preview") {
+var sasHost = window.location.hostname.toLowerCase();
+var sasBranchPreview =
+  sasHost.endsWith(".serdararminsargut.pages.dev") &&
+  sasHost !== "serdararminsargut.pages.dev";
+var sasPreview =
+  document.documentElement.dataset.releaseState === "preview" ||
+  sasBranchPreview;
+
+if (sasPreview) {
   window.dataLayer = window.dataLayer || [];
 } else {
 window.dataLayer = window.dataLayer || [];
