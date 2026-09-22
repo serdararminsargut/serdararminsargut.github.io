@@ -6,6 +6,9 @@
       page_title: "Serdar Armin Sargut | Çocuk Oyuncu & Reklam Modeli",
       page_description: "Serdar Armin Sargut’un oyunculuk, reklam modelliği, showreel, profesyonel portföy ve casting bağlantılarına ulaşın.",
       skip_link: "Portföy bağlantılarına geç",
+      lang_switch_aria: "Dil seçimi",
+      profile_alt: "Serdar Armin Sargut — çocuk oyuncu ve reklam modeli",
+      cta_list_aria: "Portföy bağlantıları",
       location: "İstanbul, Türkiye",
       role: "Çocuk Oyuncu • Reklam Modeli",
       intro: "Showreel, profesyonel portföy ve casting bağlantıları.",
@@ -37,6 +40,9 @@
       page_title: "Serdar Armin Sargut | Child Actor & Commercial Model",
       page_description: "Access Serdar Armin Sargut’s acting, commercial modeling, showreel, professional portfolio and casting links.",
       skip_link: "Skip to portfolio links",
+      lang_switch_aria: "Language selection",
+      profile_alt: "Serdar Armin Sargut — child actor and commercial model",
+      cta_list_aria: "Portfolio links",
       location: "Istanbul, Türkiye",
       role: "Child Actor • Commercial Model",
       intro: "Showreel, professional portfolio and casting links.",
@@ -68,6 +74,9 @@
       page_title: "Serdar Armin Sargut | ممثل طفل وموديل إعلاني",
       page_description: "روابط الشوريل والتمثيل والموديل الإعلاني والملف المهني والكاستينغ لـ Serdar Armin Sargut.",
       skip_link: "انتقل إلى روابط الملف",
+      lang_switch_aria: "اختيار اللغة",
+      profile_alt: "Serdar Armin Sargut — ممثل طفل وموديل إعلاني",
+      cta_list_aria: "روابط الملف",
       location: "إسطنبول، تركيا",
       role: "ممثل طفل • موديل إعلاني",
       intro: "الشوريل، الملف المهني وروابط الكاستينغ.",
@@ -99,6 +108,9 @@
       page_title: "Serdar Armin Sargut | Детский актёр и рекламная модель",
       page_description: "Шоурил, актёрское и модельное портфолио, профессиональные материалы и ссылки для кастинга Serdar Armin Sargut.",
       skip_link: "Перейти к ссылкам портфолио",
+      lang_switch_aria: "Выбор языка",
+      profile_alt: "Serdar Armin Sargut — детский актёр и рекламная модель",
+      cta_list_aria: "Ссылки портфолио",
       location: "Стамбул, Турция",
       role: "Детский актёр • Рекламная модель",
       intro: "Шоурил, профессиональное портфолио и ссылки для кастинга.",
@@ -202,6 +214,14 @@
 
     const description = document.querySelector('meta[name="description"]');
     if (description) description.setAttribute("content", t.page_description);
+
+    const languageSwitch = document.querySelector(".lang-switch");
+    if (languageSwitch) languageSwitch.setAttribute("aria-label", t.lang_switch_aria);
+
+    const profilePhoto = document.querySelector(".profile-photo");
+    if (profilePhoto) profilePhoto.setAttribute("alt", t.profile_alt);
+
+    if (list) list.setAttribute("aria-label", t.cta_list_aria);
 
     document.querySelectorAll("[data-i18n]").forEach((node) => {
       const key = node.getAttribute("data-i18n");
