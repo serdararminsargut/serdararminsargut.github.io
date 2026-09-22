@@ -21,7 +21,14 @@
       contact_title: "Casting & Marka İletişimi",
       contact_sub: "Profesyonel iş birliği ve casting talepleri",
       footer: "Serdar Armin Sargut Resmî Portföyü • İstanbul, Türkiye",
-      privacy: "İletişim ebeveyn / veli yönetimindedir."
+      privacy: "İletişim ebeveyn / veli yönetimindedir.",
+      showreel_aria: "Serdar Armin Sargut showreelini izle",
+      portfolio_aria: "Serdar Armin Sargut resmî portföyünü aç",
+      modeling_aria: "Serdar Armin Sargut reklam ve modellik portföyünü aç",
+      acting_aria: "Serdar Armin Sargut oyunculuk portföyünü aç",
+      casting_aria: "Serdar Armin Sargut casting kartını aç",
+      instagram_aria: "Serdar Armin Sargut Instagram profilini aç ve takip et",
+      contact_aria: "Casting ve marka iletişimi bölümünü aç"
     },
     en: {
       location: "Istanbul, Türkiye",
@@ -42,7 +49,14 @@
       contact_title: "Casting & Brand Inquiries",
       contact_sub: "Professional collaboration and casting inquiries",
       footer: "Official Portfolio of Serdar Armin Sargut • Istanbul, Türkiye",
-      privacy: "Contact is parent / guardian managed."
+      privacy: "Contact is parent / guardian managed.",
+      showreel_aria: "Watch Serdar Armin Sargut showreel",
+      portfolio_aria: "Open Serdar Armin Sargut official portfolio",
+      modeling_aria: "Open Serdar Armin Sargut commercial and modeling portfolio",
+      acting_aria: "Open Serdar Armin Sargut acting portfolio",
+      casting_aria: "Open Serdar Armin Sargut casting card",
+      instagram_aria: "Open and follow Serdar Armin Sargut on Instagram",
+      contact_aria: "Open casting and brand inquiries section"
     }
   };
 
@@ -78,7 +92,9 @@
     }
   }
 
-  if (trafficSource === "instagram") {
+  if (trafficSource === "direct" || (!["instagram","pinterest","tiktok","youtube","google"].includes(trafficSource) && !trafficSource.includes("casting") && !trafficSource.includes("agency"))) {
+    moveToTop(["showreel", "portfolio", "instagram"]);
+  } else if (trafficSource === "instagram") {
     moveToTop(["showreel", "portfolio"]);
   } else if (["pinterest", "tiktok", "youtube"].includes(trafficSource)) {
     moveToTop(["instagram", "showreel", "portfolio"]);
@@ -97,6 +113,10 @@
     });
     document.querySelectorAll("[data-lang]").forEach((button) => {
       button.setAttribute("aria-pressed", String(button.dataset.lang === selected));
+    });
+    document.querySelectorAll("[data-aria]").forEach((link) => {
+      const key = link.getAttribute("data-aria");
+      if (translations[selected][key]) link.setAttribute("aria-label", translations[selected][key]);
     });
     try {
       localStorage.setItem("sas_links_lang", selected);
@@ -140,9 +160,4 @@
       }
     });
   });
-
-  const note = document.getElementById("source-note");
-  if (note && trafficSource !== "direct") {
-    note.textContent = "source: " + trafficSource;
-  }
 })();
