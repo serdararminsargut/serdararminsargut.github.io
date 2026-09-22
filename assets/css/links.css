@@ -169,7 +169,7 @@ footer{
   font-size:.72rem;
 }
 footer p{margin:4px 0}
-footer .privacy{color:#6f6962}
+footer .privacy{color:#827c73}
 @media(max-width:380px){
   .link-hub{width:calc(100% - 20px);padding-top:16px}
   .profile-photo{width:96px;height:96px}
