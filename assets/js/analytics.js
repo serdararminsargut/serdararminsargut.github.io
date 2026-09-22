@@ -1,4 +1,7 @@
 /* Analytics bootstrap: defer third-party network work until after initial render. */
+if (document.documentElement.dataset.releaseState === "preview") {
+  window.dataLayer = window.dataLayer || [];
+} else {
 window.dataLayer = window.dataLayer || [];
 function gtag(){window.dataLayer.push(arguments);}
 gtag('js', new Date());
@@ -55,3 +58,4 @@ gtag('config', 'G-H894LKL93J');
     window.addEventListener('load', scheduleAnalytics, {once: true});
   }
 })();
+}
