@@ -149,10 +149,10 @@
   };
 
   const routes = {
-    tr: {base: "/", casting: "/casting-card/tr.html"},
-    en: {base: "/en/", casting: "/casting-card/en.html"},
-    ar: {base: "/ar/", casting: "/casting-card/ar.html"},
-    ru: {base: "/ru/", casting: "/casting-card/ru.html"}
+    tr: {base: "/", casting: "/casting-card/tr"},
+    en: {base: "/en/", casting: "/casting-card/en"},
+    ar: {base: "/ar/", casting: "/casting-card/ar"},
+    ru: {base: "/ru/", casting: "/casting-card/ru"}
   };
 
   const languagePaths = {
