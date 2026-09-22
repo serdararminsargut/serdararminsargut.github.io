@@ -93,6 +93,7 @@ jobs:
             ky \
             llms.txt \
             llms-full.txt \
+            links \
             postcard.html \
             projeler \
             rehber \
