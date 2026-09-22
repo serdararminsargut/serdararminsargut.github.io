@@ -59,11 +59,12 @@ a{color:inherit}
   padding:8px 0 18px;
 }
 .lang-switch{
-  position:absolute;
-  top:4px;
-  right:0;
+  position:static;
   display:flex;
-  gap:5px;
+  justify-content:center;
+  gap:6px;
+  margin:0 auto 12px;
+  direction:ltr;
 }
 .lang-switch button{
   min-width:44px;
@@ -128,6 +129,7 @@ h1{
 .cta-list{display:grid;gap:10px}
 .cta{
   display:flex;
+  text-align:start;
   min-height:58px;
   flex-direction:column;
   justify-content:center;
@@ -178,3 +180,7 @@ footer .privacy{color:#6f6962}
   *{scroll-behavior:auto!important}
   .cta{transition:none}
 }
+
+[dir="rtl"] body{font-family:Tahoma,Arial,Helvetica,sans-serif}
+[dir="rtl"] .profile{text-align:center}
+[dir="rtl"] .cta{text-align:right}
