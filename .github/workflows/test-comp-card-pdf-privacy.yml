@@ -1,0 +1,126 @@
+name: Test Comp Card PDF Privacy
+
+on:
+  push:
+    branches:
+      - test/link-in-bio-20260922
+    paths:
+      - ".github/workflows/test-comp-card-pdf-privacy.yml"
+      - "casting-card/**"
+      - "assets/**"
+
+permissions:
+  contents: read
+
+jobs:
+  generate-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout test branch source
+        uses: actions/checkout@v4
+        with:
+          ref: test/link-in-bio-20260922
+
+      - name: Install PDF verification tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+
+      - name: Generate TR EN AR RU PDFs from test sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-pdf/pdfs qa-pdf/text qa-pdf/renders
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/comp-card-test-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8765/casting-card/tr.html >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+
+          chrome_bin=""
+          for candidate in google-chrome-stable google-chrome chromium chromium-browser; do
+            if command -v "$candidate" >/dev/null 2>&1; then
+              chrome_bin=$(command -v "$candidate")
+              break
+            fi
+          done
+          if [[ -z "$chrome_bin" ]]; then
+            echo "No Chrome/Chromium executable found" >&2
+            exit 1
+          fi
+
+          for lang in tr en ar ru; do
+            code=$(printf '%s' "$lang" | tr '[:lower:]' '[:upper:]')
+            out="$PWD/qa-pdf/pdfs/Serdar-Armin-Sargut-Comp-Card-${code}-TEST.pdf"
+            "$chrome_bin" \
+              --headless \
+              --no-sandbox \
+              --disable-gpu \
+              --disable-dev-shm-usage \
+              --run-all-compositor-stages-before-draw \
+              --virtual-time-budget=4000 \
+              --print-to-pdf="$out" \
+              --no-pdf-header-footer \
+              "http://127.0.0.1:8765/casting-card/${lang}.html"
+            test -s "$out"
+            head -c 5 "$out" | grep -q '%PDF-'
+          done
+
+      - name: Verify privacy, text layer, and render
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$PWD/qa-pdf/privacy-report.txt"
+          : > "$report"
+
+          for code in TR EN AR RU; do
+            pdf="$PWD/qa-pdf/pdfs/Serdar-Armin-Sargut-Comp-Card-${code}-TEST.pdf"
+            txt="$PWD/qa-pdf/text/${code}.txt"
+            render="$PWD/qa-pdf/renders/${code}"
+            pdftotext -layout "$pdf" "$txt"
+            pdftoppm -png -singlefile -r 160 "$pdf" "$render" >/dev/null 2>&1
+
+            echo "=== ${code} ===" | tee -a "$report"
+            pdfinfo "$pdf" | grep -E '^(Pages|Page size|File size)' | tee -a "$report"
+            sha256sum "$pdf" | tee -a "$report"
+
+            if grep -Fq '08/07/2014' "$txt"; then
+              echo "FAIL: exact DOB 08/07/2014 found" | tee -a "$report"
+              exit 1
+            fi
+            if grep -Fq '2014-07-08' "$txt"; then
+              echo "FAIL: ISO DOB 2014-07-08 found" | tee -a "$report"
+              exit 1
+            fi
+            if grep -Eiq '\bbirthDate\b' "$txt"; then
+              echo "FAIL: birthDate token found" | tee -a "$report"
+              exit 1
+            fi
+            if grep -Eiq '\b(0?[1-9]|[12][0-9]|3[01])[./-](0?[1-9]|1[0-2])[./-]2014\b' "$txt"; then
+              echo "FAIL: full day/month/year 2014 date found" | tee -a "$report"
+              grep -Ein '\b(0?[1-9]|[12][0-9]|3[01])[./-](0?[1-9]|1[0-2])[./-]2014\b' "$txt" | tee -a "$report"
+              exit 1
+            fi
+            if ! grep -Fq '2014' "$txt"; then
+              echo "FAIL: year-only 2014 not found" | tee -a "$report"
+              exit 1
+            fi
+
+            echo "PASS: no full DOB / ISO DOB / birthDate; year 2014 present" | tee -a "$report"
+            echo | tee -a "$report"
+          done
+
+      - name: Upload test QA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: comp-card-pdf-privacy-test
+          path: qa-pdf/
+          if-no-files-found: error
+          retention-days: 7
