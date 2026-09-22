@@ -165,7 +165,7 @@
   }
 
   if (trafficSource === "direct" || (!["instagram","pinterest","tiktok","youtube","google"].includes(trafficSource) && !trafficSource.includes("casting") && !trafficSource.includes("agency"))) {
-    moveToTop(["showreel", "portfolio", "instagram"]);
+    moveToTop(["portfolio", "showreel", "instagram"]);
   } else if (trafficSource === "instagram") {
     moveToTop(["showreel", "portfolio"]);
   } else if (["pinterest", "tiktok", "youtube"].includes(trafficSource)) {
