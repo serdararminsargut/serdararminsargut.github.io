@@ -210,20 +210,74 @@ jobs:
         run: |
           set -euo pipefail
           base='https://serdararminsargut.pages.dev'
-          for path in /links/ /links/en/ /links/ar/ /links/ru; do
+          delays=(0 5 10 20)
+
+          verify_path() {
+            local path="$1"
             rm -f /tmp/link.headers /tmp/link.body
-            code=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 -D /tmp/link.headers -o /tmp/link.body -w '%{http_code}' "$base$path")
+            local code
+            code=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 \
+              -D /tmp/link.headers -o /tmp/link.body -w '%{http_code}' "$base$path" || true)
             echo "$path -> HTTP $code"
-            [[ "$code" == "200" ]]
-            ! grep -Eiq '^x-robots-tag:.*noindex' /tmp/link.headers
-            grep -Fq '<meta name="robots" content="index,follow">' /tmp/link.body
-            grep -Fq 'https://serdararminsargut.pages.dev/links' /tmp/link.body
-            ! grep -Fq 'TEST PREVIEW' /tmp/link.body
-            ! grep -Fq 'test-link-in-bio-20260922.serdararminsargut.pages.dev' /tmp/link.body
-          done
-          for asset in /assets/css/links.20260922-prod.css /assets/js/links.20260922-prod.js /assets/js/analytics.6e100445.js; do
-            code=$(curl -sS -o /dev/null -w '%{http_code}' "$base$asset")
+            [[ "$code" == "200" ]] || return 1
+            ! grep -Eiq '^x-robots-tag:.*noindex' /tmp/link.headers || return 1
+            grep -Fq '<meta name="robots" content="index,follow">' /tmp/link.body || return 1
+            grep -Fq 'https://serdararminsargut.pages.dev/links' /tmp/link.body || return 1
+            ! grep -Fq 'TEST PREVIEW' /tmp/link.body || return 1
+            ! grep -Fq 'test-link-in-bio-20260922.serdararminsargut.pages.dev' /tmp/link.body || return 1
+          }
+
+          verify_asset() {
+            local asset="$1"
+            local code
+            code=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 \
+              -o /dev/null -w '%{http_code}' "$base$asset" || true)
             echo "$asset -> HTTP $code"
             [[ "$code" == "200" ]]
+          }
+
+          for path in /links/ /links/en/ /links/ar/ /links/ru; do
+            ok=0
+            for i in "${!delays[@]}"; do
+              delay="${delays[$i]}"
+              if (( delay > 0 )); then
+                echo "Propagation wait for $path: ${delay}s"
+                sleep "$delay"
+              fi
+              attempt=$((i + 1))
+              echo "Verify $path attempt $attempt/${#delays[@]}"
+              if verify_path "$path"; then
+                ok=1
+                break
+              fi
+            done
+            if [[ "$ok" != "1" ]]; then
+              echo "Link hub path failed after retry/backoff: $path" >&2
+              cat /tmp/link.headers >&2 || true
+              head -c 500 /tmp/link.body >&2 || true
+              exit 1
+            fi
           done
+
+          for asset in /assets/css/links.20260922-prod.css /assets/js/links.20260922-prod.js /assets/js/analytics.6e100445.js; do
+            ok=0
+            for i in "${!delays[@]}"; do
+              delay="${delays[$i]}"
+              if (( delay > 0 )); then
+                echo "Propagation wait for $asset: ${delay}s"
+                sleep "$delay"
+              fi
+              attempt=$((i + 1))
+              echo "Verify $asset attempt $attempt/${#delays[@]}"
+              if verify_asset "$asset"; then
+                ok=1
+                break
+              fi
+            done
+            if [[ "$ok" != "1" ]]; then
+              echo "Link hub asset failed after retry/backoff: $asset" >&2
+              exit 1
+            fi
+          done
+
           echo 'Production link hub live verification PASS'
