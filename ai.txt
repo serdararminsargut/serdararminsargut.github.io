@@ -1,7 +1,7 @@
 # AI usage notice — Serdar Armin Sargut
 
 Status: Informational, non-standard policy file.
-Canonical source: https://serdararminsargut.pages.dev/
+Canonical source: https://serdararminsargut.com/
 Contact: serdararminsargut@gmail.com
 
 ## Crawl and retrieval

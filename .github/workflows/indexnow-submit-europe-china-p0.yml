@@ -16,26 +16,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          host='serdararminsargut.pages.dev'
+          host='serdararminsargut.com'
           key='72f0dad836e29ffcc2d9dd42a794dbf0'
-          key_location='https://serdararminsargut.pages.dev/indexnow-key.txt'
+          key_location='https://serdararminsargut.com/indexnow-key.txt'
           urls=(
-            'https://serdararminsargut.pages.dev/de/jungen-model/'
-            'https://serdararminsargut.pages.dev/de/kinder-sportmode-model/'
-            'https://serdararminsargut.pages.dev/de/kindermode-model/'
-            'https://serdararminsargut.pages.dev/de/ecommerce-kinder-model/'
-            'https://serdararminsargut.pages.dev/fr/mannequin-garcon/'
-            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-sportswear/'
-            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-vetements/'
-            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-ecommerce/'
-            'https://serdararminsargut.pages.dev/it/modello-bambino/'
-            'https://serdararminsargut.pages.dev/it/modello-bambino-abbigliamento-sportivo/'
-            'https://serdararminsargut.pages.dev/it/modello-bambino-abbigliamento/'
-            'https://serdararminsargut.pages.dev/it/modello-bambino-ecommerce/'
-            'https://serdararminsargut.pages.dev/zh-cn/nantong-mote/'
-            'https://serdararminsargut.pages.dev/zh-cn/ertong-yundongfu-mote/'
-            'https://serdararminsargut.pages.dev/zh-cn/ertong-fuzhuang-mote/'
-            'https://serdararminsargut.pages.dev/zh-cn/dianshang-ertong-mote/'
+            'https://serdararminsargut.com/de/jungen-model/'
+            'https://serdararminsargut.com/de/kinder-sportmode-model/'
+            'https://serdararminsargut.com/de/kindermode-model/'
+            'https://serdararminsargut.com/de/ecommerce-kinder-model/'
+            'https://serdararminsargut.com/fr/mannequin-garcon/'
+            'https://serdararminsargut.com/fr/mannequin-enfant-sportswear/'
+            'https://serdararminsargut.com/fr/mannequin-enfant-vetements/'
+            'https://serdararminsargut.com/fr/mannequin-enfant-ecommerce/'
+            'https://serdararminsargut.com/it/modello-bambino/'
+            'https://serdararminsargut.com/it/modello-bambino-abbigliamento-sportivo/'
+            'https://serdararminsargut.com/it/modello-bambino-abbigliamento/'
+            'https://serdararminsargut.com/it/modello-bambino-ecommerce/'
+            'https://serdararminsargut.com/zh-cn/nantong-mote/'
+            'https://serdararminsargut.com/zh-cn/ertong-yundongfu-mote/'
+            'https://serdararminsargut.com/zh-cn/ertong-fuzhuang-mote/'
+            'https://serdararminsargut.com/zh-cn/dianshang-ertong-mote/'
           )
 
           failures=0
@@ -72,22 +72,22 @@ jobs:
         run: |
           set -euo pipefail
           urls=(
-            'https://serdararminsargut.pages.dev/de/jungen-model/'
-            'https://serdararminsargut.pages.dev/de/kinder-sportmode-model/'
-            'https://serdararminsargut.pages.dev/de/kindermode-model/'
-            'https://serdararminsargut.pages.dev/de/ecommerce-kinder-model/'
-            'https://serdararminsargut.pages.dev/fr/mannequin-garcon/'
-            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-sportswear/'
-            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-vetements/'
-            'https://serdararminsargut.pages.dev/fr/mannequin-enfant-ecommerce/'
-            'https://serdararminsargut.pages.dev/it/modello-bambino/'
-            'https://serdararminsargut.pages.dev/it/modello-bambino-abbigliamento-sportivo/'
-            'https://serdararminsargut.pages.dev/it/modello-bambino-abbigliamento/'
-            'https://serdararminsargut.pages.dev/it/modello-bambino-ecommerce/'
-            'https://serdararminsargut.pages.dev/zh-cn/nantong-mote/'
-            'https://serdararminsargut.pages.dev/zh-cn/ertong-yundongfu-mote/'
-            'https://serdararminsargut.pages.dev/zh-cn/ertong-fuzhuang-mote/'
-            'https://serdararminsargut.pages.dev/zh-cn/dianshang-ertong-mote/'
+            'https://serdararminsargut.com/de/jungen-model/'
+            'https://serdararminsargut.com/de/kinder-sportmode-model/'
+            'https://serdararminsargut.com/de/kindermode-model/'
+            'https://serdararminsargut.com/de/ecommerce-kinder-model/'
+            'https://serdararminsargut.com/fr/mannequin-garcon/'
+            'https://serdararminsargut.com/fr/mannequin-enfant-sportswear/'
+            'https://serdararminsargut.com/fr/mannequin-enfant-vetements/'
+            'https://serdararminsargut.com/fr/mannequin-enfant-ecommerce/'
+            'https://serdararminsargut.com/it/modello-bambino/'
+            'https://serdararminsargut.com/it/modello-bambino-abbigliamento-sportivo/'
+            'https://serdararminsargut.com/it/modello-bambino-abbigliamento/'
+            'https://serdararminsargut.com/it/modello-bambino-ecommerce/'
+            'https://serdararminsargut.com/zh-cn/nantong-mote/'
+            'https://serdararminsargut.com/zh-cn/ertong-yundongfu-mote/'
+            'https://serdararminsargut.com/zh-cn/ertong-fuzhuang-mote/'
+            'https://serdararminsargut.com/zh-cn/dianshang-ertong-mote/'
           )
 
           failures=0
@@ -97,7 +97,7 @@ jobs:
               -o /dev/null -w '%{http_code} %{url_effective}' "$url" || true)
             echo "LIVE | $result | $url"
             case "$result" in
-              200\ https://serdararminsargut.pages.dev/*) ;;
+              200\ https://serdararminsargut.com/*) ;;
               *) failures=$((failures + 1)) ;;
             esac
           done
