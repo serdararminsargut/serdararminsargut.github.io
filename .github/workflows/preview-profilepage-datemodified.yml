@@ -1,0 +1,284 @@
+name: Preview ProfilePage dateModified fix
+
+on:
+  push:
+    branches:
+      - test/preview-deploy-datemodified-20260925
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: preview-profilepage-datemodified-20260925
+  cancel-in-progress: true
+
+jobs:
+  validate-and-preview:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout preview source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard preview branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "test/preview-deploy-datemodified-20260925"
+
+      - name: Validate exact minimal schema change
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          python - <<'PY'
+          import json
+          import re
+          import subprocess
+          from pathlib import Path
+
+          targets = [
+              "az/index.html",
+              "ar/index.html",
+              "kk/index.html",
+              "ru/index.html",
+              "ky/index.html",
+              "en/index.html",
+              "uz/index.html",
+              "casting-card/en.html",
+          ]
+          workflow = ".github/workflows/preview-profilepage-datemodified.yml"
+          expected_changed = sorted(targets + [workflow])
+
+          changed = subprocess.check_output(
+              ["git", "diff", "--name-only", "origin/main...HEAD"],
+              text=True,
+          ).splitlines()
+
+          if sorted(changed) != expected_changed:
+              raise SystemExit(
+                  "Unexpected changed files. Expected: "
+                  + repr(expected_changed)
+                  + " Actual: "
+                  + repr(sorted(changed))
+              )
+
+          pattern = re.compile(r',"dateModified":"[^"]+"')
+          jsonld_re = re.compile(
+              r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+              re.I | re.S,
+          )
+
+          for path in targets:
+              base = subprocess.check_output(
+                  ["git", "show", f"origin/main:{path}"],
+                  text=True,
+              )
+              current = Path(path).read_text(encoding="utf-8")
+
+              matches = pattern.findall(base)
+              if len(matches) != 1:
+                  raise SystemExit(f"{path}: expected exactly one base dateModified, got {len(matches)}")
+
+              expected = pattern.sub("", base, count=1)
+              if current != expected:
+                  raise SystemExit(f"{path}: contains changes beyond exact dateModified removal")
+
+              if '"dateModified"' in current:
+                  raise SystemExit(f"{path}: dateModified still present")
+
+              if '"@type":"ProfilePage"' not in current:
+                  raise SystemExit(f"{path}: ProfilePage missing")
+
+              blocks = jsonld_re.findall(current)
+              if not blocks:
+                  raise SystemExit(f"{path}: no JSON-LD blocks found")
+
+              for block in blocks:
+                  json.loads(block)
+
+              print(f"PASS {path}: exact removal, ProfilePage present, JSON-LD valid")
+
+          print("PASS: exactly 8 HTML files changed plus this preview-only workflow")
+          PY
+
+      - name: Prepare static preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          mkdir -p dist
+
+          for item in \
+            .nojekyll \
+            _headers \
+            _redirects \
+            404.html \
+            ai.txt \
+            ar \
+            assets \
+            az \
+            blog \
+            card.html \
+            casting-card \
+            de \
+            downloads \
+            en \
+            fa \
+            favicon.svg \
+            fr \
+            index.html \
+            indexnow-key.txt \
+            72f0dad836e29ffcc2d9dd42a794dbf0.txt \
+            erkek-cocuk-model \
+            spor-giyim-cocuk-modeli \
+            cocuk-giyim-modeli \
+            e-ticaret-cocuk-modeli \
+            it \
+            kk \
+            ky \
+            llms.txt \
+            llms-full.txt \
+            links \
+            postcard.html \
+            projeler \
+            rehber \
+            robots.txt \
+            ru \
+            sitemap.xml \
+            sitemap-google.xml \
+            sitemap.txt \
+            tk \
+            uz \
+            zh-cn \
+            yandex_*.html
+          do
+            if compgen -G "$item" > /dev/null; then
+              cp -R $item dist/
+            elif [ -e "$item" ]; then
+              cp -R "$item" dist/
+            fi
+          done
+
+      - name: Normalize Cloudflare account id
+        id: cloudflare_account
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          account_id="$raw"
+
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account_id="${BASH_REMATCH[1]}"
+          fi
+
+          if [[ ! "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]; then
+            echo "Cloudflare Account ID is invalid." >&2
+            exit 1
+          fi
+
+          echo "::add-mask::$account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy isolated Cloudflare Pages preview
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cloudflare_account.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=profilepage-datemodified-fix-20260925-preview
+
+      - name: Verify 8 preview URLs
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          preview='https://profilepage-datemodified-fix-20260925-preview.serdararminsargut.pages.dev'
+
+          paths=(
+            '/az/'
+            '/ar/'
+            '/kk/'
+            '/ru/'
+            '/ky/'
+            '/en/'
+            '/uz/'
+            '/casting-card/en'
+          )
+
+          expected=(
+            'https://serdararminsargut.com/az/'
+            'https://serdararminsargut.com/ar/'
+            'https://serdararminsargut.com/kk/'
+            'https://serdararminsargut.com/ru/'
+            'https://serdararminsargut.com/ky/'
+            'https://serdararminsargut.com/en/'
+            'https://serdararminsargut.com/uz/'
+            'https://serdararminsargut.com/casting-card/en'
+          )
+
+          ready=0
+          for attempt in $(seq 1 12); do
+            code=$(curl -sS -L --connect-timeout 10 --max-time 25 -o /dev/null -w '%{http_code}' "$preview/en/" || true)
+            echo "Preview readiness attempt $attempt: HTTP=$code"
+            if [[ "$code" == "200" ]]; then
+              ready=1
+              break
+            fi
+            sleep 5
+          done
+
+          [[ "$ready" == "1" ]] || { echo "Preview did not become ready" >&2; exit 1; }
+
+          for i in "${!paths[@]}"; do
+            path="${paths[$i]}"
+            want="${expected[$i]}"
+            body="/tmp/preview-body-$i"
+            headers="/tmp/preview-headers-$i"
+
+            code=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 \
+              -D "$headers" -o "$body" -w '%{http_code}' "$preview$path")
+
+            canonical=$(python - "$body" <<'PY'
+          import re, sys
+          text = open(sys.argv[1], encoding='utf-8').read()
+          m = re.search(r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"\']+)["\']|<link[^>]+href=["\']([^"\']+)["\'][^>]+rel=["\']canonical["\']', text, re.I)
+          print((m.group(1) or m.group(2)) if m else '')
+          PY
+            )
+
+            profile='NO'
+            grep -q '"@type"[[:space:]]*:[[:space:]]*"ProfilePage"' "$body" && profile='YES'
+
+            datemod='YOK'
+            if grep -q '"dateModified"' "$body"; then
+              datemod='VAR'
+            fi
+
+            noindex='NO'
+            grep -Eiq '^x-robots-tag:.*noindex' "$headers" && noindex='YES'
+
+            status='PASS'
+            [[ "$code" == "200" ]] || status='FAIL'
+            [[ "$canonical" == "$want" ]] || status='FAIL'
+            [[ "$profile" == "YES" ]] || status='FAIL'
+            [[ "$datemod" == "YOK" ]] || status='FAIL'
+            [[ "$noindex" == "YES" ]] || status='FAIL'
+
+            echo "================================================"
+            echo "PATH         : $path"
+            echo "HTTP         : $code"
+            echo "CANONICAL    : ${canonical:-BULUNAMADI}"
+            echo "EXPECTED     : $want"
+            echo "ProfilePage  : $profile"
+            echo "dateModified : $datemod"
+            echo "PreviewNoIndex: $noindex"
+            echo "SONUC        : $status"
+
+            [[ "$status" == "PASS" ]]
+          done
+
+          echo "PREVIEW_URL=$preview"
+          echo "PASS: 8/8 preview URLs validated"
