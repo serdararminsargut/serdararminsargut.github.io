@@ -183,15 +183,28 @@ jobs:
           echo "::add-mask::$account_id"
           echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy isolated Cloudflare Pages preview
+      - name: Add noindex header to isolated test bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '\n/*\n  X-Robots-Tag: noindex, nofollow\n' >> dist/_headers
+
+      - name: Create isolated temporary Cloudflare Pages project
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cloudflare_account.outputs.account_id }}
+          command: pages project create serdar-schema-dmfix-20260925 --production-branch=preview
+
+      - name: Deploy test bundle to isolated Pages project
         id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ steps.cloudflare_account.outputs.account_id }}
-          command: pages deploy dist --project-name=serdararminsargut --branch=dmfix-preview-0925
+          command: pages deploy dist --project-name=serdar-schema-dmfix-20260925 --branch=preview
 
-      - name: Verify 8 immutable preview URLs
+      - name: Verify 8 URLs on isolated Pages project
         shell: bash
         env:
           PREVIEW_URL: ${{ steps.deploy.outputs.deployment-url }}
@@ -201,12 +214,14 @@ jobs:
 
           preview="${PREVIEW_URL%/}"
           alias="${ALIAS_URL%/}"
+          project='https://serdar-schema-dmfix-20260925.pages.dev'
 
           echo "Immutable preview URL: $preview"
           echo "Alias preview URL    : $alias"
+          echo "Project URL          : $project"
 
-          [[ "$preview" == https://*.serdararminsargut.pages.dev ]] || {
-            echo "Unexpected preview URL: $preview" >&2
+          [[ "$preview" == https://*.serdar-schema-dmfix-20260925.pages.dev ]] || {
+            echo "Unexpected immutable deployment URL: $preview" >&2
             exit 1
           }
 
@@ -235,7 +250,7 @@ jobs:
           ready=0
           for attempt in $(seq 1 12); do
             code=$(curl -sS -L --connect-timeout 10 --max-time 25 -o /dev/null -w '%{http_code}' "$preview/en/" || true)
-            echo "Preview readiness attempt $attempt: HTTP=$code"
+            echo "Readiness attempt $attempt: HTTP=$code"
             if [[ "$code" == "200" ]]; then
               ready=1
               break
@@ -243,7 +258,7 @@ jobs:
             sleep 5
           done
 
-          [[ "$ready" == "1" ]] || { echo "Preview did not become ready" >&2; exit 1; }
+          [[ "$ready" == "1" ]] || { echo "Isolated preview did not become ready" >&2; exit 1; }
 
           pass=0
           fail=0
@@ -251,8 +266,8 @@ jobs:
           for i in "${!paths[@]}"; do
             path="${paths[$i]}"
             want="${expected[$i]}"
-            body="/tmp/preview-body-$i"
-            headers="/tmp/preview-headers-$i"
+            body="/tmp/isolated-body-$i"
+            headers="/tmp/isolated-headers-$i"
 
             info=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 \
               -D "$headers" -o "$body" -w '%{http_code}|%{url_effective}' "$preview$path")
@@ -285,6 +300,7 @@ jobs:
             [[ "$canonical" == "$want" ]] || status='FAIL'
             [[ "$profile" == "YES" ]] || status='FAIL'
             [[ "$datemod" == "YOK" ]] || status='FAIL'
+            [[ "$noindex" == "YES" ]] || status='FAIL'
 
             echo "================================================"
             echo "PATH          : $path"
@@ -306,9 +322,9 @@ jobs:
 
           echo "================================================"
           echo "PREVIEW_URL=$preview"
-          echo "ALIAS_URL=$alias"
+          echo "PROJECT_URL=$project"
           echo "PASS_COUNT=$pass"
           echo "FAIL_COUNT=$fail"
 
           [[ "$pass" == "8" && "$fail" == "0" ]]
-          echo "PASS: 8/8 immutable preview URLs validated"
+          echo "PASS: 8/8 isolated Pages URLs validated"
