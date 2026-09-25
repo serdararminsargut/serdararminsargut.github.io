@@ -188,14 +188,14 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ steps.cloudflare_account.outputs.account_id }}
-          command: pages deploy dist --project-name=serdararminsargut --branch=profilepage-datemodified-fix-20260925-preview
+          command: pages deploy dist --project-name=serdararminsargut --branch=dmfix-preview-0925
 
       - name: Verify 8 preview URLs
         shell: bash
         run: |
           set -euo pipefail
 
-          preview='https://profilepage-datemodified-fix-20260925-preview.serdararminsargut.pages.dev'
+          preview='https://dmfix-preview-0925.serdararminsargut.pages.dev'
 
           paths=(
             '/az/'
