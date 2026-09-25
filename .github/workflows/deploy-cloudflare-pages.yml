@@ -31,7 +31,7 @@ jobs:
           python - <<'PY'
           import xml.etree.ElementTree as ET
 
-          canonical_prefix = 'https://serdararminsargut.pages.dev/'
+          canonical_prefix = 'https://serdararminsargut.com/'
           root = ET.parse('sitemap.xml').getroot()
           ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
 
@@ -145,8 +145,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sitemap='https://serdararminsargut.pages.dev/sitemap.xml'
-          robots='https://serdararminsargut.pages.dev/robots.txt'
+          sitemap='https://serdararminsargut.com/sitemap.xml'
+          robots='https://serdararminsargut.com/robots.txt'
           ua='Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
 
           ok=0
@@ -202,14 +202,14 @@ jobs:
           robots_code=$(curl -sS -L --connect-timeout 10 --max-time 25 -A "$ua" -o /tmp/robots.body -w '%{http_code}' "$robots")
           [[ "$robots_code" == "200" ]]
           grep -Fq 'User-agent: Googlebot' /tmp/robots.body
-          grep -Fq 'Sitemap: https://serdararminsargut.pages.dev/sitemap.xml' /tmp/robots.body
+          grep -Fq 'Sitemap: https://serdararminsargut.com/sitemap.xml' /tmp/robots.body
           echo 'Live robots.txt is reachable by Googlebot and declares only the canonical sitemap.xml'
 
       - name: Verify live link hub after deploy
         shell: bash
         run: |
           set -euo pipefail
-          base='https://serdararminsargut.pages.dev'
+          base='https://serdararminsargut.com'
           for path in /links/ /links/en/ /links/ar/ /links/ru; do
             rm -f /tmp/link.headers /tmp/link.body
             code=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 -D /tmp/link.headers -o /tmp/link.body -w '%{http_code}' "$base$path")
@@ -217,7 +217,7 @@ jobs:
             [[ "$code" == "200" ]]
             ! grep -Eiq '^x-robots-tag:.*noindex' /tmp/link.headers
             grep -Fq '<meta name="robots" content="index,follow">' /tmp/link.body
-            grep -Fq 'https://serdararminsargut.pages.dev/links' /tmp/link.body
+            grep -Fq 'https://serdararminsargut.com/links' /tmp/link.body
             ! grep -Fq 'TEST PREVIEW' /tmp/link.body
             ! grep -Fq 'test-link-in-bio-20260922.serdararminsargut.pages.dev' /tmp/link.body
           done
