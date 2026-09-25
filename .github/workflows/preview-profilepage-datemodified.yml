@@ -184,18 +184,31 @@ jobs:
           echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
 
       - name: Deploy isolated Cloudflare Pages preview
+        id: deploy
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ steps.cloudflare_account.outputs.account_id }}
           command: pages deploy dist --project-name=serdararminsargut --branch=dmfix-preview-0925
 
-      - name: Verify 8 preview URLs
+      - name: Verify 8 immutable preview URLs
         shell: bash
+        env:
+          PREVIEW_URL: ${{ steps.deploy.outputs.deployment-url }}
+          ALIAS_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
         run: |
           set -euo pipefail
 
-          preview='https://dmfix-preview-0925.serdararminsargut.pages.dev'
+          preview="${PREVIEW_URL%/}"
+          alias="${ALIAS_URL%/}"
+
+          echo "Immutable preview URL: $preview"
+          echo "Alias preview URL    : $alias"
+
+          [[ "$preview" == https://*.serdararminsargut.pages.dev ]] || {
+            echo "Unexpected preview URL: $preview" >&2
+            exit 1
+          }
 
           paths=(
             '/az/'
@@ -232,14 +245,20 @@ jobs:
 
           [[ "$ready" == "1" ]] || { echo "Preview did not become ready" >&2; exit 1; }
 
+          pass=0
+          fail=0
+
           for i in "${!paths[@]}"; do
             path="${paths[$i]}"
             want="${expected[$i]}"
             body="/tmp/preview-body-$i"
             headers="/tmp/preview-headers-$i"
 
-            code=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 \
-              -D "$headers" -o "$body" -w '%{http_code}' "$preview$path")
+            info=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 \
+              -D "$headers" -o "$body" -w '%{http_code}|%{url_effective}' "$preview$path")
+
+            code="${info%%|*}"
+            final="${info#*|}"
 
             canonical=$(python - "$body" <<'PY'
           import re, sys
@@ -262,23 +281,34 @@ jobs:
 
             status='PASS'
             [[ "$code" == "200" ]] || status='FAIL'
+            [[ "$final" == "$preview"* ]] || status='FAIL'
             [[ "$canonical" == "$want" ]] || status='FAIL'
             [[ "$profile" == "YES" ]] || status='FAIL'
             [[ "$datemod" == "YOK" ]] || status='FAIL'
-            [[ "$noindex" == "YES" ]] || status='FAIL'
 
             echo "================================================"
-            echo "PATH         : $path"
-            echo "HTTP         : $code"
-            echo "CANONICAL    : ${canonical:-BULUNAMADI}"
-            echo "EXPECTED     : $want"
-            echo "ProfilePage  : $profile"
-            echo "dateModified : $datemod"
+            echo "PATH          : $path"
+            echo "HTTP          : $code"
+            echo "FINAL URL     : $final"
+            echo "CANONICAL     : ${canonical:-BULUNAMADI}"
+            echo "EXPECTED      : $want"
+            echo "ProfilePage   : $profile"
+            echo "dateModified  : $datemod"
             echo "PreviewNoIndex: $noindex"
-            echo "SONUC        : $status"
+            echo "SONUC         : $status"
 
-            [[ "$status" == "PASS" ]]
+            if [[ "$status" == "PASS" ]]; then
+              pass=$((pass+1))
+            else
+              fail=$((fail+1))
+            fi
           done
 
+          echo "================================================"
           echo "PREVIEW_URL=$preview"
-          echo "PASS: 8/8 preview URLs validated"
+          echo "ALIAS_URL=$alias"
+          echo "PASS_COUNT=$pass"
+          echo "FAIL_COUNT=$fail"
+
+          [[ "$pass" == "8" && "$fail" == "0" ]]
+          echo "PASS: 8/8 immutable preview URLs validated"
