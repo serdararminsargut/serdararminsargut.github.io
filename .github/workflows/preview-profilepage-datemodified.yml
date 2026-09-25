@@ -189,13 +189,6 @@ jobs:
           set -euo pipefail
           printf '\n/*\n  X-Robots-Tag: noindex, nofollow\n' >> dist/_headers
 
-      - name: Create isolated temporary Cloudflare Pages project
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ steps.cloudflare_account.outputs.account_id }}
-          command: pages project create serdar-schema-dmfix-20260925 --production-branch=preview
-
       - name: Deploy test bundle to isolated Pages project
         id: deploy
         uses: cloudflare/wrangler-action@v3
@@ -212,16 +205,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          preview="${PREVIEW_URL%/}"
+          immutable="${PREVIEW_URL%/}"
           alias="${ALIAS_URL%/}"
-          project='https://serdar-schema-dmfix-20260925.pages.dev'
+          preview='https://serdar-schema-dmfix-20260925.pages.dev'
 
-          echo "Immutable preview URL: $preview"
-          echo "Alias preview URL    : $alias"
-          echo "Project URL          : $project"
+          echo "Immutable deployment URL: $immutable"
+          echo "Alias deployment URL    : $alias"
+          echo "Isolated project URL     : $preview"
 
-          [[ "$preview" == https://*.serdar-schema-dmfix-20260925.pages.dev ]] || {
-            echo "Unexpected immutable deployment URL: $preview" >&2
+          [[ "$immutable" == https://*.serdar-schema-dmfix-20260925.pages.dev ]] || {
+            echo "Unexpected immutable deployment URL: $immutable" >&2
             exit 1
           }
 
@@ -248,7 +241,7 @@ jobs:
           )
 
           ready=0
-          for attempt in $(seq 1 12); do
+          for attempt in $(seq 1 36); do
             code=$(curl -sS -L --connect-timeout 10 --max-time 25 -o /dev/null -w '%{http_code}' "$preview/en/" || true)
             echo "Readiness attempt $attempt: HTTP=$code"
             if [[ "$code" == "200" ]]; then
@@ -322,7 +315,7 @@ jobs:
 
           echo "================================================"
           echo "PREVIEW_URL=$preview"
-          echo "PROJECT_URL=$project"
+          echo "IMMUTABLE_URL=$immutable"
           echo "PASS_COUNT=$pass"
           echo "FAIL_COUNT=$fail"
 
