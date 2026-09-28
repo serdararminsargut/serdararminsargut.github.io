@@ -97,8 +97,18 @@ jobs:
           if "/showreel/" not in redirects or "/#showreel" not in redirects:
               raise SystemExit("Broken /showreel/ route must redirect to the homepage showreel section")
 
+          link_sources = [
+              Path("links/index.html"),
+              Path("links/en/index.html"),
+              Path("links/ar/index.html"),
+              Path("links/ru.html"),
+          ]
+          missing_link_sources = [str(path) for path in link_sources if not path.is_file()]
+          if missing_link_sources:
+              raise SystemExit(f"Missing Link-in-Bio source files: {missing_link_sources}")
+
           pdf_workflow = Path(".github/workflows/deploy-language-comp-card-pdfs.yml").read_text(encoding="utf-8")
-          if re.search(r"(?m)^\s+links\s+\\\\$", pdf_workflow) is None:
+          if re.search(r"(?m)^\s+links\s+\\$", pdf_workflow) is None:
               raise SystemExit("PDF workflow must preserve the link hub in its Cloudflare production bundle")
 
           if "/casting-card/v2" not in redirects or "/casting-card/en" not in redirects:
