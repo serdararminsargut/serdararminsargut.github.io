@@ -94,6 +94,13 @@ jobs:
                   raise SystemExit(f"{comp_path}: canonical URL must also be used by OG, hreflang, and internal navigation")
 
           redirects = Path("_redirects").read_text(encoding="utf-8")
+          if "/showreel/" not in redirects or "/#showreel" not in redirects:
+              raise SystemExit("Broken /showreel/ route must redirect to the homepage showreel section")
+
+          pdf_workflow = Path(".github/workflows/deploy-language-comp-card-pdfs.yml").read_text(encoding="utf-8")
+          if re.search(r"(?m)^\s+links\s+\\\\$", pdf_workflow) is None:
+              raise SystemExit("PDF workflow must preserve the link hub in its Cloudflare production bundle")
+
           if "/casting-card/v2" not in redirects or "/casting-card/en" not in redirects:
               raise SystemExit("Legacy Comp Card route must redirect to the English page")
 
