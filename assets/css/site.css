@@ -158,7 +158,7 @@
   }
   nav .wrap > a{display:none}
   nav .wrap > a[href="#portfolio"],
-  nav .wrap > a[href="/casting-card/v2.html"],
+  nav .wrap > a[href="/casting-card/tr"],
   nav .wrap > a[href="#showreel"],
   nav .wrap > a[href="/blog/"],
   nav .wrap > a[href="#iletisim"]{
@@ -196,7 +196,7 @@
 @media(max-width:360px){
   nav .wrap{gap:4px}
   nav .wrap > a[href="#portfolio"],
-  nav .wrap > a[href="/casting-card/v2.html"],
+  nav .wrap > a[href="/casting-card/tr"],
   nav .wrap > a[href="#showreel"],
   nav .wrap > a[href="/blog/"],
   nav .wrap > a[href="#iletisim"]{font-size:.68rem;padding:6px 3px}
