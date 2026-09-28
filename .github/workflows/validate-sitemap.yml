@@ -43,7 +43,7 @@ jobs:
           import re
           import xml.etree.ElementTree as ET
 
-          origin = "https://serdararminsargut.pages.dev"
+          origin = "https://serdararminsargut.com"
           primary = Path("sitemap.xml")
           secondary = Path("sitemap-google.xml")
           textmap = Path("sitemap.txt")
@@ -68,7 +68,7 @@ jobs:
                   raise SystemExit(f"{name}: duplicate URLs found")
               for url in urls:
                   parsed = urlparse(url)
-                  if parsed.scheme != "https" or parsed.netloc != "serdararminsargut.pages.dev":
+                  if parsed.scheme != "https" or parsed.netloc != "serdararminsargut.com":
                       raise SystemExit(f"{name}: non-canonical origin: {url}")
                   if parsed.path.endswith(".html"):
                       raise SystemExit(f"{name}: Cloudflare clean URL required, not .html: {url}")
@@ -94,6 +94,23 @@ jobs:
                   raise SystemExit(f"{comp_path}: canonical URL must also be used by OG, hreflang, and internal navigation")
 
           redirects = Path("_redirects").read_text(encoding="utf-8")
+          if "/showreel/" not in redirects or "/#showreel" not in redirects:
+              raise SystemExit("Broken /showreel/ route must redirect to the homepage showreel section")
+
+          link_sources = [
+              Path("links/index.html"),
+              Path("links/en/index.html"),
+              Path("links/ar/index.html"),
+              Path("links/ru.html"),
+          ]
+          missing_link_sources = [str(path) for path in link_sources if not path.is_file()]
+          if missing_link_sources:
+              raise SystemExit(f"Missing Link-in-Bio source files: {missing_link_sources}")
+
+          pdf_workflow = Path(".github/workflows/deploy-language-comp-card-pdfs.yml").read_text(encoding="utf-8")
+          if re.search(r"(?m)^\s+links\s+\\$", pdf_workflow) is None:
+              raise SystemExit("PDF workflow must preserve the link hub in its Cloudflare production bundle")
+
           if "/casting-card/v2" not in redirects or "/casting-card/en" not in redirects:
               raise SystemExit("Legacy Comp Card route must redirect to the English page")
 
