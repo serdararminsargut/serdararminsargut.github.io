@@ -43,7 +43,7 @@ jobs:
           import re
           import xml.etree.ElementTree as ET
 
-          origin = "https://serdararminsargut.pages.dev"
+          origin = "https://serdararminsargut.com"
           primary = Path("sitemap.xml")
           secondary = Path("sitemap-google.xml")
           textmap = Path("sitemap.txt")
@@ -68,7 +68,7 @@ jobs:
                   raise SystemExit(f"{name}: duplicate URLs found")
               for url in urls:
                   parsed = urlparse(url)
-                  if parsed.scheme != "https" or parsed.netloc != "serdararminsargut.pages.dev":
+                  if parsed.scheme != "https" or parsed.netloc != "serdararminsargut.com":
                       raise SystemExit(f"{name}: non-canonical origin: {url}")
                   if parsed.path.endswith(".html"):
                       raise SystemExit(f"{name}: Cloudflare clean URL required, not .html: {url}")
