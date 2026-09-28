@@ -113,6 +113,14 @@ jobs:
 
           if "/casting-card/v2" not in redirects or "/casting-card/en" not in redirects:
               raise SystemExit("Legacy Comp Card route must redirect to the English page")
+          if "/casting-card/" not in redirects or "/casting-card/tr" not in redirects:
+              raise SystemExit("Casting Card root must redirect directly to the Turkish page")
+
+          not_found = Path("404.html").read_text(encoding="utf-8")
+          if "serdararminsargut.pages.dev" in not_found:
+              raise SystemExit("404 template must not reference pages.dev")
+          if 'rel="canonical"' in not_found:
+              raise SystemExit("404 template must not publish a canonical URL")
 
           expected_robots_line = "Sitemap: " + origin + "/sitemap.xml"
           if expected_robots_line not in robots.read_text(encoding="utf-8"):
