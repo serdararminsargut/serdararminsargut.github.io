@@ -4,21 +4,21 @@
 
 ## Resmî ve canonical portföy
 
-https://serdararminsargut.pages.dev/
+https://serdararminsargut.com/
 
-Cloudflare Pages adresi güncel ve canonical ana sitedir. Bu GitHub Pages deposu yalnızca ikincil ayna ve erişim yedeği olarak tutulur. Arama motorları için `noindex,follow` ve Cloudflare Pages canonical adresleri bilinçli olarak kullanılır.
+https://serdararminsargut.com adresi güncel ve canonical ana sitedir. Bu GitHub Pages deposu yalnızca ikincil ayna ve erişim yedeği olarak tutulur. Arama motorları için `noindex,follow` ve .com canonical adresleri bilinçli olarak kullanılır.
 
 ## V14.0 bölgesel sayfalar
 
-- Türkçe: https://serdararminsargut.pages.dev/
-- English: https://serdararminsargut.pages.dev/en/
-- العربية: https://serdararminsargut.pages.dev/ar/
-- Русский: https://serdararminsargut.pages.dev/ru/
-- Azərbaycan: https://serdararminsargut.pages.dev/az/
-- Қазақша: https://serdararminsargut.pages.dev/kk/
-- O‘zbekcha: https://serdararminsargut.pages.dev/uz/
-- Кыргызча: https://serdararminsargut.pages.dev/ky/
-- Türk Dünyası rehberi: https://serdararminsargut.pages.dev/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/
+- Türkçe: https://serdararminsargut.com/
+- English: https://serdararminsargut.com/en/
+- العربية: https://serdararminsargut.com/ar/
+- Русский: https://serdararminsargut.com/ru/
+- Azərbaycan: https://serdararminsargut.com/az/
+- Қазақша: https://serdararminsargut.com/kk/
+- O‘zbekcha: https://serdararminsargut.com/uz/
+- Кыргызча: https://serdararminsargut.com/ky/
+- Türk Dünyası rehberi: https://serdararminsargut.com/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/
 
 ## Resmî sosyal hesaplar
 
@@ -31,7 +31,7 @@ Cloudflare Pages adresi güncel ve canonical ana sitedir. Bu GitHub Pages deposu
 
 - `.nojekyll`, statik dosyaların GitHub Pages tarafından doğrudan yayımlanmasını sağlar.
 - Kök portföy sayfası canonical Cloudflare içeriğini yansıtır; görseller ve bölgesel bağlantılar ana siteye gider.
-- `404.html`, yalnızca doğrulanmış canonical yolları ana Cloudflare Pages sitesine yönlendirir.
+- `404.html`, yalnızca doğrulanmış canonical yolları ana .com sitesine yönlendirir.
 - `robots.txt`, arama/getirme botları ile eğitim amaçlı botları ayırır.
 - `sitemap.xml`, `llms.txt`, `llms-full.txt` ve `ai.txt` canonical kaynağı açıkça gösterir.
 
