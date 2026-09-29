@@ -72,8 +72,19 @@ jobs:
             if not path: return (src.resolve(),q.fragment)
             if path.startswith('/'): cand=root/path.lstrip('/')
             else: cand=src.parent/path
+            if path == '/': cand=root/'index.html'
             candidates=[cand]
             if cand.suffix=='': candidates += [Path(str(cand)+'.html'),cand/'index.html']
+            # Cloudflare redirects can make a route valid without a matching local file.
+            redirects=Path('_redirects')
+            if path.startswith('/') and redirects.is_file():
+              route=path.rstrip('/') or '/'
+              for line in redirects.read_text(encoding='utf-8').splitlines():
+                line=line.strip()
+                if not line or line.startswith('#'): continue
+                parts=line.split()
+                if parts and (parts[0].rstrip('/') or '/') == route:
+                  return None
             for c in candidates:
               try: r=c.resolve()
               except Exception: continue
