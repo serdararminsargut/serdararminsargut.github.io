@@ -59,11 +59,13 @@ jobs:
               for k in ('href','src'):
                 if d.get(k): self.links.append((k,d[k]))
           parsed={}
+          verification_files={'indexnow-key.html','yandex_ef0a76730a94c8a8.html','yandex_441cff57946d19ac.html'}
           for f in htmls:
             try:
               p=P(); p.feed(f.read_text(encoding='utf-8')); parsed[f.resolve()]=p
-              if p.html!=1: errors.append(f'{f}: expected one <html>, found {p.html}')
-              if p.title<1: errors.append(f'{f}: missing <title>')
+              if f.as_posix() not in verification_files:
+                if p.html!=1: errors.append(f'{f}: expected one <html>, found {p.html}')
+                if p.title<1: errors.append(f'{f}: missing <title>')
             except Exception as e: errors.append(f'{f}: parse error {e}')
           def target_for(src,u):
             q=urlsplit(u)
