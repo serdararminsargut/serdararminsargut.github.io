@@ -22,10 +22,10 @@ jobs:
 
           files = [Path('az/index.html'), Path('kk/index.html'), Path('uz/index.html'), Path('ky/index.html')]
           targets = [
-              '<link href="https://serdararminsargut.pages.dev/az/" hreflang="az" rel="alternate"/>',
-              '<link href="https://serdararminsargut.pages.dev/kk/" hreflang="kk" rel="alternate"/>',
-              '<link href="https://serdararminsargut.pages.dev/uz/" hreflang="uz" rel="alternate"/>',
-              '<link href="https://serdararminsargut.pages.dev/ky/" hreflang="ky" rel="alternate"/>',
+              '<link href="https://serdararminsargut.com/az/" hreflang="az" rel="alternate"/>',
+              '<link href="https://serdararminsargut.com/kk/" hreflang="kk" rel="alternate"/>',
+              '<link href="https://serdararminsargut.com/uz/" hreflang="uz" rel="alternate"/>',
+              '<link href="https://serdararminsargut.com/ky/" hreflang="ky" rel="alternate"/>',
           ]
 
           changed = False
