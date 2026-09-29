@@ -128,7 +128,7 @@ jobs:
         run: |
           set -euo pipefail
           for code in TR EN AR RU; do
-            url="https://serdararminsargut.pages.dev/downloads/Serdar-Armin-Sargut-Comp-Card-${code}.pdf"
+            url="https://serdararminsargut.com/downloads/Serdar-Armin-Sargut-Comp-Card-${code}.pdf"
             ok=0
             for attempt in $(seq 1 12); do
               code_http=$(curl -sS -L --connect-timeout 10 --max-time 30 -o "/tmp/${code}.pdf" -w '%{http_code}' "$url" || true)
