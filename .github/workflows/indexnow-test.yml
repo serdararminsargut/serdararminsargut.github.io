@@ -15,7 +15,7 @@ jobs:
       - name: Submit homepage and show HTTP status
         shell: bash
         run: |
-          URL="https://www.bing.com/indexnow?url=https%3A%2F%2Fserdararminsargut.pages.dev%2F&key=72f0dad836e29ffcc2d9dd42a794dbf0"
+          URL="https://www.bing.com/indexnow?url=https%3A%2F%2Fserdararminsargut.com%2F&key=72f0dad836e29ffcc2d9dd42a794dbf0"
 
           HTTP_CODE=$(curl -sS \
             --connect-timeout 15 \
