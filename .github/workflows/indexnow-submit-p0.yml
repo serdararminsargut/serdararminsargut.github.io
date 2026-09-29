@@ -16,7 +16,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          payload='{"host":"serdararminsargut.pages.dev","key":"72f0dad836e29ffcc2d9dd42a794dbf0","keyLocation":"https://serdararminsargut.pages.dev/indexnow-key.txt","urlList":["https://serdararminsargut.pages.dev/erkek-cocuk-model/","https://serdararminsargut.pages.dev/spor-giyim-cocuk-modeli/","https://serdararminsargut.pages.dev/cocuk-giyim-modeli/","https://serdararminsargut.pages.dev/e-ticaret-cocuk-modeli/"]}'
+          payload='{"host":"serdararminsargut.com","key":"72f0dad836e29ffcc2d9dd42a794dbf0","keyLocation":"https://serdararminsargut.com/indexnow-key.txt","urlList":["https://serdararminsargut.com/erkek-cocuk-model/","https://serdararminsargut.com/spor-giyim-cocuk-modeli/","https://serdararminsargut.com/cocuk-giyim-modeli/","https://serdararminsargut.com/e-ticaret-cocuk-modeli/"]}'
           code=$(curl -sS --connect-timeout 15 --max-time 45 -o /tmp/indexnow-response -w '%{http_code}' -X POST 'https://api.indexnow.org/IndexNow' -H 'Content-Type: application/json; charset=utf-8' --data "$payload")
           echo "IndexNow HTTP status: $code"
           cat /tmp/indexnow-response || true
@@ -26,16 +26,16 @@ jobs:
         run: |
           set -euo pipefail
           urls=(
-            "https://serdararminsargut.pages.dev/erkek-cocuk-model/"
-            "https://serdararminsargut.pages.dev/spor-giyim-cocuk-modeli/"
-            "https://serdararminsargut.pages.dev/cocuk-giyim-modeli/"
-            "https://serdararminsargut.pages.dev/e-ticaret-cocuk-modeli/"
+            "https://serdararminsargut.com/erkek-cocuk-model/"
+            "https://serdararminsargut.com/spor-giyim-cocuk-modeli/"
+            "https://serdararminsargut.com/cocuk-giyim-modeli/"
+            "https://serdararminsargut.com/e-ticaret-cocuk-modeli/"
           )
           for ua in "Mozilla/5.0" "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)"; do
             echo "User-Agent: $ua"
             for url in "${urls[@]}"; do
               result=$(curl -sS -L --max-redirs 5 --connect-timeout 15 --max-time 45 -A "$ua" -o /dev/null -w '%{http_code} %{url_effective}' "$url")
               echo "$result $url"
-              case "$result" in 200\ https://serdararminsargut.pages.dev/*) ;; *) exit 1 ;; esac
+              case "$result" in 200\ https://serdararminsargut.com/*) ;; *) exit 1 ;; esac
             done
           done
