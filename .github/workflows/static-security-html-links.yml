@@ -1,0 +1,93 @@
+name: Static security and HTML link quality
+on:
+  push:
+    branches: [main, "test/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect high-risk committed secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          skip={'.git'}
+          patterns=[
+            ('private_key', re.compile(r'-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----')),
+            ('github_token', re.compile(r'gh[pousr]_[A-Za-z0-9_]{20,}')),
+            ('aws_access_key', re.compile(r'AKIA[0-9A-Z]{16}')),
+            ('google_api_key', re.compile(r'AIza[0-9A-Za-z_-]{30,}')),
+          ]
+          hits=[]
+          for p in Path('.').rglob('*'):
+            if not p.is_file() or any(x in p.parts for x in skip) or p.stat().st_size>2_000_000: continue
+            try: s=p.read_text(encoding='utf-8')
+            except Exception: continue
+            for name,rx in patterns:
+              if rx.search(s): hits.append(f'{p}: {name}')
+          if hits:
+            raise SystemExit('Potential committed secret(s):\n'+'\n'.join(hits))
+          print('No high-risk committed secret pattern detected.')
+          PY
+      - name: Validate HTML structure and internal links
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.parse import urlsplit, unquote
+          import re
+          root=Path('.').resolve()
+          htmls=list(Path('.').rglob('*.html'))
+          errors=[]
+          class P(HTMLParser):
+            def __init__(self): super().__init__(); self.links=[]; self.ids=set(); self.html=0; self.title=0
+            def handle_starttag(self,t,a):
+              d=dict(a)
+              if t=='html': self.html+=1
+              if t=='title': self.title+=1
+              if d.get('id'): self.ids.add(d['id'])
+              for k in ('href','src'):
+                if d.get(k): self.links.append((k,d[k]))
+          parsed={}
+          for f in htmls:
+            try:
+              p=P(); p.feed(f.read_text(encoding='utf-8')); parsed[f.resolve()]=p
+              if p.html!=1: errors.append(f'{f}: expected one <html>, found {p.html}')
+              if p.title<1: errors.append(f'{f}: missing <title>')
+            except Exception as e: errors.append(f'{f}: parse error {e}')
+          def target_for(src,u):
+            q=urlsplit(u)
+            if q.scheme or q.netloc or u.startswith('//') or u.startswith(('mailto:','tel:','data:','javascript:')): return None
+            path=unquote(q.path)
+            if not path: return (src.resolve(),q.fragment)
+            if path.startswith('/'): cand=root/path.lstrip('/')
+            else: cand=src.parent/path
+            candidates=[cand]
+            if cand.suffix=='': candidates += [Path(str(cand)+'.html'),cand/'index.html']
+            for c in candidates:
+              try: r=c.resolve()
+              except Exception: continue
+              if r.is_file(): return (r,q.fragment)
+            return ('MISSING',u)
+          for f,p in parsed.items():
+            for _,u in p.links:
+              t=target_for(f,u)
+              if not t: continue
+              if t[0]=='MISSING': errors.append(f'{f.relative_to(root)}: missing internal target {u}'); continue
+              dest,frag=t
+              if frag and dest in parsed and frag not in parsed[dest].ids:
+                errors.append(f'{f.relative_to(root)}: missing fragment #{frag} in {dest.relative_to(root)}')
+          if errors:
+            raise SystemExit('HTML/link quality failures:\n'+'\n'.join(errors[:200]))
+          print(f'Validated {len(htmls)} HTML files and their local links.')
+          PY
