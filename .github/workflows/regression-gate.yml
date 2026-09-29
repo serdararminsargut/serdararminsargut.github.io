@@ -1,0 +1,92 @@
+name: Regression gate
+# Protected production invariants: contact, domain, PDF handler and PDF generation.
+
+on:
+  push:
+    branches:
+      - main
+      - test/**
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  critical-regression-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify protected contact and domain invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          protected=(index.html casting-card/tr.html casting-card/en.html casting-card/ar.html casting-card/ru.html)
+
+          for file in "${protected[@]}"; do
+            test -s "$file"
+            grep -q 'info@serdararminsargut.com' "$file"
+            if grep -q 'serdararminsargut@gmail.com' "$file"; then
+              echo "Forbidden legacy Gmail found in $file" >&2
+              exit 1
+            fi
+          done
+
+          for lang in tr en ar ru; do
+            file="casting-card/${lang}.html"
+            code=$(printf '%s' "$lang" | tr '[:lower:]' '[:upper:]')
+            grep -q "https://serdararminsargut.com/casting-card/${lang}" "$file"
+            grep -q "/downloads/Serdar-Armin-Sargut-Comp-Card-${code}.pdf" "$file"
+            grep -q 'mailto:info@serdararminsargut.com' "$file"
+            grep -q '/assets/portfolio-qr.png' "$file"
+          done
+
+          if grep -E 'serdararminsargut\.pages\.dev' "${protected[@]}"; then
+            echo "Forbidden Pages.dev URL found on protected public surfaces" >&2
+            exit 1
+          fi
+
+      - name: Verify Android-safe PDF handler
+        shell: bash
+        run: |
+          set -euo pipefail
+          file=casting-card/comp-card-pdf-download.js
+          test -s "$file"
+          grep -q 'window.location.assign(sourceUrl)' "$file"
+          grep -q 'link.download = fileName' "$file"
+          if grep -Eq 'response\.blob|URL\.createObjectURL|new Blob' "$file"; then
+            echo "Blob-based PDF download regression detected" >&2
+            exit 1
+          fi
+
+      - name: Generate and validate four PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/comp-card-pdfs
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/comp-card-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8765/casting-card/tr.html >/dev/null && break
+            sleep 1
+          done
+          chrome_bin=""
+          for candidate in google-chrome-stable google-chrome chromium chromium-browser; do
+            if command -v "$candidate" >/dev/null 2>&1; then chrome_bin=$(command -v "$candidate"); break; fi
+          done
+          test -n "$chrome_bin"
+          for lang in tr en ar ru; do
+            code=$(printf '%s' "$lang" | tr '[:lower:]' '[:upper:]')
+            out="/tmp/comp-card-pdfs/Serdar-Armin-Sargut-Comp-Card-${code}.pdf"
+            "$chrome_bin" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage \
+              --run-all-compositor-stages-before-draw --virtual-time-budget=4000 \
+              --print-to-pdf="$out" --no-pdf-header-footer \
+              "http://127.0.0.1:8765/casting-card/${lang}.html"
+            test -s "$out"
+            head -c 5 "$out" | grep -q '%PDF-'
+          done
