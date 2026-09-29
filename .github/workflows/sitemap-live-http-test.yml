@@ -14,7 +14,7 @@ jobs:
         shell: bash
         run: |
           set -u
-          url="https://serdararminsargut.pages.dev/sitemap.xml"
+          url="https://serdararminsargut.com/sitemap.xml"
           headers="$(mktemp)"
           body="$(mktemp)"
 

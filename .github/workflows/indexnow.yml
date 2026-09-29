@@ -21,7 +21,7 @@ jobs:
       - name: Notify IndexNow of changed pages
         env:
           INDEXNOW_KEY: 72f0dad836e29ffcc2d9dd42a794dbf0
-          SITE_ORIGIN: https://serdararminsargut.pages.dev
+          SITE_ORIGIN: https://serdararminsargut.com
           BASE_SHA: ${{ github.event.before }}
         run: |
           set -euo pipefail
@@ -39,7 +39,7 @@ jobs:
               *) continue ;;
             esac
 
-            payload=$(printf '{"host":"serdararminsargut.pages.dev","key":"%s","keyLocation":"%s/%s.txt","urlList":["%s"]}' "$INDEXNOW_KEY" "$SITE_ORIGIN" "$INDEXNOW_KEY" "$url")
+            payload=$(printf '{"host":"serdararminsargut.com","key":"%s","keyLocation":"%s/%s.txt","urlList":["%s"]}' "$INDEXNOW_KEY" "$SITE_ORIGIN" "$INDEXNOW_KEY" "$url")
             curl --fail --silent --show-error --request POST \
               --header 'Content-Type: application/json; charset=utf-8' \
               --data "$payload" \
