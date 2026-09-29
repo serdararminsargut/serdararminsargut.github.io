@@ -15,10 +15,10 @@ jobs:
         run: |
           set -u
           urls=(
-            "https://serdararminsargut.pages.dev/erkek-cocuk-model/"
-            "https://serdararminsargut.pages.dev/cocuk-giyim-modeli/"
-            "https://serdararminsargut.pages.dev/spor-giyim-cocuk-modeli/"
-            "https://serdararminsargut.pages.dev/e-ticaret-cocuk-modeli/"
+            "https://serdararminsargut.com/erkek-cocuk-model/"
+            "https://serdararminsargut.com/cocuk-giyim-modeli/"
+            "https://serdararminsargut.com/spor-giyim-cocuk-modeli/"
+            "https://serdararminsargut.com/e-ticaret-cocuk-modeli/"
           )
           for url in "${urls[@]}"; do
             echo "============================================================"
