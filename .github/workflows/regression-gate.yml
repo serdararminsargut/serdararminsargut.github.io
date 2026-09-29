@@ -1,4 +1,5 @@
 name: Regression gate
+# Protected production invariants: contact, domain, PDF handler and PDF generation.
 
 on:
   push:
