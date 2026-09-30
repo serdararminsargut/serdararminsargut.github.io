@@ -1,0 +1,32 @@
+name: Verify live dateModified fix
+
+on:
+  push:
+    branches:
+      - test/datemodified-root-fix-20260930
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify production HTML
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://serdararminsargut.com/'
+          code=$(curl -sS -L --max-redirs 3 --connect-timeout 10 --max-time 30 -o /tmp/live.html -w '%{http_code}' "$url")
+          echo "HTTP=$code"
+          [[ "$code" == "200" ]]
+          if grep -Fq 'dateModified' /tmp/live.html; then
+            echo 'FAIL: dateModified still present in live HTML' >&2
+            grep -o '.\{0,120\}dateModified.\{0,180\}' /tmp/live.html >&2 || true
+            exit 1
+          fi
+          grep -Fq '<link href="https://serdararminsargut.com/" rel="canonical"/>' /tmp/live.html
+          grep -Fq '<meta content="index,follow" name="robots"/>' /tmp/live.html
+          grep -Fq '"@type":"ProfilePage"' /tmp/live.html
+          echo 'PASS: live HTML has no dateModified, canonical is correct, robots index/follow, ProfilePage preserved.'
