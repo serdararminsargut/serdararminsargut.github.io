@@ -80,6 +80,8 @@ jobs:
             en \
             fa \
             favicon.svg \
+            favicon.ico \
+            favicon-96x96.png \
             fr \
             index.html \
             indexnow-key.txt \
