@@ -159,7 +159,7 @@
     tr: "/links/",
     en: "/links/en/",
     ar: "/links/ar/",
-    ru: "/links/ru"
+    ru: "/links/ru/"
   };
 
   const params = new URLSearchParams(window.location.search);
@@ -290,7 +290,7 @@
     const path = window.location.pathname.replace(/\/+$/, "");
     if (path === "/links/en") return "en";
     if (path === "/links/ar") return "ar";
-    if (path === "/links/ru") return "ru";
+    if (path === "/links/ru/") return "ru";
     return "tr";
   }
 
