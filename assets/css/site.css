@@ -27,7 +27,7 @@
   .hero-media img{object-position:24% 10%}
   .hero-content{width:calc(100% - 24px);padding-bottom:calc(24px + env(safe-area-inset-bottom))}
   .hero-content .eyebrow{max-width:58vw}
-  .hero h1{font-size:clamp(2.24rem,12vw,3.25rem);max-width:6ch}
+  .hero h1{font-size:clamp(1.85rem,8.2vw,2.35rem);line-height:1.02;max-width:12.5ch}
   .hero p{font-size:.95rem;line-height:1.38;max-width:min(28ch,58vw)}
 }
 .video-modal{position:fixed;inset:0;z-index:110;display:none;place-items:center;background:rgba(0,0,0,.94);padding:12px}
