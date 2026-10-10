@@ -20,3 +20,11 @@
     overflow-wrap: anywhere;
   }
 }
+
+/* Match existing blog Instagram CTA appearance on this page only. */
+.instagram-follow-cta{padding:34px 0;border-top:1px solid var(--line);text-align:center;background:var(--panel)}
+.instagram-follow-cta p{margin:4px auto;color:var(--muted);max-width:720px}
+.instagram-follow-cta strong{color:var(--ink)}
+.instagram-follow-cta .instagram-follow-button{display:inline-flex;align-items:center;justify-content:center;min-height:48px;margin-top:16px;padding:12px 20px;border:1px solid var(--accent);border-radius:999px;color:var(--accent);font-weight:800;text-decoration:none}
+.instagram-follow-cta .instagram-follow-button{max-width:100%;text-align:center;white-space:normal;overflow-wrap:anywhere}
+.instagram-follow-cta .instagram-follow-button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
