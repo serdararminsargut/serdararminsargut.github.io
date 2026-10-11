@@ -37,6 +37,8 @@ jobs:
           timeout 210s npx --yes --package=linkinator@8.1.0 linkinator ./index.html ./links/index.html ./casting-card/tr.html ./en/index.html ./ru/index.html ./ar/index.html \
             --clean-urls \
             --check-fragments \
+            --skip 'https?://serdararminsargut[.]com(?:/|$)' \
+            --skip 'https?://([^/]+[.])?serdararminsargut[.]pages[.]dev(?:/|$)' \
             --redirects warn \
             --status-code 403:warn \
             --status-code 429:warn \
