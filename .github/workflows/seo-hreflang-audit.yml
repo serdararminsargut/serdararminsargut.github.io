@@ -1,0 +1,21 @@
+name: Serdar static SEO audit
+
+on:
+  push:
+    branches:
+      - 'test/**'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  seo-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit existing static pages (read-only)
+        run: python3 scripts/seo_static_audit.py --root . --origin https://serdararminsargut.com
