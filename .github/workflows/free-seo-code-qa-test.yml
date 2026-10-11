@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - 'test/free-qa-linkinator-20261011'
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
