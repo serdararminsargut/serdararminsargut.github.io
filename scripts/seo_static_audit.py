@@ -40,7 +40,8 @@ class Head(HTMLParser):
         if tag == "script" and (data.get("type") or "").lower() == "application/ld+json":
             self._json = True
             self._buffer = []
-        if tag == "img" and (not data.get("width") or not data.get("height")):
+        # Dynamic lightbox placeholders without src/srcset are not renderable images.
+        if tag == "img" and (data.get("src") or data.get("srcset")) and (not data.get("width") or not data.get("height")):
             self.images_missing_dimensions += 1
 
     def handle_data(self, data):
