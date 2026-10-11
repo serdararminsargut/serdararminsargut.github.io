@@ -1,0 +1,70 @@
+# Experimental, preview/source-only QA. Do not enable on main without review.
+name: Serdar free SEO and code QA (test only)
+
+on:
+  push:
+    branches:
+      - 'test/free-qa-linkinator-20261011'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  free-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Confirm mirror scope (never deploy)
+        run: |
+          set -euo pipefail
+          test -f index.html
+          test -f sitemap.xml
+          test -f casting-card/tr.html
+          echo 'Repository source mirror; tests do not deploy or change canonical production.'
+      - name: Linkinator link and fragment audit (advisory)
+        shell: bash
+        continue-on-error: true
+        run: |
+          set +e
+          timeout 210s npx --yes --package=linkinator@8.1.0 linkinator ./index.html ./links/index.html ./casting-card/tr.html ./en/index.html ./ru/index.html ./ar/index.html \
+            --clean-urls \
+            --check-fragments \
+            --redirects warn \
+            --status-code 403:warn \
+            --status-code 429:warn \
+            --concurrency 4 \
+            --timeout 8000 > /tmp/linkinator-report.log 2>&1
+          rc=$?
+          head -n 100 /tmp/linkinator-report.log
+          {
+            echo '### Linkinator (advisory)'
+            echo "Exit code: $rc (nonzero requires review; external block/redirect may be a false positive)."
+            echo 'Full output is in the job log.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
+
+      - name: HTML-Validate markup audit (advisory)
+        shell: bash
+        continue-on-error: true
+        run: |
+          set +e
+          timeout 150s npx --yes --package=html-validate@11.16.2 html-validate ./index.html ./links/index.html ./casting-card/tr.html > /tmp/html-report.log 2>&1
+          rc=$?
+          head -n 100 /tmp/html-report.log
+          {
+            echo '### HTML-Validate (advisory)'
+            echo "Exit code: $rc (nonzero means markup warnings/errors to triage)."
+            echo 'Full output is in the job log.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$rc"
+
+      - name: actionlint for GitHub Actions workflow YAML (advisory)
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+        continue-on-error: true
