@@ -1,5 +1,11 @@
 name: Serdar Comp Card PDF preview (manual)
 on:
+  push:
+    branches:
+      - test/serdar-compcard-pdf-audit-20261015
+    paths:
+      - '.github/workflows/serdar-compcard-pdf-preview.yml'
+      - 'scripts/render-comp-card-pdfs.py'
   workflow_dispatch:
 
 permissions:
