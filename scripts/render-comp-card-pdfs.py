@@ -9,6 +9,9 @@ Usage:
 Never run this script as part of a production deploy.
 """
 from pathlib import Path
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from threading import Thread
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,14 +20,18 @@ LANGS = ("tr", "en", "ar", "ru")
 
 def main():
     OUT.mkdir(exist_ok=True)
-    with sync_playwright() as p:
+    handler = partial(SimpleHTTPRequestHandler, directory=str(ROOT))
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    Thread(target=server.serve_forever, daemon=True).start()
+    try:
+      with sync_playwright() as p:
         browser = p.chromium.launch()
         try:
             for lang in LANGS:
                 source = ROOT / "casting-card" / f"{lang}.html"
                 assert source.is_file(), f"Missing HTML: {source}"
                 page = browser.new_page(viewport={"width": 1280, "height": 900}, device_scale_factor=1)
-                page.goto(source.as_uri(), wait_until="load")
+                page.goto(f"http://127.0.0.1:{server.server_port}/casting-card/{lang}.html", wait_until="networkidle")
                 page.emulate_media(media="print")
                 page.evaluate("document.fonts.ready")
                 images = page.evaluate("""() => [...document.images].map(i => ({src:i.currentSrc, ok:i.complete && i.naturalWidth>0}))""")
@@ -38,6 +45,9 @@ def main():
                 page.close()
         finally:
             browser.close()
+    finally:
+        server.shutdown()
+        server.server_close()
 
 if __name__ == "__main__":
     main()
