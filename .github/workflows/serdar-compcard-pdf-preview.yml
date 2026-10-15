@@ -1,0 +1,42 @@
+name: Serdar Comp Card PDF preview (manual)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pdf-preview:
+    if: github.ref_name == 'test/serdar-compcard-pdf-audit-20261015'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install PDF rendering dependencies
+        run: |
+          python -m pip install playwright pypdf
+          python -m playwright install --with-deps chromium
+      - name: Render four preview PDFs
+        run: python scripts/render-comp-card-pdfs.py
+      - name: Validate PDF pages and basic content
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from pypdf import PdfReader
+          root = Path("_compcard_pdf_preview")
+          for lang in ("TR", "EN", "AR", "RU"):
+              path = root / f"Serdar-Armin-Sargut-Comp-Card-{lang}.pdf"
+              assert path.exists() and path.stat().st_size > 10000, f"Missing/empty PDF: {path}"
+              reader = PdfReader(str(path))
+              assert 1 <= len(reader.pages) <= 2, f"{lang}: unexpected page count {len(reader.pages)}"
+              print(f"{lang}: {len(reader.pages)} pages, {path.stat().st_size} bytes")
+          PY
+      - name: Upload preview PDFs (not production)
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-compcard-pdf-preview
+          path: _compcard_pdf_preview/*.pdf
+          retention-days: 7
