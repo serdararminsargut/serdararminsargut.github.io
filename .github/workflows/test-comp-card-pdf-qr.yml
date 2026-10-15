@@ -1,0 +1,66 @@
+name: Test comp card PDF and QR artifacts
+
+on:
+  push:
+    branches:
+      - test/comp-card-pdf-com-qr-20260929
+    paths:
+      - ".github/workflows/test-comp-card-pdf-qr.yml"
+      - "casting-card/**"
+      - "assets/portfolio-qr.png"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout test branch
+        uses: actions/checkout@v4
+
+      - name: Generate TR EN AR RU PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-artifacts/pdfs
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/comp-card-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8765/casting-card/tr.html >/dev/null && break
+            sleep 1
+          done
+          chrome_bin=""
+          for candidate in google-chrome-stable google-chrome chromium chromium-browser; do
+            if command -v "$candidate" >/dev/null 2>&1; then chrome_bin=$(command -v "$candidate"); break; fi
+          done
+          test -n "$chrome_bin"
+          for lang in tr en ar ru; do
+            code=$(printf '%s' "$lang" | tr '[:lower:]' '[:upper:]')
+            out="$PWD/test-artifacts/pdfs/Serdar-Armin-Sargut-Comp-Card-${code}.pdf"
+            "$chrome_bin" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage \
+              --run-all-compositor-stages-before-draw --virtual-time-budget=4000 \
+              --print-to-pdf="$out" --no-pdf-header-footer \
+              "http://127.0.0.1:8765/casting-card/${lang}.html"
+            test -s "$out"
+            head -c 5 "$out" | grep -q '%PDF-'
+            echo "${code}: $(stat -c%s "$out") bytes"
+          done
+
+      - name: Copy QR for binary verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s assets/portfolio-qr.png
+          cp assets/portfolio-qr.png test-artifacts/portfolio-qr.png
+          sha256sum test-artifacts/portfolio-qr.png > test-artifacts/portfolio-qr.sha256
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: comp-card-pdf-qr-test
+          path: test-artifacts/
+          if-no-files-found: error
+          retention-days: 7
