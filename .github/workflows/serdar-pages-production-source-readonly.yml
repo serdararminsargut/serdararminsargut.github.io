@@ -29,13 +29,19 @@ jobs:
           [[ "$account" =~ ^[a-fA-F0-9]{32}$ ]] || { echo 'NO-GO invalid CF_ACCOUNT'; exit 1; }
           echo "::add-mask::$account"
           response=$(mktemp)
-          trap 'rm -f "$response"' EXIT
+          production_deployments=$(mktemp)
+          trap 'rm -f "$response" "$production_deployments"' EXIT
           curl --silent --show-error --fail --connect-timeout 10 --max-time 25 \
             --header "Authorization: Bearer $CF_API_TOKEN" \
             --header 'Accept: application/json' \
             "https://api.cloudflare.com/client/v4/accounts/$account/pages/projects/serdararminsargut" \
             --output "$response"
-          python3 - "$response" <<'PY'
+          curl --silent --show-error --fail --connect-timeout 10 --max-time 25 \
+            --header "Authorization: Bearer $CF_API_TOKEN" \
+            --header 'Accept: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/$account/pages/projects/serdararminsargut/deployments?env=production&per_page=5" \
+            --output "$production_deployments"
+          python3 - "$response" "$production_deployments" <<'PY'
           import json,sys
           data=json.load(open(sys.argv[1],encoding="utf-8"))
           assert data.get("success") is True, "Cloudflare API success=false"
@@ -48,13 +54,21 @@ jobs:
           if repo:
               assert repo=="serdararminsargut.github.io", f"Cloudflare linked to unexpected repository: {repo}"
           latest=p.get("latest_deployment") or {}
-          meta=(latest.get("deployment_trigger") or {}).get("metadata") or {}
-          latest_branch=meta.get("branch")
-          if latest_branch:
-              assert latest_branch=="main", f"latest production deployment not on main: {latest_branch}"
+          latest_env=latest.get("environment") or "NOT_RETURNED_BY_API"
+          history=json.load(open(sys.argv[2],encoding="utf-8"))
+          assert history.get("success") is True, "Cloudflare production deployment API failure"
+          productions=[x for x in history.get("result",[]) if x.get("environment")=="production"]
+          assert productions, "No verified production deployments returned"
+          deployed=productions[0]
+          meta=(deployed.get("deployment_trigger") or {}).get("metadata") or {}
+          deployed_branch=meta.get("branch")
+          if deployed_branch:
+              assert deployed_branch=="main", f"latest production deployment not on main: {deployed_branch}"
           print("CLOUDFLARE_PAGES_PROJECT_PASS: project=serdararminsargut production_branch=main")
           print(f"Production deploy source type: {src.get('type') or 'UNSPECIFIED'}")
           print(f"Linked repository: {repo or 'NOT_RETURNED_BY_API'}")
-          print(f"Latest production deployment branch: {latest_branch or 'NOT_RETURNED_BY_API'}")
+          print(f"Latest overall deployment environment: {latest_env}")
+          print(f"Latest production deployment branch: {deployed_branch or 'NOT_RETURNED_BY_API'}")
+          print(f"Production deployment ID: {deployed.get('id') or 'NOT_RETURNED_BY_API'}")
           print("Only Cloudflare Pages project read-only GET was executed; no Access or DNS changes.")
           PY
