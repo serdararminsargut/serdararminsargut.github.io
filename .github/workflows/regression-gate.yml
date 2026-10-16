@@ -50,6 +50,11 @@ jobs:
             exit 1
           fi
 
+          if rg -n --glob '*.html' 'serdararminsargut@gmail\.com' .; then
+            echo "Legacy public Gmail reference found in HTML source" >&2
+            exit 1
+          fi
+
       - name: Verify Android-safe PDF handler
         shell: bash
         run: |
