@@ -1,0 +1,67 @@
+name: Serdar release Preview public HTTP quality gate (read only)
+on:
+  push:
+    branches: ['test/serdar-release-candidate-20261017']
+    paths:
+      - '.github/workflows/serdar-release-preview-live-http.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview-public-http:
+    if: github.ref == 'refs/heads/test/serdar-release-candidate-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - name: Check immutable Preview URL (no Cloudflare Access credentials)
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://420bff02.serdararminsargut.pages.dev'
+          fail=0
+          mkdir -p /tmp/serdar-preview-probe
+          for route in / /en/ /blog/ /robots.txt /sitemap.xml; do
+            key="$(printf '%s' "$route" | tr '/.' '__')"
+            headers="/tmp/serdar-preview-probe/$key.headers"
+            body="/tmp/serdar-preview-probe/$key.body"
+            code="$(curl --silent --show-error --max-redirs 0 --connect-timeout 8 --max-time 20 \
+              --dump-header "$headers" --output "$body" \
+              --write-out '%{http_code}' "$base$route" || true)"
+            echo "Route=$route Status=$code"
+            if [ "$code" != "200" ]; then
+              echo "NO-GO: Preview route not publicly verified (may be protected; do NOT change Access here)"
+              grep -Ei '^(HTTP/|location:|content-type:|www-authenticate:|x-robots-tag:)' "$headers" || true
+              fail=$((fail+1))
+              continue
+            fi
+            if ! grep -Eiq '^x-robots-tag:.*noindex' "$headers"; then
+              echo "NO-GO: Preview X-Robots-Tag noindex missing for $route"
+              fail=$((fail+1))
+            fi
+            case "$route" in
+              /|/en/|/blog/)
+                if ! grep -Fq 'https://serdararminsargut.com/' "$body"; then
+                  echo "NO-GO: canonical origin missing in $route"
+                  fail=$((fail+1))
+                fi
+                if ! grep -Fq 'og:image' "$body"; then
+                  echo "NO-GO: social image missing in $route"
+                  fail=$((fail+1))
+                fi
+                ;;
+              /robots.txt)
+                grep -Fq 'Disallow: /' "$body" || { echo 'NO-GO: preview robots policy'; fail=$((fail+1)); }
+                ;;
+              /sitemap.xml)
+                grep -Fq '<urlset' "$body" || { echo 'NO-GO: XML sitemap invalid'; fail=$((fail+1)); }
+                ;;
+            esac
+          done
+          echo "PUBLIC_PREVIEW_HTTP_FAILURES=$fail"
+          if [ "$fail" -gt 0 ]; then
+            echo 'Preview public HTTP gate is NO-GO; code-only test success is not live proof.'
+            exit 1
+          fi
+          echo 'Preview public HTTP gate PASS'

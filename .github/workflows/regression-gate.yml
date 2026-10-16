@@ -36,6 +36,13 @@ jobs:
             fi
           done
 
+          test -s ai.txt
+          grep -Fq 'Contact: info@serdararminsargut.com' ai.txt
+          if grep -Fq 'serdararminsargut@gmail.com' ai.txt; then
+            echo 'Forbidden legacy contact in ai.txt' >&2
+            exit 1
+          fi
+
           for lang in tr en ar ru; do
             file="casting-card/${lang}.html"
             code=$(printf '%s' "$lang" | tr '[:lower:]' '[:upper:]')
@@ -50,18 +57,32 @@ jobs:
             exit 1
           fi
 
+          if rg -n --glob '*.html' 'serdararminsargut@gmail\.com' .; then
+            echo "Legacy public Gmail reference found in HTML source" >&2
+            exit 1
+          fi
+
       - name: Verify Android-safe PDF handler
         shell: bash
         run: |
           set -euo pipefail
           file=casting-card/comp-card-pdf-download.js
           test -s "$file"
-          grep -q 'window.location.assign(sourceUrl)' "$file"
-          grep -q 'link.download = fileName' "$file"
-          if grep -Eq 'response\.blob|URL\.createObjectURL|new Blob' "$file"; then
-            echo "Blob-based PDF download regression detected" >&2
+          test "$(grep -Fc 'window.location.assign(sourceUrl)' "$file")" -eq 1
+          grep -Fq 'if (button.disabled) return;' "$file"
+          if grep -Eq 'link[.]download|link[.]click[(]|setTimeout[(]|response[.]blob|URL[.]createObjectURL|new Blob' "$file"; then
+            echo "Multiple-request or Blob-based PDF download regression detected" >&2
             exit 1
           fi
+
+      - name: Assert four PDF attachment response header rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          for lang in TR EN AR RU; do
+            grep -Fxq "/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf" _headers
+            grep -Fq "Content-Disposition: attachment; filename=\"Serdar-Armin-Sargut-Comp-Card-$lang.pdf\"" _headers
+          done
 
       - name: Generate and validate four PDFs
         shell: bash

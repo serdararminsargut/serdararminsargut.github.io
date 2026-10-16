@@ -1,0 +1,38 @@
+name: Serdar live Preview Chromium QA (test only)
+on:
+  push:
+    branches: ['test/serdar-release-candidate-20261017']
+    paths:
+      - 'scripts/serdar_preview_live_browser.py'
+      - '.github/workflows/serdar-release-preview-browser.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview-browser:
+    if: github.ref == 'refs/heads/test/serdar-release-candidate-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install ephemeral headless Chromium in CI only
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.63.0'
+          python -m playwright install --with-deps chromium
+      - name: Test the immutable Cloudflare Preview without Access changes
+        run: python3 scripts/serdar_preview_live_browser.py
+      - name: Retain screenshots and mobile QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-live-preview-browser-evidence
+          path: live-preview-evidence/
+          retention-days: 7
+          if-no-files-found: warn

@@ -1,0 +1,74 @@
+name: Serdar Cloudflare Pages production source verification (read-only)
+on:
+  push:
+    branches: ['test/serdar-release-candidate-20261017']
+    paths:
+      - '.github/workflows/serdar-pages-production-source-readonly.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-pages-source:
+    if: github.ref == 'refs/heads/test/serdar-release-candidate-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify Cloudflare Pages project config via read-only GET, never Access
+        shell: bash
+        env:
+          CF_ACCOUNT_RAW: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          account="$CF_ACCOUNT_RAW"
+          if [[ "$CF_ACCOUNT_RAW" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account="${BASH_REMATCH[1]}"
+          fi
+          [[ "$account" =~ ^[a-fA-F0-9]{32}$ ]] || { echo 'NO-GO invalid CF_ACCOUNT'; exit 1; }
+          echo "::add-mask::$account"
+          response=$(mktemp)
+          production_deployments=$(mktemp)
+          trap 'rm -f "$response" "$production_deployments"' EXIT
+          curl --silent --show-error --fail --connect-timeout 10 --max-time 25 \
+            --header "Authorization: Bearer $CF_API_TOKEN" \
+            --header 'Accept: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/$account/pages/projects/serdararminsargut" \
+            --output "$response"
+          curl --silent --show-error --fail --connect-timeout 10 --max-time 25 \
+            --header "Authorization: Bearer $CF_API_TOKEN" \
+            --header 'Accept: application/json' \
+            "https://api.cloudflare.com/client/v4/accounts/$account/pages/projects/serdararminsargut/deployments?env=production&per_page=5" \
+            --output "$production_deployments"
+          python3 - "$response" "$production_deployments" <<'PY'
+          import json,sys
+          data=json.load(open(sys.argv[1],encoding="utf-8"))
+          assert data.get("success") is True, "Cloudflare API success=false"
+          p=data["result"]
+          assert p["name"]=="serdararminsargut", "wrong Cloudflare Pages project"
+          branch=p.get("production_branch")
+          assert branch=="main", f"unexpected Cloudflare production_branch: {branch!r}"
+          src=p.get("source") or {}
+          repo=(src.get("config") or {}).get("repo_name")
+          if repo:
+              assert repo=="serdararminsargut.github.io", f"Cloudflare linked to unexpected repository: {repo}"
+          latest=p.get("latest_deployment") or {}
+          latest_env=latest.get("environment") or "NOT_RETURNED_BY_API"
+          history=json.load(open(sys.argv[2],encoding="utf-8"))
+          assert history.get("success") is True, "Cloudflare production deployment API failure"
+          productions=[x for x in history.get("result",[]) if x.get("environment")=="production"]
+          assert productions, "No verified production deployments returned"
+          deployed=productions[0]
+          meta=(deployed.get("deployment_trigger") or {}).get("metadata") or {}
+          deployed_branch=meta.get("branch")
+          if deployed_branch:
+              assert deployed_branch=="main", f"latest production deployment not on main: {deployed_branch}"
+          print("CLOUDFLARE_PAGES_PROJECT_PASS: project=serdararminsargut production_branch=main")
+          print(f"Production deploy source type: {src.get('type') or 'UNSPECIFIED'}")
+          print(f"Linked repository: {repo or 'NOT_RETURNED_BY_API'}")
+          print(f"Latest overall deployment environment: {latest_env}")
+          print(f"Latest production deployment branch: {deployed_branch or 'NOT_RETURNED_BY_API'}")
+          print(f"Production deployment ID: {deployed.get('id') or 'NOT_RETURNED_BY_API'}")
+          print("Only Cloudflare Pages project read-only GET was executed; no Access or DNS changes.")
+          PY

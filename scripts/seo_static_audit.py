@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+from datetime import date
 from pathlib import Path
 from html.parser import HTMLParser
 from urllib.parse import urlsplit, unquote
@@ -15,13 +16,18 @@ class Head(HTMLParser):
         self.canonicals = []
         self.alternates = {}
         self.robots = []
+        self.meta = {}
         self.json_blocks = []
         self._json = False
         self._buffer = []
         self.images_missing_dimensions = 0
+        self.h1_count = 0
+        self.og_images = []
 
     def handle_starttag(self, tag, attrs):
         data = dict(attrs)
+        if tag == "h1":
+            self.h1_count += 1
         if tag == "html":
             self.lang = (data.get("lang") or "").lower().replace("_", "-")
         if tag == "link":
@@ -35,8 +41,15 @@ class Head(HTMLParser):
                     self.alternates[lang] = None
                 else:
                     self.alternates[lang] = href
-        if tag == "meta" and (data.get("name") or "").lower() == "robots":
-            self.robots.append((data.get("content") or "").lower())
+        if tag == "meta":
+            key = (data.get("name") or data.get("property") or "").lower()
+            content = (data.get("content") or "").strip()
+            if key and content:
+                self.meta[key] = content
+            if key == "og:image":
+                self.og_images.append(content)
+            if key == "robots":
+                self.robots.append(content.lower())
         if tag == "script" and (data.get("type") or "").lower() == "application/ld+json":
             self._json = True
             self._buffer = []
@@ -71,8 +84,18 @@ def main():
     ns = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
     if tree.getroot().tag != ns + "urlset":
         errors.append("Sitemap root is not the standard urlset")
-    urls = [(n.findtext(ns + "loc") or "").strip()
-            for n in tree.getroot().findall(ns + "url")]
+    urls = []
+    for node in tree.getroot().findall(ns + "url"):
+        url = (node.findtext(ns + "loc") or "").strip()
+        lastmod = (node.findtext(ns + "lastmod") or "").strip()
+        urls.append(url)
+        if not lastmod:
+            errors.append(f"{url}: sitemap lastmod missing")
+        else:
+            try:
+                date.fromisoformat(lastmod)
+            except ValueError:
+                errors.append(f"{url}: sitemap lastmod must be ISO date: {lastmod}")
     if not urls:
         errors.append("Sitemap contains no URLs")
     if len(urls) != len(set(urls)):
@@ -111,8 +134,23 @@ def main():
             errors.append(f"{url}: canonical must be unique and self-referencing; found {parser.canonicals}")
         if not parser.lang:
             errors.append(f"{url}: missing <html lang>")
+        if parser.h1_count != 1:
+            errors.append(f"{url}: expected exactly one H1, found {parser.h1_count}")
+        if len(parser.og_images) != 1 or not parser.og_images[0]:
+            errors.append(f"{url}: exactly one nonempty og:image required")
+        else:
+            image = urlsplit(parser.og_images[0])
+            if image.scheme != "https" or not image.netloc or image.query or image.fragment:
+                errors.append(f"{url}: og:image must be an absolute HTTPS asset URL")
+            elif image.netloc == urlsplit(origin).netloc:
+                asset = (root / unquote(image.path).lstrip("/")).resolve()
+                if not asset.is_relative_to(root) or not asset.is_file():
+                    errors.append(f"{url}: og:image local asset missing: {image.path}")
         if any("noindex" in value for value in parser.robots):
             errors.append(f"{url}: indexed sitemap page contains noindex")
+        for key in ("description", "og:title", "og:description", "twitter:card"):
+            if not parser.meta.get(key):
+                errors.append(f"{url}: missing required metadata {key}")
         for pos, data in enumerate(parser.json_blocks, 1):
             try:
                 parsed = json.loads(data)
@@ -183,9 +221,9 @@ def main():
             out.write(f"## Static SEO audit\n\nChecked **{len(urls)}** sitemap URLs.\n\n")
             out.write(f"**Failures:** {len(errors)} · **Image dimension warnings:** {len(warnings)}\n\n")
             for item in errors[:60]:
-                out.write(f"- FAIL: \`{item}\`\n")
+                out.write(f"- FAIL: `{item}`\n")
             for item in warnings[:15]:
-                out.write(f"- WARN: \`{item}\`\n")
+                out.write(f"- WARN: `{item}`\n")
     if errors:
         raise SystemExit(1)
 
