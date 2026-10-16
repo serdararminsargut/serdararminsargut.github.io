@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-BASE = "https://79992566.serdararminsargut.pages.dev"
+BASE = "https://8ee0f94e.serdararminsargut.pages.dev"
 ROUTES = (("/", "tr"), ("/en/", "en"), ("/ar/", "ar"), ("/ru/", "ru"),
           ("/blog/", "tr"), ("/links/", "tr"),
           ("/casting-card/tr.html", "tr"), ("/casting-card/ar.html", "ar"))
@@ -133,4 +133,39 @@ with sync_playwright() as playwright:
         browser.close()
 (OUT / "pdf-buttons.json").write_text(json.dumps(pdf_results, indent=2) + "\n")
 print("SERDAR_LIVE_PDF_BUTTON_PASS 4/4", flush=True)
+
+# Verify actual portfolio link navigation as well as direct Comp Card URLs.
+more_routes = (
+    "/casting-card/tr", "/casting-card/en", "/casting-card/ar",
+    "/casting-card/ru", "/casting-card/",
+    "/postcard.html", "/postcard", "/card", "/card.html",
+    "/blog/erkek-cocuk-urun-modeli/",
+    "/en/gulf-child-model-portfolio/",
+    "/ar/dalil-malaf-model-atfal-al-khalij/",
+)
+with sync_playwright() as p:
+    browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+    try:
+        context = browser.new_context()
+        for route in more_routes:
+            response = context.request.get(BASE + route, timeout=20000)
+            assert response.status == 200, f"{route}: unexpected HTTP {response.status}"
+            body = response.text()
+            assert "bu GitHub aynasında bulunamadı" not in body, f"{route}: legacy 404"
+            assert "İstenen sayfa veya dosya bulunamadı" not in body, f"{route}: updated 404"
+            print("SERDAR_LINK_PASS " + route, flush=True)
+        page = context.new_page()
+        first = page.goto(BASE + "/", wait_until="load", timeout=20000)
+        assert first and first.status == 200, "homepage failed"
+        target = page.locator('a[href="/casting-card/tr.html"]').first
+        assert target.count() == 1, "Comp Card link missing on home"
+        target.click()
+        page.wait_for_url("**/casting-card/tr*", timeout=20000)
+        assert "Serdar Armin Sargut" in page.locator("body").inner_text(), "Comp Card click landed on wrong page"
+        assert page.locator("#comp-card-pdf-download").count() == 1, "Comp Card button missing"
+        print("SERDAR_HOMEPAGE_TO_COMP_CARD_NAV_PASS", flush=True)
+    finally:
+        browser.close()
+print(f"SERDAR_SECONDARY_LINKS_PASS {len(more_routes)}/{len(more_routes)}", flush=True)
+
 
