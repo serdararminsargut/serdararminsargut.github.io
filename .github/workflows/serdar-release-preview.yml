@@ -7,6 +7,8 @@ on:
       - '.github/workflows/serdar-release-preview.yml'
       - 'assets/css/site.css'
       - 'index.html'
+      - 'scripts/serdar_generate_comp_cards.py'
+      - 'casting-card/**'
       - 'en/index.html'
       - 'ar/index.html'
       - 'ru/index.html'
@@ -98,6 +100,17 @@ jobs:
             fi
           done
 
+      - name: Build and verify four Serdar Comp Card PDFs (A4, local-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7'
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/serdar_generate_comp_cards.py dist
+          for lang in TR EN AR RU; do
+            test -s "dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
+          done
+
       - name: Protect candidate preview from indexing
         shell: bash
         run: |
@@ -141,6 +154,19 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ steps.cloudflare_account.outputs.account_id }}
           command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-release-candidate-20261017
+      - name: Archive generated Serdar PDF visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-preview-comp-card-pdfs
+          path: |
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-EN.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-AR.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-RU.pdf
+            dist/downloads/serdar-pdf-evidence.json
+          retention-days: 7
+          if-no-files-found: warn
       - name: Confirm production branch was not checked out
         shell: bash
         run: |
