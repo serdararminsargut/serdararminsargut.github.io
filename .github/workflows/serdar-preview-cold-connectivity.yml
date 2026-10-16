@@ -1,0 +1,79 @@
+name: Serdar cold HTTPS connectivity diagnostics (test only)
+on:
+  push:
+    branches: ['test/serdar-release-candidate-20261017']
+    paths:
+      - '.github/workflows/serdar-preview-cold-connectivity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cold-preview-connectivity:
+    if: github.ref == 'refs/heads/test/serdar-release-candidate-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Repeated independent TLS handshakes and fresh GET (no Access, no writes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p connection-evidence
+          python3 - <<'PY'
+          import json, subprocess, statistics, time
+          targets={
+            "preview": "https://1676b9a3.serdararminsargut.pages.dev/",
+            "existing_production_readonly": "https://serdararminsargut.com/"
+          }
+          results=[]
+          for kind,url in targets.items():
+              for version in ("--http1.1","--http2"):
+                  for number in range(1,7):
+                      cmd=["curl","-sS","-o","/dev/null","-L","--max-redirs","3",
+                           "--no-keepalive","--connect-timeout","8","--max-time","18",
+                           "--retry","0",version,"-H","Cache-Control: no-cache",
+                           "-w","%{http_code}|%{time_namelookup}|%{time_connect}|%{time_appconnect}|%{time_starttransfer}|%{time_total}|%{num_redirects}",
+                           url]
+                      p=subprocess.run(cmd,capture_output=True,text=True,timeout=23)
+                      values=p.stdout.strip().split("|")
+                      ok=len(values)==7 and p.returncode==0 and values[0]=="200"
+                      result={"target":kind,"httpVersion":version,"attempt":number,"ok":ok,
+                              "curlExit":p.returncode,
+                              "httpCode":values[0] if values else "000",
+                              "dns":values[1] if len(values)==7 else None,
+                              "connect":values[2] if len(values)==7 else None,
+                              "tls":values[3] if len(values)==7 else None,
+                              "ttfb":values[4] if len(values)==7 else None,
+                              "total":values[5] if len(values)==7 else None,
+                              "redirects":values[6] if len(values)==7 else None,
+                              "error":p.stderr.strip()[:180] if not ok else None}
+                      results.append(result)
+                      print(f"{kind} {version} attempt {number}: status={result['httpCode']} exit={p.returncode} total={result['total']}s",flush=True)
+          summary={}
+          for kind in targets:
+              relevant=[r for r in results if r["target"]==kind]
+              times=[float(r["total"]) for r in relevant if r["ok"] and r["total"]]
+              summary[kind]={"count":len(relevant),"success":sum(r["ok"] for r in relevant),
+                             "failure":sum(not r["ok"] for r in relevant),
+                             "maxSeconds":round(max(times),3) if times else None,
+                             "medianSeconds":round(statistics.median(times),3) if times else None}
+          output={"project":"SERDAR_ONLY","source":"GitHub-hosted Linux runner, not Android Istanbul",
+                  "note":"PASS from this region cannot override actual Android ERR_CONNECTION_RESET",
+                  "preview":"NOINDEX_TEST_ONLY","production":"READ_ONLY",
+                  "results":results,"summary":summary}
+          with open("connection-evidence/report.json","w") as out:
+              json.dump(output,out,indent=2)
+          print("SERDAR_COLD_CONNECTIVITY_SUMMARY="+json.dumps(summary),flush=True)
+          if summary["preview"]["failure"]:
+              raise SystemExit("PREVIEW_CONNECTION_FAILURE from GitHub runner")
+          print("RUNNER CONNECTIVITY PASS; ANDROID FIRST-LOAD STILL NOT_VERIFIED")
+          PY
+      - name: Archive connection timing evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-cold-preview-connectivity-evidence
+          path: connection-evidence/
+          retention-days: 7
+          if-no-files-found: warn
