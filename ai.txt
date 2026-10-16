@@ -2,7 +2,7 @@
 
 Status: Informational, non-standard policy file.
 Canonical source: https://serdararminsargut.com/
-Contact: serdararminsargut@gmail.com
+Contact: info@serdararminsargut.com
 
 ## Crawl and retrieval
 
