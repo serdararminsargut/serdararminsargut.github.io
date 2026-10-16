@@ -5,6 +5,15 @@ on:
       - test/serdar-release-candidate-20261017
     paths:
       - '.github/workflows/serdar-release-preview.yml'
+      - 'assets/css/site.css'
+      - 'index.html'
+      - 'en/index.html'
+      - 'ar/index.html'
+      - 'ru/index.html'
+      - 'az/index.html'
+      - 'kk/index.html'
+      - 'uz/index.html'
+      - 'ky/index.html'
   workflow_dispatch:
 
 permissions:
