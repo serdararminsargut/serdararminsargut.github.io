@@ -75,6 +75,15 @@ jobs:
             exit 1
           fi
 
+      - name: Assert four PDF attachment response header rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          for lang in TR EN AR RU; do
+            grep -Fxq "/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf" _headers
+            grep -Fq "Content-Disposition: attachment; filename=\"Serdar-Armin-Sargut-Comp-Card-$lang.pdf\"" _headers
+          done
+
       - name: Generate and validate four PDFs
         shell: bash
         run: |

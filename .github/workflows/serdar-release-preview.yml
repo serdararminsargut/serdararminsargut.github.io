@@ -10,6 +10,7 @@ on:
       - 'scripts/serdar_generate_comp_cards.py'
       - 'casting-card/**'
       - '404.html'
+      - '_headers'
       - 'en/index.html'
       - 'ar/index.html'
       - 'ru/index.html'

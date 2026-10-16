@@ -101,6 +101,7 @@ with sync_playwright() as playwright:
                     http = context.request.get(pdf_url, timeout=30000)
                     assert http.status == 200, f"PDF HTTP {http.status}"
                     assert "application/pdf" in http.headers.get("content-type", ""), "PDF Content-Type missing"
+                    assert f'attachment; filename="{file_name}"' in http.headers.get("content-disposition", ""), f"{lang}: PDF is inline instead of attachment"
                     pdf_content = http.body()
                     assert 20000 < len(pdf_content) < 1200000 and pdf_content.startswith(b"%PDF-"), "invalid or oversized PDF"
                     page = context.new_page()
