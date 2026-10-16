@@ -68,10 +68,10 @@ jobs:
           set -euo pipefail
           file=casting-card/comp-card-pdf-download.js
           test -s "$file"
-          grep -q 'window.location.assign(sourceUrl)' "$file"
-          grep -q 'link.download = fileName' "$file"
-          if grep -Eq 'response\.blob|URL\.createObjectURL|new Blob' "$file"; then
-            echo "Blob-based PDF download regression detected" >&2
+          test "$(grep -Fc 'window.location.assign(sourceUrl)' "$file")" -eq 1
+          grep -Fq 'if (button.disabled) return;' "$file"
+          if grep -Eq 'link[.]download|link[.]click[(]|setTimeout[(]|response[.]blob|URL[.]createObjectURL|new Blob' "$file"; then
+            echo "Multiple-request or Blob-based PDF download regression detected" >&2
             exit 1
           fi
 
