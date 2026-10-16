@@ -15,21 +15,12 @@
   button.dataset.downloadUrl = sourceUrl;
   button.dataset.filename = fileName;
 
+  // A single direct navigation lets Android Chrome open/save the real PDF.
+  // Do not combine a synthetic download click and a delayed second request:
+  // that sequence triggers Chrome's "multiple file downloads" permission.
   button.addEventListener("click", () => {
-    const link = document.createElement("a");
-    link.href = sourceUrl;
-    link.download = fileName;
-    link.rel = "noopener";
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    // Android/WebView may ignore the download attribute. If the document
-    // remains visible, navigate to the PDF so the browser can open/save it.
-    window.setTimeout(() => {
-      if (document.visibilityState === "visible") {
-        window.location.assign(sourceUrl);
-      }
-    }, 350);
+    if (button.disabled) return;
+    button.disabled = true;
+    window.location.assign(sourceUrl);
   });
 })();
