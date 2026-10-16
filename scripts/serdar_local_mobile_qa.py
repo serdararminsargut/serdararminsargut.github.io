@@ -53,12 +53,14 @@ def main(origin: str, destination: Path) -> None:
                         page.on("pageerror", lambda error: js_errors.append(str(error)))
                         case = {"route": route, "width": width, "result": "NOT_VERIFIED"}
                         try:
-                            response = page.goto(origin + route.lstrip("/"), wait_until="domcontentloaded", timeout=30000)
+                            response = page.goto(origin + route.lstrip("/"), wait_until="load", timeout=30000)
                             if response is None or response.status != 200:
                                 raise AssertionError("HTTP status not 200")
                             metrics = page.evaluate("""async () => {
                               await document.fonts.ready;
                               return {
+                                documentReadyState: document.readyState,
+                                loadedStylesheets: [...document.styleSheets].filter(s => !!s.href).map(s => s.href),
                                 language: document.documentElement.lang,
                                 h1: document.querySelectorAll('h1').length,
                                 scrollWidth: document.documentElement.scrollWidth,
@@ -69,6 +71,9 @@ def main(origin: str, destination: Path) -> None:
                             }""")
                             case.update(metrics)
                             case["jsErrors"] = js_errors
+                            assert metrics["documentReadyState"] == "complete", "page has not fully loaded"
+                            if route == "/blog/":
+                                assert any(x.endswith("/blog/blog.css") for x in metrics["loadedStylesheets"]), "blog stylesheet not loaded"
                             assert metrics["language"].lower().split("-")[0] == expected_lang, "incorrect language"
                             assert metrics["h1"] == 1, "expected one H1"
                             assert metrics["scrollWidth"] <= metrics["viewportWidth"] + 2, "horizontal overflow"
