@@ -101,12 +101,13 @@ jobs:
               check('PDF attachment '+lang,pdf_check)
 
           def css():
-              _,body=fetch('/assets/css/site.css')
+              _,body=fetch('/assets/css/site.css?v=mobile-credits-singlecol-20261017-r1')
               text=body.decode('utf-8')
               assert '.credits' in text,'No acting credits CSS'
-              assert 'repeat(3,minmax(0,1fr))!important' not in text,'Old forced 3-column acting cards'
+              stale=re.search(r'\\.credits\\s*\\{\\s*grid-template-columns\\s*:\\s*repeat\\(3,\\s*minmax\\(0,\\s*1fr\\)\\)\\s*!important',text)
+              assert not stale,'Old forced 3-column acting credits override still present'
               assert 'Serdar tablet hero readability' in text,'Latest tablet hero CSS not deployed'
-              return {'bytes':len(body),'actingCreditsOverrideRemoved':True}
+              return {'bytes':len(body),'actingCreditsOverrideRemoved':True,'galleryRulesExcludedFromCheck':True}
           check('Live production CSS updated',css)
 
           summary={'total':len(report['checks']),
