@@ -9,6 +9,7 @@ on:
       - 'index.html'
       - 'scripts/serdar_generate_comp_cards.py'
       - 'casting-card/**'
+      - '404.html'
       - 'en/index.html'
       - 'ar/index.html'
       - 'ru/index.html'

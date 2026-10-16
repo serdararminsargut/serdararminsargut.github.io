@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-BASE = "https://1676b9a3.serdararminsargut.pages.dev"
+BASE = "https://79992566.serdararminsargut.pages.dev"
 ROUTES = (("/", "tr"), ("/en/", "en"), ("/ar/", "ar"), ("/ru/", "ru"),
           ("/blog/", "tr"), ("/links/", "tr"),
           ("/casting-card/tr.html", "tr"), ("/casting-card/ar.html", "ar"))
@@ -84,3 +84,53 @@ report = {"project": "SERDAR_ONLY", "source": "CLOUDFLARE_IMMUTABLE_PREVIEW",
 if failures:
     raise SystemExit("SERDAR LIVE PREVIEW BROWSER FAIL:\n" + "\n".join(failures))
 print(f"SERDAR LIVE PREVIEW BROWSER PASS {report['passed']}/{report['total']}, physical Android NOT_VERIFIED")
+
+# Test the exact Comp Card button users tap, not just the containing HTML page.
+# This was omitted from earlier browser QA, allowing missing PDFs to ship.
+pdf_results = []
+with sync_playwright() as playwright:
+    browser = playwright.chromium.launch(headless=True, args=["--no-sandbox"])
+    try:
+        context = browser.new_context(accept_downloads=True)
+        try:
+            for lang in ("TR", "EN", "AR", "RU"):
+                file_name = f"Serdar-Armin-Sargut-Comp-Card-{lang}.pdf"
+                pdf_url = f"{BASE}/downloads/{file_name}"
+                result = {"lang": lang, "file": file_name, "status": "FAIL"}
+                try:
+                    http = context.request.get(pdf_url, timeout=30000)
+                    assert http.status == 200, f"PDF HTTP {http.status}"
+                    assert "application/pdf" in http.headers.get("content-type", ""), "PDF Content-Type missing"
+                    pdf_content = http.body()
+                    assert len(pdf_content) > 20000 and pdf_content.startswith(b"%PDF-"), "invalid PDF bytes"
+                    page = context.new_page()
+                    try:
+                        page_response = page.goto(f"{BASE}/casting-card/{lang.lower()}.html",
+                                                  wait_until="load", timeout=30000)
+                        assert page_response is not None and page_response.status == 200, "Comp Card HTML error"
+                        assert page.locator("h1").count() >= 1, "Comp Card heading missing"
+                        assert not page.locator("body").inner_text().startswith("Sayfa bulunamadı"), "404 fallback"
+                        with page.expect_download(timeout=12000) as download_info:
+                            page.locator("#comp-card-pdf-download").click()
+                        download = download_info.value
+                        assert download.suggested_filename == file_name, "wrong download filename"
+                        saved = download.path()
+                        assert saved is not None and saved.stat().st_size > 20000, "button downloaded empty file"
+                        assert saved.open("rb").read(5) == b"%PDF-", "button download is not a real PDF"
+                        result["status"] = "PASS"
+                        result["bytes"] = len(pdf_content)
+                    finally:
+                        page.close()
+                except Exception as exc:
+                    result["error"] = str(exc)
+                    pdf_results.append(result)
+                    raise
+                pdf_results.append(result)
+                print("SERDAR_LIVE_PDF_BUTTON " + json.dumps(result), flush=True)
+        finally:
+            context.close()
+    finally:
+        browser.close()
+(OUT / "pdf-buttons.json").write_text(json.dumps(pdf_results, indent=2) + "\n")
+print("SERDAR_LIVE_PDF_BUTTON_PASS 4/4", flush=True)
+
