@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+from datetime import date
 from pathlib import Path
 from html.parser import HTMLParser
 from urllib.parse import urlsplit, unquote
@@ -77,8 +78,18 @@ def main():
     ns = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
     if tree.getroot().tag != ns + "urlset":
         errors.append("Sitemap root is not the standard urlset")
-    urls = [(n.findtext(ns + "loc") or "").strip()
-            for n in tree.getroot().findall(ns + "url")]
+    urls = []
+    for node in tree.getroot().findall(ns + "url"):
+        url = (node.findtext(ns + "loc") or "").strip()
+        lastmod = (node.findtext(ns + "lastmod") or "").strip()
+        urls.append(url)
+        if not lastmod:
+            errors.append(f"{url}: sitemap lastmod missing")
+        else:
+            try:
+                date.fromisoformat(lastmod)
+            except ValueError:
+                errors.append(f"{url}: sitemap lastmod must be ISO date: {lastmod}")
     if not urls:
         errors.append("Sitemap contains no URLs")
     if len(urls) != len(set(urls)):
