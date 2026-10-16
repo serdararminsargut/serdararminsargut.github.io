@@ -15,6 +15,7 @@ class Head(HTMLParser):
         self.canonicals = []
         self.alternates = {}
         self.robots = []
+        self.meta = {}
         self.json_blocks = []
         self._json = False
         self._buffer = []
@@ -35,8 +36,13 @@ class Head(HTMLParser):
                     self.alternates[lang] = None
                 else:
                     self.alternates[lang] = href
-        if tag == "meta" and (data.get("name") or "").lower() == "robots":
-            self.robots.append((data.get("content") or "").lower())
+        if tag == "meta":
+            key = (data.get("name") or data.get("property") or "").lower()
+            content = (data.get("content") or "").strip()
+            if key and content:
+                self.meta[key] = content
+            if key == "robots":
+                self.robots.append(content.lower())
         if tag == "script" and (data.get("type") or "").lower() == "application/ld+json":
             self._json = True
             self._buffer = []
@@ -113,6 +119,9 @@ def main():
             errors.append(f"{url}: missing <html lang>")
         if any("noindex" in value for value in parser.robots):
             errors.append(f"{url}: indexed sitemap page contains noindex")
+        for key in ("description", "og:title", "og:description", "twitter:card"):
+            if not parser.meta.get(key):
+                errors.append(f"{url}: missing required metadata {key}")
         for pos, data in enumerate(parser.json_blocks, 1):
             try:
                 parsed = json.loads(data)
@@ -183,9 +192,9 @@ def main():
             out.write(f"## Static SEO audit\n\nChecked **{len(urls)}** sitemap URLs.\n\n")
             out.write(f"**Failures:** {len(errors)} · **Image dimension warnings:** {len(warnings)}\n\n")
             for item in errors[:60]:
-                out.write(f"- FAIL: \`{item}\`\n")
+                out.write(f"- FAIL: `{item}`\n")
             for item in warnings[:15]:
-                out.write(f"- WARN: \`{item}\`\n")
+                out.write(f"- WARN: `{item}`\n")
     if errors:
         raise SystemExit(1)
 
