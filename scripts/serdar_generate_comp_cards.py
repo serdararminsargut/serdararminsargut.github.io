@@ -7,10 +7,13 @@ the Pages build against on-disk Serdar files; failure blocks deployment.
 import argparse
 import hashlib
 import http.server
+from io import BytesIO
 import json
 from pathlib import Path
 import threading
+from urllib.parse import unquote, urlsplit
 
+from PIL import Image
 from playwright.sync_api import sync_playwright
 from pypdf import PdfReader
 
@@ -38,6 +41,29 @@ def run(root: Path) -> None:
     base = "http://127.0.0.1:" + str(server.server_port)
     (root / "downloads").mkdir(exist_ok=True)
     results = []
+    photo_cache = {}
+
+    def serve_only_local_assets(route):
+        url = route.request.url
+        if not url.startswith(base + "/"):
+            route.abort()
+            return
+        relative_path = unquote(urlsplit(url).path).lstrip("/")
+        if relative_path.startswith("assets/photos/") and relative_path.lower().endswith(
+            (".webp", ".jpeg", ".jpg", ".png")
+        ):
+            path = (root / relative_path).resolve()
+            assert path.is_relative_to(root) and path.is_file(), "photo outside local dist"
+            if path not in photo_cache:
+                with Image.open(path) as original:
+                    image = original.convert("RGB")
+                    image.thumbnail((1400, 1400), Image.Resampling.LANCZOS)
+                    buffer = BytesIO()
+                    image.save(buffer, "JPEG", quality=82, subsampling=0, optimize=True)
+                    photo_cache[path] = buffer.getvalue()
+            route.fulfill(status=200, body=photo_cache[path], content_type="image/jpeg")
+            return
+        route.continue_()
 
     try:
         with sync_playwright() as playwright:
@@ -45,9 +71,7 @@ def run(root: Path) -> None:
             try:
                 for lang in LANGUAGES:
                     context = browser.new_context()
-                    context.route("**/*", lambda route: (
-                        route.continue_() if route.request.url.startswith(base + "/") else route.abort()
-                    ))
+                    context.route("**/*", serve_only_local_assets)
                     page = context.new_page()
                     try:
                         response = page.goto(
@@ -74,7 +98,9 @@ def run(root: Path) -> None:
                         target = root / "downloads" / file_name
                         target.write_bytes(data)
                         assert data.startswith(b"%PDF-"), "PDF signature missing"
-                        assert len(data) > 20000, "PDF suspiciously small"
+                        assert 20000 < len(data) < 3000000, (
+                            f"{lang}: PDF too large for mobile delivery: {len(data)} bytes"
+                        )
                         doc = PdfReader(str(target))
                         assert 1 <= len(doc.pages) <= 2, f"{lang}: unexpected {len(doc.pages)} A4 pages"
                         pages_text = "\n".join(p.extract_text() or "" for p in doc.pages)
