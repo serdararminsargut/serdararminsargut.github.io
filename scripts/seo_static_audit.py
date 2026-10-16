@@ -22,6 +22,7 @@ class Head(HTMLParser):
         self._buffer = []
         self.images_missing_dimensions = 0
         self.h1_count = 0
+        self.og_images = []
 
     def handle_starttag(self, tag, attrs):
         data = dict(attrs)
@@ -45,6 +46,8 @@ class Head(HTMLParser):
             content = (data.get("content") or "").strip()
             if key and content:
                 self.meta[key] = content
+            if key == "og:image":
+                self.og_images.append(content)
             if key == "robots":
                 self.robots.append(content.lower())
         if tag == "script" and (data.get("type") or "").lower() == "application/ld+json":
@@ -133,8 +136,16 @@ def main():
             errors.append(f"{url}: missing <html lang>")
         if parser.h1_count != 1:
             errors.append(f"{url}: expected exactly one H1, found {parser.h1_count}")
-        if not parser.meta.get("og:image"):
-            errors.append(f"{url}: missing og:image")
+        if len(parser.og_images) != 1 or not parser.og_images[0]:
+            errors.append(f"{url}: exactly one nonempty og:image required")
+        else:
+            image = urlsplit(parser.og_images[0])
+            if image.scheme != "https" or not image.netloc or image.query or image.fragment:
+                errors.append(f"{url}: og:image must be an absolute HTTPS asset URL")
+            elif image.netloc == urlsplit(origin).netloc:
+                asset = (root / unquote(image.path).lstrip("/")).resolve()
+                if not asset.is_relative_to(root) or not asset.is_file():
+                    errors.append(f"{url}: og:image local asset missing: {image.path}")
         if any("noindex" in value for value in parser.robots):
             errors.append(f"{url}: indexed sitemap page contains noindex")
         for key in ("description", "og:title", "og:description", "twitter:card"):
