@@ -1,0 +1,139 @@
+name: Serdar candidate Cloudflare Pages preview (no production)
+on:
+  push:
+    branches:
+      - test/serdar-release-candidate-20261017
+    paths:
+      - '.github/workflows/serdar-release-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: serdar-release-candidate-preview-only
+  cancel-in-progress: true
+
+jobs:
+  publish-isolated-preview:
+    if: github.ref == 'refs/heads/test/serdar-release-candidate-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Verify isolated Serdar candidate ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/test/serdar-release-candidate-20261017"
+          test "${GITHUB_REPOSITORY}" = "serdararminsargut/serdararminsargut.github.io"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare static site bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          mkdir -p dist
+
+          for item in \
+            .nojekyll \
+            _headers \
+            _redirects \
+            404.html \
+            ai.txt \
+            ar \
+            assets \
+            az \
+            blog \
+            card.html \
+            casting-card \
+            de \
+            downloads \
+            en \
+            fa \
+            favicon.svg \
+            favicon.ico \
+            favicon-96x96.png \
+            fr \
+            index.html \
+            indexnow-key.txt \
+            72f0dad836e29ffcc2d9dd42a794dbf0.txt \
+            erkek-cocuk-model \
+            spor-giyim-cocuk-modeli \
+            cocuk-giyim-modeli \
+            e-ticaret-cocuk-modeli \
+            it \
+            kk \
+            ky \
+            llms.txt \
+            llms-full.txt \
+            links \
+            postcard.html \
+            projeler \
+            rehber \
+            robots.txt \
+            ru \
+            sitemap.xml \
+            sitemap-google.xml \
+            sitemap.txt \
+            tk \
+            uz \
+            zh-cn \
+            yandex_*.html
+          do
+            if compgen -G "$item" > /dev/null; then
+              cp -R $item dist/
+            elif [ -e "$item" ]; then
+              cp -R "$item" dist/
+            fi
+          done
+
+      - name: Protect candidate preview from indexing
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s dist/_headers
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('dist/_headers')
+          src=h.read_text(encoding='utf-8')
+          expected="/*\n"
+          assert src.startswith(expected), "unexpected _headers root"
+          src=src.replace(expected, expected+"  X-Robots-Tag: noindex, nofollow, noarchive\n",1)
+          assert src.count('X-Robots-Tag: noindex, nofollow, noarchive')==1
+          h.write_text(src,encoding='utf-8')
+          Path('dist/robots.txt').write_text("User-agent: *\nDisallow: /\n",encoding='utf-8')
+          assert 'serdararminsargut.com' in (Path('dist/index.html')).read_text(encoding='utf-8')
+          assert (Path('dist/sitemap.xml')).is_file()
+          print("Preview index guard PASS: noindex response header and robots disallow")
+          PY
+          printf 'Release candidate SHA: '; git rev-parse HEAD
+          sha256sum dist/index.html dist/_headers dist/robots.txt dist/sitemap.xml
+      - name: Normalize existing Cloudflare account id
+        id: cloudflare_account
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          account_id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account_id="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]; then
+            echo "Invalid Cloudflare Account ID; no deployment performed" >&2
+            exit 1
+          fi
+          echo "::add-mask::$account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+      - name: Deploy Serdar release candidate as Preview only
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cloudflare_account.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-release-candidate-20261017
+      - name: Confirm production branch was not checked out
+        shell: bash
+        run: |
+          test "${GITHUB_REF_NAME}" = "test/serdar-release-candidate-20261017"
+          echo "Only the release-candidate Preview was deployed; production has not been changed by this workflow."
