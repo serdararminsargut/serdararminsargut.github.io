@@ -40,7 +40,10 @@ with sync_playwright() as playwright:
                             canonical: document.querySelector('link[rel="canonical"]')?.href || '',
                             ogImage: document.querySelector('meta[property="og:image"]')?.content || '',
                             imageCount: document.querySelectorAll('img').length,
-                            heroHeadlineLines: (() => { const h=document.querySelector('.hero h1'); if(!h) return null; const st=getComputedStyle(h); return Math.round(h.getBoundingClientRect().height / parseFloat(st.lineHeight)); })()
+                            heroHeadlineLines: (() => { const h=document.querySelector('.hero h1'); if(!h) return null; const st=getComputedStyle(h); return Math.round(h.getBoundingClientRect().height / parseFloat(st.lineHeight)); })(),
+                            creditsColumns: (() => { const el=document.querySelector('.credits'); if(!el) return null; return getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length; })(),
+                            creditsStylesheetLoaded: [...document.styleSheets].some(s => !!s.href && s.href.includes('/assets/css/site.css')),
+                            galleryColumns: (() => { const el=document.querySelector('.gallery'); if(!el) return null; return getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length; })()
                           };
                         }""")
                         case.update(metrics)
@@ -50,6 +53,11 @@ with sync_playwright() as playwright:
                         assert metrics["scrollWidth"] <= metrics["innerWidth"] + 2, "horizontal overflow"
                         assert metrics["canonical"].startswith("https://serdararminsargut.com/"), "canonical mismatch"
                         assert metrics["ogImage"].startswith("https://serdararminsargut.com/"), "OG image missing"
+                        if route == "/":
+                            assert metrics["creditsStylesheetLoaded"], "Serdar main stylesheet not loaded"
+                            assert metrics["creditsColumns"] == 1, "Acting credit cards not one-column on mobile"
+                            if width in (390, 430):
+                                assert metrics["galleryColumns"] == 2, "photo gallery not two-column on phone"
                         if route == "/" and width == 761:
                             assert metrics["heroHeadlineLines"] is not None and metrics["heroHeadlineLines"] <= 6, "tablet hero headline is excessively fragmented"
                         assert not js_errors, "JavaScript exception: " + str(js_errors[:2])
