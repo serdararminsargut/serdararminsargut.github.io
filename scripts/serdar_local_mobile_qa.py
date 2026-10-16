@@ -80,6 +80,16 @@ def main(origin: str, destination: Path) -> None:
                         except Exception as exc:
                             case["result"] = "FAIL"
                             case["error"] = str(exc)
+                            case["overflowElements"] = page.evaluate("""() =>
+                              [...document.querySelectorAll('body *')].map(el => {
+                                const r=el.getBoundingClientRect();
+                                return {tag:el.tagName, cls:String(el.className).slice(0,100),
+                                        left:Math.round(r.left),right:Math.round(r.right),
+                                        width:Math.round(r.width),scrollWidth:el.scrollWidth,
+                                        overflow:getComputedStyle(el).overflowX};
+                              }).filter(x => x.right > window.innerWidth + 2 || x.left < -2)
+                                .sort((a,b)=>b.right-a.right).slice(0,20)
+                            """)
                             failures.append(f"{route} @ {width}: {exc}")
                         finally:
                             report["cases"].append(case)
