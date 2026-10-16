@@ -21,9 +21,12 @@ class Head(HTMLParser):
         self._json = False
         self._buffer = []
         self.images_missing_dimensions = 0
+        self.h1_count = 0
 
     def handle_starttag(self, tag, attrs):
         data = dict(attrs)
+        if tag == "h1":
+            self.h1_count += 1
         if tag == "html":
             self.lang = (data.get("lang") or "").lower().replace("_", "-")
         if tag == "link":
@@ -128,6 +131,10 @@ def main():
             errors.append(f"{url}: canonical must be unique and self-referencing; found {parser.canonicals}")
         if not parser.lang:
             errors.append(f"{url}: missing <html lang>")
+        if parser.h1_count != 1:
+            errors.append(f"{url}: expected exactly one H1, found {parser.h1_count}")
+        if not parser.meta.get("og:image"):
+            errors.append(f"{url}: missing og:image")
         if any("noindex" in value for value in parser.robots):
             errors.append(f"{url}: indexed sitemap page contains noindex")
         for key in ("description", "og:title", "og:description", "twitter:card"):
