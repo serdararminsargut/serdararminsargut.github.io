@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-BASE = "https://8a773916.serdararminsargut.pages.dev"
+BASE = "https://41ba74bb.serdararminsargut.pages.dev"
 ROUTES = (("/", "tr"), ("/en/", "en"), ("/ar/", "ar"), ("/ru/", "ru"),
           ("/blog/", "tr"), ("/links/", "tr"),
           ("/casting-card/tr.html", "tr"), ("/casting-card/ar.html", "ar"))
@@ -39,7 +39,8 @@ with sync_playwright() as playwright:
                             scrollWidth: document.documentElement.scrollWidth,
                             canonical: document.querySelector('link[rel="canonical"]')?.href || '',
                             ogImage: document.querySelector('meta[property="og:image"]')?.content || '',
-                            imageCount: document.querySelectorAll('img').length
+                            imageCount: document.querySelectorAll('img').length,
+                            heroHeadlineLines: (() => { const h=document.querySelector('.hero h1'); if(!h) return null; const st=getComputedStyle(h); return Math.round(h.getBoundingClientRect().height / parseFloat(st.lineHeight)); })()
                           };
                         }""")
                         case.update(metrics)
@@ -49,6 +50,8 @@ with sync_playwright() as playwright:
                         assert metrics["scrollWidth"] <= metrics["innerWidth"] + 2, "horizontal overflow"
                         assert metrics["canonical"].startswith("https://serdararminsargut.com/"), "canonical mismatch"
                         assert metrics["ogImage"].startswith("https://serdararminsargut.com/"), "OG image missing"
+                        if route == "/" and width == 761:
+                            assert metrics["heroHeadlineLines"] is not None and metrics["heroHeadlineLines"] <= 6, "tablet hero headline is excessively fragmented"
                         assert not js_errors, "JavaScript exception: " + str(js_errors[:2])
                         case["status"] = "PASS"
                         if route == "/" and width in (390, 761):
