@@ -120,7 +120,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7'
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
           python3 -m playwright install --with-deps chromium
           python3 scripts/serdar_generate_comp_cards.py dist
           for lang in TR EN AR RU; do
