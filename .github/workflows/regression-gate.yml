@@ -36,6 +36,13 @@ jobs:
             fi
           done
 
+          test -s ai.txt
+          grep -Fq 'Contact: info@serdararminsargut.com' ai.txt
+          if grep -Fq 'serdararminsargut@gmail.com' ai.txt; then
+            echo 'Forbidden legacy contact in ai.txt' >&2
+            exit 1
+          fi
+
           for lang in tr en ar ru; do
             file="casting-card/${lang}.html"
             code=$(printf '%s' "$lang" | tr '[:lower:]' '[:upper:]')
