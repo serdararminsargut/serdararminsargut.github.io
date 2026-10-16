@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-BASE = "https://8ee0f94e.serdararminsargut.pages.dev"
+BASE = "https://a23a05be.serdararminsargut.pages.dev"
 ROUTES = (("/", "tr"), ("/en/", "en"), ("/ar/", "ar"), ("/ru/", "ru"),
           ("/blog/", "tr"), ("/links/", "tr"),
           ("/casting-card/tr.html", "tr"), ("/casting-card/ar.html", "ar"))
@@ -102,7 +102,7 @@ with sync_playwright() as playwright:
                     assert http.status == 200, f"PDF HTTP {http.status}"
                     assert "application/pdf" in http.headers.get("content-type", ""), "PDF Content-Type missing"
                     pdf_content = http.body()
-                    assert len(pdf_content) > 20000 and pdf_content.startswith(b"%PDF-"), "invalid PDF bytes"
+                    assert 20000 < len(pdf_content) < 1200000 and pdf_content.startswith(b"%PDF-"), "invalid or oversized PDF"
                     page = context.new_page()
                     try:
                         page_response = page.goto(f"{BASE}/casting-card/{lang.lower()}.html",
@@ -115,7 +115,7 @@ with sync_playwright() as playwright:
                         download = download_info.value
                         assert download.suggested_filename == file_name, "wrong download filename"
                         saved = download.path()
-                        assert saved is not None and saved.stat().st_size > 20000, "button downloaded empty file"
+                        assert saved is not None and 20000 < saved.stat().st_size < 1200000, "button downloaded empty or oversized file"
                         assert saved.open("rb").read(5) == b"%PDF-", "button download is not a real PDF"
                         result["status"] = "PASS"
                         result["bytes"] = len(pdf_content)
