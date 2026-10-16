@@ -1,0 +1,56 @@
+name: Serdar local mobile and first-load QA (test only)
+on:
+  push:
+    branches: ['test/serdar-release-candidate-20261017']
+    paths:
+      - 'scripts/serdar_local_mobile_qa.py'
+      - '.github/workflows/serdar-local-mobile-qa.yml'
+      - 'index.html'
+      - 'en/**'
+      - 'ar/**'
+      - 'ru/**'
+      - 'blog/**'
+      - 'links/**'
+      - 'casting-card/**'
+      - 'assets/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-mobile-qa:
+    if: github.ref_name == 'test/serdar-release-candidate-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated local Chromium (no deployment)
+        run: |
+          python -m pip install --disable-pip-version-check 'playwright==1.63.0'
+          python -m playwright install --with-deps chromium
+      - name: Check 8 Serdar routes in 4 viewport widths
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          python3 -m http.server 8767 --bind 127.0.0.1 --directory . > qa-artifacts/local-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8767/ -o /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8767/en/ -o /dev/null
+          python scripts/serdar_local_mobile_qa.py --url http://127.0.0.1:8767/ --output qa-artifacts/mobile
+      - name: Archive local-only measurements and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-local-mobile-qa-evidence
+          path: qa-artifacts/
+          retention-days: 7
+          if-no-files-found: warn
