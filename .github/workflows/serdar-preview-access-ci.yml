@@ -1,0 +1,42 @@
+name: Serdar Armin Sargut Preview machine access (read-only)
+on:
+  push:
+    branches:
+      - 'test/serdar-preview-machine-access-20261016'
+    paths:
+      - '.github/workflows/serdar-preview-access-ci.yml'
+      - 'scripts/serdar_preview_access_probe.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  access-http-proof:
+    if: github.ref_name == 'test/serdar-preview-machine-access-20261016'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Preview-only scope and credentials (no network)
+        id: setup
+        env:
+          PREVIEW_URL: ${{ vars.SERDAR_PREVIEW_URL }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_SECRET }}
+        run: python3 scripts/serdar_preview_access_probe.py --preflight
+      - name: Check authenticated HTTP, noindex, robots and sitemap (no writes)
+        if: steps.setup.outputs.ready == 'true'
+        env:
+          PREVIEW_URL: ${{ vars.SERDAR_PREVIEW_URL }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_SECRET }}
+        run: python3 scripts/serdar_preview_access_probe.py --probe
+      - name: Upload read-only evidence, never credential values
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-preview-service-auth-evidence
+          path: qa-artifacts/preview-access-evidence.json
+          retention-days: 7
+          if-no-files-found: error
