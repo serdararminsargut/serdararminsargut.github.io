@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-BASE = "https://a23a05be.serdararminsargut.pages.dev"
+BASE = "https://359263dd.serdararminsargut.pages.dev"
 ROUTES = (("/", "tr"), ("/en/", "en"), ("/ar/", "ar"), ("/ru/", "ru"),
           ("/blog/", "tr"), ("/links/", "tr"),
           ("/casting-card/tr.html", "tr"), ("/casting-card/ar.html", "ar"))
@@ -110,9 +110,14 @@ with sync_playwright() as playwright:
                         assert page_response is not None and page_response.status == 200, "Comp Card HTML error"
                         assert page.locator("h1").count() >= 1, "Comp Card heading missing"
                         assert not page.locator("body").inner_text().startswith("Sayfa bulunamadı"), "404 fallback"
+                        pdf_requests = []
+                        page.on("request", lambda req: pdf_requests.append(req.url) if req.url == pdf_url else None)
                         with page.expect_download(timeout=12000) as download_info:
                             page.locator("#comp-card-pdf-download").click()
                         download = download_info.value
+                        assert len(pdf_requests) == 1, (
+                            f"{lang}: PDF button triggered {len(pdf_requests)} network requests, expected exactly one"
+                        )
                         assert download.suggested_filename == file_name, "wrong download filename"
                         saved = download.path()
                         assert saved is not None and 20000 < saved.stat().st_size < 1200000, "button downloaded empty or oversized file"
