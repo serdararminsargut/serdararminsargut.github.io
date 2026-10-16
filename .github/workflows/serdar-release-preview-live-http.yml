@@ -19,7 +19,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base='https://a23a05be.serdararminsargut.pages.dev'
+          base='https://420bff02.serdararminsargut.pages.dev'
           fail=0
           mkdir -p /tmp/serdar-preview-probe
           for route in / /en/ /blog/ /robots.txt /sitemap.xml; do

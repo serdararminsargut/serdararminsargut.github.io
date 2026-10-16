@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-BASE = "https://359263dd.serdararminsargut.pages.dev"
+BASE = "https://420bff02.serdararminsargut.pages.dev"
 ROUTES = (("/", "tr"), ("/en/", "en"), ("/ar/", "ar"), ("/ru/", "ru"),
           ("/blog/", "tr"), ("/links/", "tr"),
           ("/casting-card/tr.html", "tr"), ("/casting-card/ar.html", "ar"))
