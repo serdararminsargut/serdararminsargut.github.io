@@ -56,7 +56,8 @@ PROTECTED = (
 )
 QA_FILES = {"assets/js/ga4-untracked-pages.js",
             "scripts/serdar_ga4_coverage_qa.py",
-            ".github/workflows/serdar-ga4-test-only.yml"}
+            ".github/workflows/serdar-ga4-test-only.yml",
+            ".github/workflows/validate-sitemap.yml"}
 
 def git(*args):
     r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, check=True)
@@ -75,6 +76,21 @@ def static_audit():
         assert not re.search(r'<meta[^>]+noindex', updated, re.I), path
     for path in PROTECTED:
         assert (ROOT / path).read_text(encoding="utf-8") == git("show", f"{BASELINE}:{path}"), path
+    # The existing sitemap gate was referencing an obsolete PDF verifier;
+    # prove that its one-purpose correction matches the immutable baseline.
+    sitemap_path = ".github/workflows/validate-sitemap.yml"
+    sitemap_old = git("show", f"{BASELINE}:{sitemap_path}")
+    source_pdf = 'pdf_workflow = Path(".github/workflows/deploy-language-comp-card-pdfs.yml").read_text(encoding="utf-8")'
+    source_producer = 'deploy_workflow = Path(".github/workflows/deploy-cloudflare-pages.yml").read_text(encoding="utf-8")'
+    source_check = 'if re.search(r"(?m)^\\s+links\\s+\\\\$", pdf_workflow) is None:'
+    corrected_check = 'if re.search(r"(?m)^\\s+links\\s+\\\\$", deploy_workflow) is None:'
+    source_error = 'PDF workflow must preserve the link hub in its Cloudflare production bundle'
+    corrected_error = 'Production deploy workflow must preserve the link hub in its Cloudflare bundle'
+    assert source_pdf in sitemap_old and source_check in sitemap_old and source_error in sitemap_old
+    expected_sitemap = (sitemap_old.replace(source_pdf, source_producer, 1)
+                        .replace(source_check, corrected_check, 1)
+                        .replace(source_error, corrected_error, 1))
+    assert (ROOT / sitemap_path).read_text(encoding="utf-8") == expected_sitemap, "Unexpected sitemap QA change"
     loader = (ROOT / "assets/js/ga4-untracked-pages.js").read_text(encoding="utf-8")
     assert loader.count(MEASUREMENT_ID) == 1
     assert loader.count("w.gtag('config', measurementId)") == 1
