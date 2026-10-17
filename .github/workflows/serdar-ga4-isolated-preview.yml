@@ -4,6 +4,7 @@ on:
     branches: ['test/serdar-ga4-coverage-20261017']
     paths:
       - '.github/workflows/serdar-ga4-isolated-preview.yml'
+      - 'scripts/serdar_ga4_preview_guard.py'
   workflow_dispatch:
 
 permissions:

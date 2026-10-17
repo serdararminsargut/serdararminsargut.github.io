@@ -162,8 +162,13 @@ def verify_remote():
                 context.close()
         finally:
             browser.close()
-    robots = __import__("urllib.request", fromlist=["urlopen"]).urlopen(
-        url + "/robots.txt", timeout=15).read().decode("utf-8")
+    # Cloudflare challenges urllib's default User-Agent (HTTP 403); use
+    # the same curl read-only probe already passed by the HTTP gate.
+    import subprocess
+    robots = subprocess.run(
+        ["curl", "--silent", "--show-error", "--fail",
+         "--connect-timeout", "10", "--max-time", "20", url + "/robots.txt"],
+        capture_output=True, check=True).stdout.decode("utf-8")
     assert "Disallow: /" in robots
     out = {"status":"PASS", "url":url, "routes":results,
            "analyticsProductionEventsEmitted":False,
