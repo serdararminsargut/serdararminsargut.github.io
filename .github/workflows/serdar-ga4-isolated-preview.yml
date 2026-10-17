@@ -1,0 +1,158 @@
+name: Serdar GA4 isolated Pages Preview proof (TEST ONLY)
+on:
+  push:
+    branches: ['test/serdar-ga4-coverage-20261017']
+    paths:
+      - '.github/workflows/serdar-ga4-isolated-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: serdar-ga4-preview-only
+  cancel-in-progress: true
+
+jobs:
+  isolated-preview:
+    if: github.ref == 'refs/heads/test/serdar-ga4-coverage-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Verify exact isolated repository/branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "serdararminsargut/serdararminsargut.github.io"
+          test "$GITHUB_REF" = "refs/heads/test/serdar-ga4-coverage-20261017"
+          echo "TEST_BRANCH_ONLY_PASS"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build preview-only noindex and measurement-suppressed bundle
+        run: python3 scripts/serdar_ga4_preview_guard.py build
+      - name: Verify Cloudflare production remains main before preview deploy
+        id: cfaccount
+        shell: bash
+        env:
+          CF_ACCOUNT_RAW: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          account="$CF_ACCOUNT_RAW"
+          if [[ "$CF_ACCOUNT_RAW" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account="$BASH_REMATCH"
+            account="$(printf '%s' "$account" | grep -oE '[a-fA-F0-9]{32}' | tail -1)"
+          fi
+          [[ "$account" =~ ^[a-fA-F0-9]{32}$ ]] || { echo "NO-GO: Cloudflare account configuration"; exit 1; }
+          test -n "$CF_TOKEN" || { echo "NO-GO: no Cloudflare token"; exit 1; }
+          echo "::add-mask::$account"
+          echo "account_id=$account" >> "$GITHUB_OUTPUT"
+          mkdir -p preview-evidence
+          curl -fsS --connect-timeout 10 --max-time 25 -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$account/pages/projects/serdararminsargut" \
+            -o preview-evidence/cf-project-private.json
+          curl -fsS --connect-timeout 10 --max-time 25 -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$account/pages/projects/serdararminsargut/deployments?env=production&per_page=3" \
+            -o preview-evidence/cf-production-private.json
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          d=json.loads(Path('preview-evidence/cf-project-private.json').read_text())
+          assert d.get('success') is True
+          p=d['result']
+          assert p['name']=='serdararminsargut'
+          assert p['production_branch']=='main', 'NO-GO: Cloudflare production branch not main'
+          repo=(p.get('source') or {}).get('config') or {}
+          if repo.get('repo_name'):
+              assert repo['repo_name']=='serdararminsargut.github.io'
+          h=json.loads(Path('preview-evidence/cf-production-private.json').read_text())
+          assert h.get('success') is True
+          prod=[r for r in h.get('result',[]) if r.get('environment')=='production']
+          assert prod and prod[0].get('id'), 'NO-GO: no production baseline'
+          branch=((prod[0].get('deployment_trigger') or {}).get('metadata') or {}).get('branch')
+          if branch: assert branch=='main', 'NO-GO: latest production not main'
+          Path('preview-evidence/production-before.txt').write_text(prod[0]['id'])
+          Path('preview-evidence/cf-project-private.json').unlink()
+          Path('preview-evidence/cf-production-private.json').unlink()
+          print('CLOUDFLARE_PRODUCTION_BRANCH_READ_ONLY_PASS branch=main')
+          PY
+      - name: Deploy ONLY nonproduction branch as isolated Pages Preview
+        id: publish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cfaccount.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-ga4-coverage-20261017
+      - name: Validate nonproduction URL and public noindex response
+        shell: bash
+        env:
+          PREVIEW_URL: ${{ steps.publish.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from urllib.parse import urlparse
+          url=os.environ.get('PREVIEW_URL','').rstrip('/')
+          p=urlparse(url)
+          assert p.scheme=='https' and p.hostname
+          assert p.hostname.endswith('.serdararminsargut.pages.dev')
+          assert p.hostname!='serdararminsargut.pages.dev'
+          assert p.path in ('','/')
+          Path('preview-evidence/preview-url.txt').write_text(url+'\n')
+          print('PREVIEW_URL_SCOPING_PASS '+url)
+          PY
+          code="$(curl -sS --max-redirs 0 --connect-timeout 10 --max-time 25 -D preview-evidence/root-headers.txt \
+             -o preview-evidence/root-body.html -w '%{http_code}' "$PREVIEW_URL/" || true)"
+          test "$code" = 200 || { echo "NO-GO: Preview unavailable or Access protected, HTTP $code; do not disable Access"; exit 1; }
+          grep -Eiq '^x-robots-tag:.*noindex' preview-evidence/root-headers.txt
+          grep -Fq 'serdar-ga4-preview-disable.js' preview-evidence/root-body.html
+          grep -Fq 'Disallow: /' <(curl -fsS --connect-timeout 10 --max-time 20 "$PREVIEW_URL/robots.txt")
+          rm -f preview-evidence/root-body.html
+          echo 'PREVIEW_HTTP_NOINDEX_PASS'
+      - name: Install ephemeral Chromium for live Preview checks
+        run: |
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0'
+          python3 -m playwright install --with-deps chromium
+      - name: Verify seven live Preview routes with GA4 collection suppressed
+        env:
+          PREVIEW_URL: ${{ steps.publish.outputs.deployment-url }}
+        run: python3 scripts/serdar_ga4_preview_guard.py verify
+      - name: Confirm no production deployment changed
+        shell: bash
+        env:
+          CF_ACCOUNT: ${{ steps.cfaccount.outputs.account_id }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -fsS --connect-timeout 10 --max-time 25 -H "Authorization: Bearer $CF_TOKEN" \
+             "https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/pages/projects/serdararminsargut/deployments?env=production&per_page=3" \
+             -o preview-evidence/cf-production-after-private.json
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          h=json.loads(Path('preview-evidence/cf-production-after-private.json').read_text())
+          assert h.get('success') is True
+          prod=[r for r in h.get('result',[]) if r.get('environment')=='production']
+          assert prod and prod[0].get('id'), 'NO-GO missing production deployment'
+          assert prod[0]['id']==Path('preview-evidence/production-before.txt').read_text().strip(), 'NO-GO production ID changed'
+          Path('preview-evidence/cf-production-after-private.json').unlink()
+          print('PRODUCTION_DEPLOYMENT_UNCHANGED_PASS')
+          PY
+      - name: Retain preview proof without Cloudflare credentials
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-ga4-preview-only-proof
+          path: |
+            preview-evidence/bundle.json
+            preview-evidence/remote.json
+            preview-evidence/preview-url.txt
+            preview-evidence/production-before.txt
+          retention-days: 7
+          if-no-files-found: warn
