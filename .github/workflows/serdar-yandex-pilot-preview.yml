@@ -1,0 +1,133 @@
+name: Serdar Yandex quality pilot noindex preview (TEST ONLY)
+on:
+  push:
+    branches: ['test/serdar-yandex-quality-pilot-20261017']
+    paths:
+      - 'scripts/serdar_yandex_pilot_preview.py'
+      - '.github/workflows/serdar-yandex-pilot-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: serdar-yandex-pilot-preview
+  cancel-in-progress: true
+jobs:
+  preview:
+    if: github.ref == 'refs/heads/test/serdar-yandex-quality-pilot-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build isolated noindex preview and suppress GA4
+        run: python3 scripts/serdar_yandex_pilot_preview.py build
+      - name: Cloudflare production source preflight (GET only)
+        id: cf
+        shell: bash
+        env:
+          CF_RAW: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          account="$(printf '%s' "$CF_RAW" | grep -oE '[a-fA-F0-9]{32}' | head -1)"
+          [[ "$account" =~ ^[a-fA-F0-9]{32}$ ]] || exit 1
+          test -n "$CF_TOKEN"
+          echo "::add-mask::$account"
+          echo "id=$account" >> "$GITHUB_OUTPUT"
+          mkdir -p yandex-pilot-preview-evidence
+          curl -fsS --connect-timeout 10 --max-time 25 -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$account/pages/projects/serdararminsargut" \
+            -o yandex-pilot-preview-evidence/project-private.json
+          curl -fsS --connect-timeout 10 --max-time 25 -H "Authorization: Bearer $CF_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$account/pages/projects/serdararminsargut/deployments?env=production&per_page=5" \
+            -o yandex-pilot-preview-evidence/prod-before-private.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('yandex-pilot-preview-evidence')
+          project=json.loads((p/'project-private.json').read_text())
+          assert project['success'] and project['result']['name']=='serdararminsargut'
+          assert project['result']['production_branch']=='main'
+          deployments=json.loads((p/'prod-before-private.json').read_text())
+          assert deployments['success']
+          prod=[d for d in deployments['result'] if d.get('environment')=='production']
+          assert prod and prod[0].get('id')
+          branch=((prod[0].get('deployment_trigger') or {}).get('metadata') or {}).get('branch')
+          assert branch in (None,'main')
+          (p/'prod-before-id.txt').write_text(prod[0]['id'])
+          (p/'project-private.json').unlink()
+          (p/'prod-before-private.json').unlink()
+          print('SERDAR_GSC_PRODUCTION_SOURCE_MAIN_PASS')
+          PY
+      - name: Deploy isolated nonproduction branch
+        id: publish
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cf.outputs.id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-yandex-quality-pilot-20261017
+      - name: Validate preview noindex and disallow before browser
+        env:
+          PREVIEW_URL: ${{ steps.publish.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          from urllib.parse import urlparse
+          url=os.environ['PREVIEW_URL'].rstrip('/')
+          u=urlparse(url)
+          assert u.scheme=='https' and u.hostname and u.hostname.endswith('.serdararminsargut.pages.dev')
+          assert u.hostname!='serdararminsargut.pages.dev' and u.path in ('','/')
+          Path('yandex-pilot-preview-evidence/preview-url.txt').write_text(url+'\n')
+          print('SERDAR_GSC_PREVIEW_SCOPE_PASS '+url)
+          PY
+          curl -fsS -D yandex-pilot-preview-evidence/headers-private.txt --connect-timeout 10 --max-time 25 \
+            "$PREVIEW_URL/" -o /dev/null
+          grep -Eiq '^x-robots-tag:.*noindex' yandex-pilot-preview-evidence/headers-private.txt
+          curl -fsS --connect-timeout 10 --max-time 25 "$PREVIEW_URL/robots.txt" | grep -Fq 'Disallow: /'
+          rm -f yandex-pilot-preview-evidence/headers-private.txt
+      - name: Install disposable Chromium
+        run: |
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0'
+          python3 -m playwright install --with-deps chromium
+      - name: Validate two pilot routes across four viewports
+        env:
+          PREVIEW_URL: ${{ steps.publish.outputs.deployment-url }}
+        run: python3 scripts/serdar_yandex_pilot_preview.py verify
+      - name: Verify production deployment ID unchanged
+        shell: bash
+        env:
+          ACCOUNT: ${{ steps.cf.outputs.id }}
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl -fsS --connect-timeout 10 --max-time 25 -H "Authorization: Bearer $TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/pages/projects/serdararminsargut/deployments?env=production&per_page=5" \
+            -o yandex-pilot-preview-evidence/prod-after-private.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('yandex-pilot-preview-evidence')
+          x=json.loads((p/'prod-after-private.json').read_text())
+          assert x['success']
+          arr=[z for z in x['result'] if z.get('environment')=='production']
+          assert arr and arr[0]['id']==(p/'prod-before-id.txt').read_text().strip()
+          (p/'prod-after-private.json').unlink()
+          print('SERDAR_GSC_PRODUCTION_DEPLOY_UNCHANGED_PASS')
+          PY
+      - name: Retain safe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-yandex-pilot-preview-evidence
+          path: |
+            yandex-pilot-preview-evidence/bundle.json
+            yandex-pilot-preview-evidence/remote.json
+            yandex-pilot-preview-evidence/preview-url.txt
+          retention-days: 14
+          if-no-files-found: warn
