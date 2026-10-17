@@ -57,7 +57,9 @@ PROTECTED = (
 QA_FILES = {"assets/js/ga4-untracked-pages.js",
             "scripts/serdar_ga4_coverage_qa.py",
             ".github/workflows/serdar-ga4-test-only.yml",
-            ".github/workflows/validate-sitemap.yml"}
+            ".github/workflows/validate-sitemap.yml",
+            "scripts/serdar_ga4_preview_guard.py",
+            ".github/workflows/serdar-ga4-isolated-preview.yml"}
 
 def git(*args):
     r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, check=True)
@@ -96,6 +98,15 @@ def static_audit():
     assert loader.count("w.gtag('config', measurementId)") == 1
     assert "__sasGa4PageviewOnce" in loader
     assert "mc.yandex.ru" not in loader and "webvisor" not in loader
+    # New files are preview-only: never admit a production publish or GA4 send.
+    preview_script = (ROOT / "scripts/serdar_ga4_preview_guard.py").read_text(encoding="utf-8")
+    preview_workflow = (ROOT / ".github/workflows/serdar-ga4-isolated-preview.yml").read_text(encoding="utf-8")
+    assert "ga-disable-G-H894LKL93J" in preview_script
+    assert 'X-Robots-Tag: noindex, nofollow, noarchive' in preview_script
+    assert "connect-src 'self';" in preview_script
+    assert "production_branch" in preview_workflow and "=='main'" in preview_workflow
+    assert "pages deploy dist --project-name=serdararminsargut --branch=test/serdar-ga4-coverage-20261017" in preview_workflow
+    assert "refs/heads/test/serdar-ga4-coverage-20261017" in preview_workflow
     changed = set(git("diff", "--name-only", BASELINE, "HEAD").splitlines())
     assert changed == set(COVERED) | QA_FILES, {
         "unexpected": sorted(changed - set(COVERED) - QA_FILES),
