@@ -4,6 +4,8 @@ on:
     branches: ['test/serdar-yandex-quality-pilot-20261017']
     paths:
       - 'scripts/serdar_yandex_pilot_preview.py'
+      - 'ru/model-detskoy-odezhdy/index.html'
+      - 'ky/balalar-kiim-modeli/index.html'
       - '.github/workflows/serdar-yandex-pilot-preview.yml'
   workflow_dispatch:
 permissions:
