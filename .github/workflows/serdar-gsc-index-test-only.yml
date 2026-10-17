@@ -1,0 +1,34 @@
+name: Serdar GSC index paths and canonical proof (TEST ONLY)
+on:
+  push:
+    branches: ['test/serdar-gsc-index-20261017']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-only-gsc-audit:
+    if: github.ref == 'refs/heads/test/serdar-gsc-index-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check exact minimal diff, canonical unity, sitemap and real internal hrefs
+        run: python3 scripts/serdar_gsc_index_quality_qa.py static
+      - name: Check live URLs and redirect outcomes read-only (no GSC requests)
+        run: python3 scripts/serdar_gsc_index_quality_qa.py live
+      - name: Evidence retention
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-gsc-index-test-only-evidence
+          path: gsc-index-evidence/*.json
+          retention-days: 14
+          if-no-files-found: warn
