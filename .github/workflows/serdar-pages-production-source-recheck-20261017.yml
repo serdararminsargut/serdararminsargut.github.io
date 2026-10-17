@@ -3,7 +3,7 @@ on:
   push:
     branches: ['test/serdar-cloudflare-source-recheck-20261017']
     paths:
-      - '.github/workflows/serdar-pages-production-source-readonly.yml'
+      - '.github/workflows/serdar-pages-production-source-recheck-20261017.yml'
   workflow_dispatch:
 
 permissions:
