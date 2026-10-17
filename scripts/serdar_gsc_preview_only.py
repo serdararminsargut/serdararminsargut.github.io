@@ -80,7 +80,11 @@ def verify():
      egress.append(req.request.url)
      req.abort()
     page.route(re.compile(r"https?://([^/]*\.)?(google-analytics\.com|analytics\.google\.com)/.*"),block)
-    page.route("https://www.googletagmanager.com/gtag/js**",block)
+    # Suppress the Google Tag loader separately from GA4 collection attempts.
+    # A blocked loader is not a page_view or an outbound measurement event.
+    def suppress_loader(req):
+     req.abort()
+    page.route("https://www.googletagmanager.com/gtag/js**",suppress_loader)
     response=page.goto(url+route,wait_until="domcontentloaded",timeout=25000)
     assert response is not None and response.status==200,(route,"HTTP")
     assert "noindex" in response.headers.get("x-robots-tag","").lower(),(route,"noindex")
