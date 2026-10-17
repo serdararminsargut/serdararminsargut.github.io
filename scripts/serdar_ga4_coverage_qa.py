@@ -11,6 +11,7 @@ from pathlib import Path
 from threading import Thread
 
 ROOT = Path(__file__).resolve().parent.parent
+BASELINE = '557bd6396dad4d6ded8bc8d3a5b76808e2ed9d88'
 MEASUREMENT_ID = "G-H894LKL93J"
 MARKER = '<script defer src="/assets/js/ga4-untracked-pages.js"></script>'
 COVERED = [
@@ -64,22 +65,22 @@ def git(*args):
 def static_audit():
     assert len(COVERED) == 33 and len(set(COVERED)) == len(COVERED)
     for path in COVERED:
-        original = git("show", f"HEAD^:{path}")
+        original = git("show", f"{BASELINE}:{path}")
         updated = (ROOT / path).read_text(encoding="utf-8")
         assert original.count("</head>") == 1, path
         assert updated.count(MARKER) == 1, path
-        assert not re.search(r"googletagmanager|gtag\\s*\\(|G-H894LKL93J|analytics(?:\\.[\\w-]+)?\\.js", original, re.I), path
+        assert not re.search(r"googletagmanager|gtag\s*\(|G-H894LKL93J|analytics(?:\.[\w-]+)?\.js", original, re.I), path
         expected = original.replace("</head>", MARKER + "\n</head>", 1)
         assert updated == expected, f"Not a minimal GA4 script-only change: {path}"
         assert not re.search(r'<meta[^>]+noindex', updated, re.I), path
     for path in PROTECTED:
-        assert (ROOT / path).read_text(encoding="utf-8") == git("show", f"HEAD^:{path}"), path
+        assert (ROOT / path).read_text(encoding="utf-8") == git("show", f"{BASELINE}:{path}"), path
     loader = (ROOT / "assets/js/ga4-untracked-pages.js").read_text(encoding="utf-8")
     assert loader.count(MEASUREMENT_ID) == 1
     assert loader.count("w.gtag('config', measurementId)") == 1
     assert "__sasGa4PageviewOnce" in loader
     assert "mc.yandex.ru" not in loader and "webvisor" not in loader
-    changed = set(git("diff", "--name-only", "HEAD^", "HEAD").splitlines())
+    changed = set(git("diff", "--name-only", BASELINE, "HEAD").splitlines())
     assert changed == set(COVERED) | QA_FILES, {
         "unexpected": sorted(changed - set(COVERED) - QA_FILES),
         "missing": sorted((set(COVERED) | QA_FILES) - changed)
