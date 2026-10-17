@@ -28,7 +28,9 @@ PRODUCTION_PROTECTED = ("_redirects", "_headers", "robots.txt", "sitemap.xml",
 EXPECTED_CHANGED = {"index.html", "links/ru.html",
   "rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/index.html",
   "scripts/serdar_gsc_index_quality_qa.py",
-  ".github/workflows/serdar-gsc-index-test-only.yml"}
+  ".github/workflows/serdar-gsc-index-test-only.yml",
+  ".github/workflows/serdar-gsc-isolated-preview.yml",
+  "scripts/serdar_gsc_preview_only.py"}
 ROOT_URL="https://serdararminsargut.com"
 
 def git(*args):
