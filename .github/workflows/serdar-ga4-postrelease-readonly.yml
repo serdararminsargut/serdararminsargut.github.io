@@ -1,0 +1,44 @@
+name: Serdar live GA4 read-only postrelease proof (TEST ONLY)
+on:
+  push:
+    branches: ['test/serdar-ga4-postrelease-proof-20261017']
+    paths:
+      - '.github/workflows/serdar-ga4-postrelease-readonly.yml'
+      - 'scripts/serdar_ga4_postrelease_readonly.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  production-proof-readonly:
+    if: github.ref == 'refs/heads/test/serdar-ga4-postrelease-proof-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify every live GA4 HTML route and identical script (HTTP GET only)
+        run: python3 scripts/serdar_ga4_postrelease_readonly.py http
+      - name: Install isolated Chromium
+        run: |
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0'
+          python3 -m playwright install --with-deps chromium
+      - name: Validate 7 live routes; intercept all GA4 loads, never send test events
+        run: python3 scripts/serdar_ga4_postrelease_readonly.py browser
+      - name: Confirm only authorized testing ref
+        run: |
+          test "$GITHUB_REF" = "refs/heads/test/serdar-ga4-postrelease-proof-20261017"
+          echo "READ_ONLY_NO_PRODUCTION_DEPLOY_PASS"
+      - name: Preserve proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-live-ga4-readonly-proof
+          path: postrelease-evidence/*.json
+          retention-days: 14
+          if-no-files-found: warn
