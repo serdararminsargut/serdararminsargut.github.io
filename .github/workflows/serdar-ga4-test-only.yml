@@ -1,0 +1,33 @@
+name: Serdar GA4 coverage and one-pageview proof (TEST ONLY)
+on:
+  push:
+    branches: ['test/serdar-ga4-coverage-20261017']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ga4-local-only:
+    if: github.ref == 'refs/heads/test/serdar-ga4-coverage-20261017'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate baseline and exact one-script minimal diff
+        run: python3 scripts/serdar_ga4_coverage_qa.py
+      - name: Install isolated Chromium for local-only verification
+        run: |
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0'
+          python3 -m playwright install --with-deps chromium
+      - name: Verify 33 routes produce one GA4 config, no duplicate reinjection
+        run: python3 scripts/serdar_ga4_coverage_qa.py --browser
+      - name: Confirm no tracked site or release action was invoked
+        run: |
+          test "$GITHUB_REF_NAME" = "test/serdar-ga4-coverage-20261017"
+          echo 'PASS: local-only test branch. No deploy, no DNS, no Cloudflare API.'
