@@ -126,12 +126,12 @@ jobs:
                       await page.route('https://mc.yandex.com/**',mock)
                       await page.route('**/www.googletagmanager.com/**',lambda route:route.fulfill(status=200,body='/* stub */',content_type='application/javascript'))
                       await page.route('**/mc.yandex.ru/**',lambda route:route.fulfill(status=200,body='/* stub */',content_type='application/javascript'))
-                      await page.add_init_script("""() => {
+                      await page.add_init_script("""(() => {
                         window.__serdarCspErrors=[];
                         document.addEventListener('securitypolicyviolation', e => {
                           window.__serdarCspErrors.push({directive:e.violatedDirective,uri:e.blockedURI});
                         });
-                      }""")
+                      })();""")
                       resp=await page.goto(site+'/',wait_until='domcontentloaded',timeout=30000)
                       assert resp.status==200
                       await page.evaluate("""() => {
