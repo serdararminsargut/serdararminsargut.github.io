@@ -1,0 +1,34 @@
+name: Serdar Gulf preview HTTP noindex proof (temporary test only)
+on:
+  push:
+    branches:
+      - test/serdar-gulf-header-proof-20261021
+    paths:
+      - .github/workflows/serdar-gulf-preview-http-qa-20261021.yml
+permissions:
+  contents: read
+jobs:
+  preview-noindex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate immutable preview response header and canonical
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://2ae899f7.serdararminsargut.pages.dev/rehber/korfez-cocuk-model-portfoyu/'
+          hdr=$(mktemp); body=$(mktemp)
+          trap 'rm -f "$hdr" "$body"' EXIT
+          code=$(curl --silent --show-error --max-redirs 0 --connect-timeout 12 --max-time 28 --dump-header "$hdr" --output "$body" --write-out '%{http_code}' "$url")
+          echo "SERDAR_PREVIEW_STATUS=$code"
+          grep -Ei '^(HTTP/|x-robots-tag:|content-type:|location:)' "$hdr" || true
+          test "$code" = 200 || { echo 'NO-GO: Preview not HTTP 200'; exit 1; }
+          grep -Eiq '^x-robots-tag:.*noindex' "$hdr" || { echo 'NO-GO: Preview HTTP noindex missing'; exit 1; }
+          grep -Fq 'https://serdararminsargut.com/rehber/korfez-cocuk-model-portfoyu/' "$body" || { echo 'NO-GO: Canonical origin not found'; exit 1; }
+          if grep -Fq '"@type":"SocialMediaPosting"' "$body"; then
+            echo 'NO-GO: stale SocialMediaPosting in immutable preview'; exit 1
+          fi
+          for reel in DZxu2ZzIxSO DX6wDF_otuU; do
+            grep -Fq "https://www.instagram.com/reel/$reel/" "$body" || { echo "NO-GO: visible Reel link missing $reel"; exit 1; }
+          done
+          echo 'SERDAR_PREVIEW_NOINDEX_HTTP_PASS, CANONICAL_PASS, TWO_REELS_LINKS_PASS, SOCIAL_MEDIA_POSTING_0'
