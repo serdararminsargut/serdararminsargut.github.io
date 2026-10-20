@@ -1,0 +1,201 @@
+name: Serdar GA4-Yandex stagger preview and mobile A-B lab
+on:
+  push:
+    branches: ['test/serdar-mobile-analytics-stagger-20261020']
+    paths:
+      - 'assets/js/analytics.js'
+      - '.github/workflows/serdar-analytics-stagger-preview-ab-20261020.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  deployments: write
+concurrency:
+  group: serdar-analytics-experiment-20261020
+  cancel-in-progress: true
+jobs:
+  compare-preview:
+    if: github.ref == 'refs/heads/test/serdar-mobile-analytics-stagger-20261020'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Assert restricted branch, diff and queue invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "serdararminsargut/serdararminsargut.github.io"
+          test "$GITHUB_REF" = "refs/heads/test/serdar-mobile-analytics-stagger-20261020"
+          grep -Fq "gtag('config', 'G-H894LKL93J')" assets/js/analytics.js
+          grep -Fq "window.ym(112473942, 'init'" assets/js/analytics.js
+          grep -Fq 'window.setTimeout(function () {' assets/js/analytics.js
+          grep -Fq "window.dataLayer = window.dataLayer || []" assets/js/analytics.js
+          test -s sitemap.xml
+          git status --porcelain
+      - name: Assemble isolated preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for item in .nojekyll _headers _redirects 404.html ai.txt ar assets az blog card.html casting-card de downloads en fa favicon.svg favicon.ico favicon-96x96.png fr index.html indexnow-key.txt 72f0dad836e29ffcc2d9dd42a794dbf0.txt erkek-cocuk-model spor-giyim-cocuk-modeli cocuk-giyim-modeli e-ticaret-cocuk-modeli it kk ky llms.txt llms-full.txt links postcard.html projeler rehber robots.txt ru sitemap.xml sitemap-google.xml sitemap.txt tk uz zh-cn; do
+            if test -e "$item"; then cp -R "$item" dist/; fi
+          done
+          test -s dist/analytics.js || test -s dist/assets/js/analytics.js
+          test -s dist/_headers
+          test -s dist/sitemap.xml
+      - name: Generate all four existing PDF comp cards without changing sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/serdar_generate_comp_cards.py dist
+          for lang in TR EN AR RU; do
+            f="dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
+            test -s "$f"
+            head -c 5 "$f" | grep -Fq '%PDF-'
+          done
+      - name: Protect preview with response noindex and robots deny
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dist/_headers')
+          x=p.read_text(encoding='utf8')
+          assert x.startswith('/*\n')
+          assert 'X-Robots-Tag: noindex' not in x
+          p.write_text(x.replace('/*\n','/*\n  X-Robots-Tag: noindex, nofollow, noarchive\n',1),encoding='utf8')
+          Path('dist/robots.txt').write_text('User-agent: *\nDisallow: /\n',encoding='utf8')
+          print('SERDAR_EXPERIMENT_NOINDEX_BUILD_PASS')
+          PY
+          sha256sum dist/assets/js/analytics.js dist/robots.txt dist/_headers
+      - name: Normalize existing Cloudflare account ID
+        shell: bash
+        id: cf
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then id="${BASH_REMATCH[1]}"; fi
+          [[ "$id" =~ ^[a-fA-F0-9]{32}$ ]] || { echo "Invalid account ID"; exit 1; }
+          echo "::add-mask::$id"
+          echo "account_id=$id" >> "$GITHUB_OUTPUT"
+      - name: Deploy experiment to isolated Pages preview only
+        id: deployed
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cf.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-mobile-analytics-stagger-20261020
+      - name: Verify preview host and HTTP-level security
+        shell: bash
+        env:
+          EXPERIMENT: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPERIMENT" =~ ^https://[0-9a-f]+\.serdararminsargut\.pages\.dev/?$ ]] || { echo "Immutable preview URL failed validation"; exit 1; }
+          echo "SERDAR_EXPERIMENT_IMMUTABLE_URL=$EXPERIMENT"
+          for route in / /assets/js/analytics.js /en/ /robots.txt; do
+            curl -fsS -L --connect-timeout 10 --max-time 30 -D /tmp/serdar-headers -o /tmp/serdar-body "$EXPERIMENT$route"
+            grep -Eiq '^x-robots-tag:[[:space:]]*noindex' /tmp/serdar-headers
+          done
+          grep -Fq 'Disallow: /' /tmp/serdar-body
+          echo 'SERDAR_EXPERIMENT_HTTP_SECURITY_PASS'
+      - name: Verify queued GA4 and Yandex initialization without sending test hits
+        shell: bash
+        env:
+          EXPERIMENT: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, asyncio, json, re
+          from playwright.async_api import async_playwright
+          async def main():
+              async with async_playwright() as p:
+                  browser=await p.chromium.launch(headless=True,args=['--no-sandbox'])
+                  page=await browser.new_page()
+                  requests=[]
+                  async def stub(route):
+                      url=route.request.url
+                      requests.append(url)
+                      await route.fulfill(status=200,content_type='application/javascript',body='/* vendor stub; does not send analytics hits */')
+                  for pattern in ('**/www.googletagmanager.com/**','**/mc.yandex.ru/**','**/mc.webvisor.com/**',
+                                  '**/mc.webvisor.org/**','**/www.google-analytics.com/**'):
+                      await page.route(pattern,stub)
+                  response=await page.goto(os.environ['EXPERIMENT'],wait_until='domcontentloaded',timeout=35000)
+                  assert response.status==200
+                  await page.wait_for_timeout(7000)
+                  state=await page.evaluate('''() => {
+                    const count = marker => document.querySelectorAll('script['+marker+']').length;
+                    return {
+                      ga:count('data-sas-ga'),ym:count('data-sas-ym'),
+                      gaSrc:document.querySelector('script[data-sas-ga]')?.src,
+                      ymSrc:document.querySelector('script[data-sas-ym]')?.src,
+                      initializedGa:typeof window.gtag==='function',
+                      initializedYm:typeof window.ym==='function',
+                      ymQueueLength:window.ym?.a?.length||0,
+                      gaQueueLength:window.dataLayer?.length||0,
+                      analyticsCalls:(window.dataLayer||[]).filter(x => x[0]==='config').length,
+                      trackedClick:typeof window.sasTrackInstagram==='function',
+                      robots:document.querySelector('meta[name="robots"]')?.content
+                    };
+                  }''')
+                  assert state['ga']==1 and state['ym']==1,state
+                  assert state['initializedGa'] and state['initializedYm'],state
+                  assert state['ymQueueLength']>=1 and state['gaQueueLength']>=2,state
+                  assert state['trackedClick'],state
+                  assert any('googletagmanager.com' in x for x in requests),requests
+                  assert any('mc.yandex.ru' in x for x in requests),requests
+                  print('SERDAR_ANALYTICS_QUEUE_NETWORK_REQUEST_QA_PASS='+json.dumps({'state':state,'vendorScriptRequests':requests},ensure_ascii=False),flush=True)
+                  await browser.close()
+          asyncio.run(main())
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Interleave baseline and 1200ms stagger Lighthouse mobile measurements
+        shell: bash
+        env:
+          EXPERIMENT: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          baseline='https://f9b2bac5.serdararminsargut.pages.dev/'
+          mkdir -p /tmp/serdar-ab
+          for sample in b1 e1 b2 e2 b3 e3; do
+            case "$sample" in b*) target="$baseline";; e*) target="$EXPERIMENT";; esac
+            echo "SERDAR_AB_TEST_START=$sample"
+            npx --yes lighthouse@12.8.2 "$target" \
+              --chrome-flags='--headless --no-sandbox --disable-dev-shm-usage' \
+              --only-categories=performance --output=json \
+              --output-path="/tmp/serdar-ab/$sample.json" --quiet
+          done
+      - name: Print precise performance evidence and decision status
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,statistics
+          from pathlib import Path
+          out={}
+          for profile in ('b1','e1','b2','e2','b3','e3'):
+              d=json.loads(Path('/tmp/serdar-ab/'+profile+'.json').read_text(encoding='utf8'))
+              assert not d.get('runtimeError'), d.get('runtimeError')
+              a=d['audits']
+              x={'tbt':a['total-blocking-time'].get('numericValue'),
+                 'lcp':a['largest-contentful-paint'].get('numericValue'),
+                 'cls':a['cumulative-layout-shift'].get('numericValue'),
+                 'score':round(d['categories']['performance']['score']*100)}
+              assert all(v is not None for v in x.values())
+              out[profile]=x
+              print('SERDAR_AB_RUN='+json.dumps({'profile':profile,**x}),flush=True)
+          for mode in 'be':
+              group=[out[m] for m in out if m.startswith(mode)]
+              print('SERDAR_AB_SUMMARY='+json.dumps({'group':'baseline' if mode=='b' else 'stagger1200',
+                'medianTbt':statistics.median(v['tbt'] for v in group),
+                'medianLcp':statistics.median(v['lcp'] for v in group),
+                'medianScore':statistics.median(v['score'] for v in group),
+                'samples':len(group)}),flush=True)
+          print('SERDAR_AB_COMPLETE_TEST_ONLY_NO_RELEASE; INP_AND_REAL_ANALYTICS_DELIVERY_NOT_VERIFIED')
+          PY
