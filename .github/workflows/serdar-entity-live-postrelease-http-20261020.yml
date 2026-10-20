@@ -1,0 +1,100 @@
+name: Serdar entity authority live HTTP verification (read-only)
+on:
+  push:
+    branches: ['test/serdar-entity-postrelease-http-20261020']
+    paths:
+      - .github/workflows/serdar-entity-live-postrelease-http-20261020.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-live:
+    if: github.ref == 'refs/heads/test/serdar-entity-postrelease-http-20261020'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Verify 12 production HTML responses and exact Person entity links, no writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, subprocess, re, hashlib, tempfile, pathlib
+          from urllib.parse import urlsplit
+          base='https://serdararminsargut.com'
+          paths=[
+            '/','/en/','/ar/','/ru/','/az/','/kk/','/uz/','/ky/',
+            '/ar/dalil-malaf-model-atfal-al-khalij/',
+            '/en/gulf-child-model-portfolio/',
+            '/rehber/korfez-cocuk-model-portfoyu/',
+            '/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/'
+          ]
+          expected=[
+            'https://www.instagram.com/serdararminsargutt/',
+            'https://www.youtube.com/channel/UC1zT5xjVgAESaZ-Ci2n00qg',
+            'https://www.behance.net/gallery/256852873/Serdar-Armin-Sargut-Acting-Modeling-Portfolio-2026',
+            'https://www.pinterest.com/serdararminsargut/'
+          ]
+          old_link='https://tr.linkedin.com/in/serdar-armin-sargut-670a19429'
+          assert len(paths)==12 and len(set(paths))==12
+          records=[]
+          with tempfile.TemporaryDirectory() as tmp:
+            p=pathlib.Path(tmp)
+            for index,route in enumerate(paths):
+              h=p/f'head{index}'
+              f=p/f'html{index}'
+              u=base+route
+              args=['curl','-fsSL','--retry','2','--retry-delay','1','--connect-timeout','12','--max-time','35','-D',str(h),'-o',str(f),'-w','%{http_code}',u]
+              ret=subprocess.run(args,check=True,capture_output=True,text=True,timeout=46)
+              assert ret.stdout.strip()=='200',(route,ret.stdout)
+              headers=h.read_text(encoding='utf8',errors='replace').lower()
+              body=f.read_text(encoding='utf8')
+              assert 'x-robots-tag: noindex' not in headers,(route,'unexpected noindex')
+              assert '<html' in body.lower() and 'Serdar Armin Sargut' in body
+              scripts=re.findall(r'<script\\b[^>]*type=["\\\']application/ld\\+json["\\\'][^>]*>([\\s\\S]*?)</script>',body,re.I)
+              if not scripts:
+                # Static pages use type="application/ld+json" and may differ in attribute order.
+                scripts=re.findall(r'<script[^>]*type="application/ld\\+json"[^>]*>([\\s\\S]*?)</script>',body,re.I)
+              objects=[]
+              for script in scripts:
+                parsed=json.loads(script)
+                objects.extend(parsed.get('@graph') or [parsed])
+              people=[x for x in objects if x.get('@type')=='Person' and x.get('@id')==base+'/#person']
+              assert len(people)==1,(route,'person graph missing',len(scripts),len(objects))
+              person=people[0]
+              assert person.get('sameAs')==expected,(route,'sameAs mismatched',person.get('sameAs'))
+              assert old_link not in body,(route,'underage LinkedIn still on page')
+              canonical=re.search(r'<link(?=[^>]*rel="canonical")[^>]*href="([^"]+)"[^>]*>',body,re.I)
+              if not canonical:
+                canonical=re.search(r'<link(?=[^>]*href="([^"]+)")(?=[^>]*rel="canonical")[^>]*>',body,re.I)
+              if canonical:
+                canonical_url=canonical.group(1)
+                assert urlsplit(canonical_url).netloc=='serdararminsargut.com'
+                assert urlsplit(canonical_url).path.rstrip('/')==route.rstrip('/'),(route,canonical_url)
+              if index<8:
+                assert 'data-social-platform="behance"' in body,(route,'visible Behance link missing')
+                assert 'data-social-platform="linkedin"' not in body,(route,'LinkedIn contact link remains')
+                assert any(x.get('@type')=='WebSite' for x in objects)
+                assert any(x.get('@type')=='ProfilePage' for x in objects)
+              records.append({'path':route,'status':200,'hasPerson':True,'identityLinks':len(expected),
+                              'sha256OfLiveHTML':hashlib.sha256(f.read_bytes()).hexdigest()})
+              print('SERDAR_LIVE_ENTITY_PASS='+json.dumps(records[-1],ensure_ascii=False),flush=True)
+          assert len(records)==12
+          print('SERDAR_LIVE_12_PAGES_PERSON_SAMEAS_PASS 12/12',flush=True)
+          PY
+      - name: Confirm canonical robots and sitemap still accessible
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --connect-timeout 10 --max-time 25 https://serdararminsargut.com/robots.txt | grep -Fq 'Sitemap: https://serdararminsargut.com/sitemap.xml'
+          python3 - <<'PY'
+          from urllib.request import urlopen,Request
+          from xml.etree import ElementTree as E
+          r=urlopen(Request('https://serdararminsargut.com/sitemap.xml',headers={'User-Agent':'Googlebot'}),timeout=25)
+          xml=E.fromstring(r.read())
+          ns={'s':'http://www.sitemaps.org/schemas/sitemap/0.9'}
+          urls=[x.findtext('s:loc',namespaces=ns) for x in xml.findall('s:url',ns)]
+          assert len(urls)==90 and len(set(urls))==90
+          print('SERDAR_LIVE_SITEMAP_90_AND_ROBOTS_PASS',flush=True)
+          PY
