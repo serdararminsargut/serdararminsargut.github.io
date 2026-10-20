@@ -19,16 +19,18 @@ gtag('config', 'G-H894LKL93J');
       document.head.appendChild(ga);
     }
 
-    /* Yandex.Metrika */
+    /* Yandex.Metrika: queue init now and stagger only the external tag download.
+       EXPERIMENT ONLY: verify analytics collection and bounce behaviour before release. */
     window.ym = window.ym || function(){(window.ym.a = window.ym.a || []).push(arguments);};
     window.ym.l = +new Date();
-    if (!document.querySelector('script[data-sas-ym]')) {
+    window.setTimeout(function () {
+      if (document.querySelector('script[data-sas-ym]')) return;
       var ymScript = document.createElement('script');
       ymScript.async = true;
       ymScript.src = 'https://mc.yandex.ru/metrika/tag.js?id=112473942';
       ymScript.setAttribute('data-sas-ym', '1');
       document.head.appendChild(ymScript);
-    }
+    }, 1200);
     window.ym(112473942, 'init', {
       ssr: true,
       webvisor: true,
