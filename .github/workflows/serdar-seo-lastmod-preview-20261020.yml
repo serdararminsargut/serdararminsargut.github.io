@@ -70,6 +70,20 @@ jobs:
           test -s dist/sitemap.xml
           test -s dist/sitemap-google.xml
           test -s dist/_headers
+      - name: Produce unchanged four optimized Comp Card PDFs for representative preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/serdar_generate_comp_cards.py dist
+          for lang in TR EN AR RU; do
+            file="dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
+            test -s "$file"
+            head -c 5 "$file" | grep -Fq '%PDF-'
+            size=$(stat -c%s "$file")
+            (( size > 20000 && size < 1200000 )) || { echo "PDF size outside published limits: $file $size"; exit 1; }
+          done
       - name: Enforce preview-wide anti-indexing (bundle only)
         shell: bash
         run: |
@@ -104,3 +118,46 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ steps.cf.outputs.account_id }}
           command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-seo-lastmod-20261020
+      - name: Verify actual preview HTTP, index guard, sitemap dates and four PDF downloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://test-serdar-seo-lastmod-2026.serdararminsargut.pages.dev'
+          mkdir -p /tmp/serdar-seo-preview
+          for route in / /en/ /links/ru/ /robots.txt /sitemap.xml /sitemap-google.xml; do
+            key=$(printf '%s' "$route" | tr '/.' '__')
+            for attempt in 1 2 3 4 5; do
+              code=$(curl -sS -L --connect-timeout 10 --max-time 30 -D /tmp/serdar-seo-preview/headers -o "/tmp/serdar-seo-preview/$key" -w '%{http_code}' "$base$route" || true)
+              test "$code" = 200 && break
+              sleep 3
+            done
+            test "$code" = 200 || { echo "Preview HTTP ERROR $route $code"; exit 1; }
+            grep -Eiq '^x-robots-tag:[[:space:]]*noindex' /tmp/serdar-seo-preview/headers || { echo "Preview X-Robots-Tag noindex MISSING for $route"; exit 1; }
+          done
+          grep -Fq 'Disallow: /' /tmp/serdar-seo-preview/_robots_txt || { echo 'Preview robots must block crawling'; exit 1; }
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          ns={'sm':'http://www.sitemaps.org/schemas/sitemap/0.9'}
+          paths=[Path('/tmp/serdar-seo-preview/_sitemap_xml'),Path('/tmp/serdar-seo-preview/_sitemap-google_xml')]
+          dates=[]
+          for p in paths:
+              root=ET.parse(p).getroot()
+              rows=root.findall('sm:url',ns)
+              assert len(rows)==90,(p,len(rows))
+              values={v.findtext('sm:loc',namespaces=ns):v.findtext('sm:lastmod',namespaces=ns) for v in rows}
+              assert len(values)==90
+              for url in ('https://serdararminsargut.com/','https://serdararminsargut.com/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/','https://serdararminsargut.com/links/ru/'):
+                  assert values[url]=='2026-10-17',(p,url,values.get(url))
+              dates.append(list(values))
+          assert dates[0]==dates[1]
+          print('PREVIEW_HTTP_SITEMAP_90_URL_PASS')
+          PY
+          for lang in TR EN AR RU; do
+            url="$base/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
+            code=$(curl -sS -L --connect-timeout 8 --max-time 30 -D /tmp/serdar-seo-preview/headers -o /tmp/serdar-seo-preview/pdf -w '%{http_code}' "$url" || true)
+            test "$code" = 200 || { echo "Preview Comp Card PDF $lang returned $code"; exit 1; }
+            grep -Eiq '^x-robots-tag:[[:space:]]*noindex' /tmp/serdar-seo-preview/headers
+            head -c 5 /tmp/serdar-seo-preview/pdf | grep -Fq '%PDF-'
+          done
+          echo 'PREVIEW_HTTP_NO_INDEX_SITEMAP_PDF_PASS'
