@@ -113,6 +113,7 @@ jobs:
           echo "::add-mask::$id"
           echo "account_id=$id" >> "$GITHUB_OUTPUT"
       - name: Deploy test-only Serdar Pages branch preview
+        id: deployed
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -122,7 +123,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base='https://test-serdar-seo-lastmod-2026.serdararminsargut.pages.dev'
+          base="${{ steps.deployed.outputs.deployment-url }}"
+          if [[ ! "$base" =~ ^https://[a-f0-9]+\.serdararminsargut\.pages\.dev/?$ ]]; then
+            echo "NO-GO: Deployment action did not return an immutable Pages preview URL: $base"
+            exit 1
+          fi
+          echo "Immutable preview target: $base"
           mkdir -p /tmp/serdar-seo-preview
           for route in / /en/ /links/ru/ /robots.txt /sitemap.xml /sitemap-google.xml; do
             key=$(printf '%s' "$route" | tr '/.' '__')
@@ -134,7 +140,11 @@ jobs:
             test "$code" = 200 || { echo "Preview HTTP ERROR $route $code"; exit 1; }
             grep -Eiq '^x-robots-tag:[[:space:]]*noindex' /tmp/serdar-seo-preview/headers || { echo "Preview X-Robots-Tag noindex MISSING for $route"; exit 1; }
           done
-          grep -Fq 'Disallow: /' /tmp/serdar-seo-preview/_robots_txt || { echo 'Preview robots must block crawling'; exit 1; }
+          if ! grep -Fq 'Disallow: /' /tmp/serdar-seo-preview/_robots_txt; then
+            echo 'Preview robots must block crawling — response excerpt:'
+            head -c 250 /tmp/serdar-seo-preview/_robots_txt | cat -v
+            exit 1
+          fi
           python3 - <<'PY'
           from pathlib import Path
           import xml.etree.ElementTree as ET
