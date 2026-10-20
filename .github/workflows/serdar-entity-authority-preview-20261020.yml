@@ -82,7 +82,7 @@ jobs:
           ]
           for file in files:
               s=Path(file).read_text(encoding='utf-8')
-              scripts=re.findall(r'<script[^>]*type=["\']application/ld\\+json["\'][^>]*>([\\s\\S]*?)</script>',s)
+              scripts=[s.split('<script type="application/ld+json">',1)[1].split('</script>',1)[0]] if '<script type="application/ld+json">' in s else []
               assert scripts,file
               graphs=[json.loads(x) for x in scripts]
               person=next((x for root in graphs for x in root.get('@graph',[root]) if x.get('@type')=='Person'),None)
