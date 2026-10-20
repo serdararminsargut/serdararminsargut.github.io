@@ -1,0 +1,60 @@
+name: Serdar live sitemap post-release verification (read only)
+on:
+  push:
+    branches:
+      - test/serdar-seo-lastmod-20261020
+    paths:
+      - '.github/workflows/serdar-live-sitemap-postrelease-check-20261020.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Verify only Serdar live published sitemap bytes, lastmod and robots
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          trap 'rm -rf "$tmp"' EXIT
+          for s in sitemap.xml sitemap-google.xml; do
+            curl -fsSL --retry 2 --connect-timeout 10 --max-time 25 \
+              -A "Googlebot" "https://serdararminsargut.com/$s" \
+              -o "$tmp/$s" -D "$tmp/$s.headers"
+            grep -Eiq '^(content-type):[[:space:]]*(application|text)/xml' "$tmp/$s.headers"
+          done
+          printf '%s\n' \
+            '57a706c65cddf7bf4a81dffba36abab11a2655c83c461453bd84650daccf48d3  '"$tmp/sitemap.xml" \
+            '40278a03ba7a7bfaae2cf6b3fe7f8e65f5f78c234f66231d89b64400f7e03ed2  '"$tmp/sitemap-google.xml" | sha256sum -c -
+          python3 - "$tmp" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          from pathlib import Path
+          base=Path(sys.argv[1])
+          n={'s':'http://www.sitemaps.org/schemas/sitemap/0.9'}
+          indexed=[]
+          for name in ['sitemap.xml','sitemap-google.xml']:
+              root=ET.parse(base/name).getroot()
+              items={}
+              for x in root.findall('s:url',n):
+                  loc=x.findtext('s:loc',namespaces=n)
+                  assert loc and loc.startswith('https://serdararminsargut.com/')
+                  assert loc not in items
+                  items[loc]=x.findtext('s:lastmod',namespaces=n)
+              assert len(items)==90,(name,len(items))
+              for path in ['/','/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/','/links/ru/']:
+                  loc='https://serdararminsargut.com'+path
+                  assert items.get(loc)=='2026-10-17',(name,loc,items.get(loc))
+              indexed.append(list(items))
+          assert indexed[0]==indexed[1],'sitemap URL lists differ'
+          print('PRODUCTION_SITEMAP_EXACT_SHA256_90_URL_LASTMOD_PASS')
+          PY
+          curl -fsSL --connect-timeout 10 --max-time 20 \
+            https://serdararminsargut.com/robots.txt -o "$tmp/robots.txt"
+          grep -Fxq 'Sitemap: https://serdararminsargut.com/sitemap.xml' "$tmp/robots.txt"
+          if grep -Fxq 'Disallow: /' "$tmp/robots.txt"; then
+            echo 'Unexpected production robots disallow' >&2
+            exit 1
+          fi
+          echo 'PRODUCTION_ROBOTS_LIVE_PASS'
