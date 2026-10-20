@@ -1,0 +1,99 @@
+name: Serdar mobile TBT forensic lab (read-only)
+on:
+  push:
+    branches:
+      - test/serdar-lighthouse-tbt-diagnostic-20261020
+    paths:
+      - .github/workflows/serdar-lighthouse-tbt-diagnostic-20261020.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tbt-readonly:
+    if: github.ref == 'refs/heads/test/serdar-lighthouse-tbt-diagnostic-20261020'
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify lab browser
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v google-chrome-stable || command -v google-chrome || command -v chromium
+      - name: Collect two mobile reference runs and two analytics-blocked controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/serdar-tbt
+          target='https://f9b2bac5.serdararminsargut.pages.dev/'
+          for pass in baseline1 noanalytics1 baseline2 noanalytics2; do
+            block=()
+            case "$pass" in
+              noanalytics*)
+                block+=('--blocked-url-patterns=*googletagmanager.com*')
+                block+=('--blocked-url-patterns=*mc.yandex.ru*')
+                block+=('--blocked-url-patterns=*mc.webvisor.com*')
+                block+=('--blocked-url-patterns=*mc.webvisor.org*')
+                block+=('--blocked-url-patterns=*google-analytics.com*')
+                ;;
+            esac
+            echo "START_MOBILE_LAB_PROFILE=$pass target=$target"
+            npx --yes lighthouse@12.8.2 "$target" \
+              --chrome-flags='--headless --no-sandbox --disable-dev-shm-usage' \
+              --only-categories=performance --output=json \
+              --output-path="/tmp/serdar-tbt/$pass.json" \
+              --quiet "${block[@]}"
+            echo "FINISH_MOBILE_LAB_PROFILE=$pass"
+          done
+      - name: Print factual long-task and script attribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,statistics
+          from pathlib import Path
+          root=Path('/tmp/serdar-tbt')
+          data=[]
+          for mode in ('baseline1','noanalytics1','baseline2','noanalytics2'):
+              lhr=json.loads((root/(mode+'.json')).read_text(encoding='utf-8'))
+              assert lhr['finalDisplayedUrl'].startswith('https://f9b2bac5.serdararminsargut.pages.dev/')
+              assert not lhr.get('runtimeError'),lhr.get('runtimeError')
+              audits=lhr['audits']
+              score=lhr['categories']['performance']['score']
+              assert score is not None
+              def ms(key):
+                  item=audits.get(key,{})
+                  return item.get('numericValue')
+              res={'mode':mode,'score':round(score*100),
+                  'TBT_ms':ms('total-blocking-time'),
+                  'LCP_ms':ms('largest-contentful-paint'),
+                  'CLS':ms('cumulative-layout-shift'),
+                  'FCP_ms':ms('first-contentful-paint'),
+                  'total_mainthread_ms':ms('mainthread-work-breakdown')}
+              print('SERDAR_TBT_LAB_RUN='+json.dumps(res,ensure_ascii=False),flush=True)
+              def rows(audit):
+                  return audits.get(audit,{}).get('details',{}).get('items',[]) or []
+              def trunc(items):
+                  ret=[]
+                  for it in items[:8]:
+                      ret.append({k:it.get(k) for k in ('startTime','duration','url','total','scripting','scriptParseCompile','scriptEvaluation','group','groupLabel','entity') if k in it})
+                  return ret
+              longtasks=sorted(rows('long-tasks'),key=lambda x:x.get('duration',0),reverse=True)
+              scripts=sorted(rows('bootup-time'),key=lambda x:x.get('total',0),reverse=True)
+              thread=sorted(rows('mainthread-work-breakdown'),key=lambda x:x.get('duration',0),reverse=True)
+              print('SERDAR_LONG_TASKS='+json.dumps({'mode':mode,'tasks':trunc(longtasks)},ensure_ascii=False),flush=True)
+              print('SERDAR_SCRIPT_COST='+json.dumps({'mode':mode,'scripts':trunc(scripts)},ensure_ascii=False),flush=True)
+              print('SERDAR_THREAD_BREAKDOWN='+json.dumps({'mode':mode,'activities':trunc(thread)},ensure_ascii=False),flush=True)
+              data.append(res)
+          for kind in ('baseline','noanalytics'):
+              group=[x for x in data if x['mode'].startswith(kind)]
+              print('SERDAR_TBT_GROUP='+json.dumps({'kind':kind,
+                 'meanTBT_ms':round(statistics.mean(x['TBT_ms'] for x in group)),
+                 'meanScore':round(statistics.mean(x['score'] for x in group)),
+                 'runs':[x['mode'] for x in group]},ensure_ascii=False),flush=True)
+          print('SERDAR_TBT_DIAGNOSTIC_COMPLETE_NO_PRODUCTION_WRITES',flush=True)
+          PY
