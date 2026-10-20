@@ -52,10 +52,8 @@ jobs:
               body=f.read_text(encoding='utf8')
               assert 'x-robots-tag: noindex' not in headers,(route,'unexpected noindex')
               assert '<html' in body.lower() and 'Serdar Armin Sargut' in body
-              scripts=re.findall(r'<script\\b[^>]*type=["\\\']application/ld\\+json["\\\'][^>]*>([\\s\\S]*?)</script>',body,re.I)
-              if not scripts:
-                # Static pages use type="application/ld+json" and may differ in attribute order.
-                scripts=re.findall(r'<script[^>]*type="application/ld\\+json"[^>]*>([\\s\\S]*?)</script>',body,re.I)
+              # Static site uses a literal JSON-LD opening tag; avoid regex quoting ambiguity.
+              scripts=[part.split('</script>',1)[0] for part in body.split('<script type="application/ld+json">')[1:]]
               objects=[]
               for script in scripts:
                 parsed=json.loads(script)
