@@ -1,0 +1,154 @@
+name: Serdar Yandex CSP img-src isolated preview QA
+on:
+  push:
+    branches: [test/serdar-yandex-csp-img-20261020]
+    paths:
+      - _headers
+      - .github/workflows/serdar-yandex-csp-preview-20261020.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  csp-preview:
+    if: github.ref == 'refs/heads/test/serdar-yandex-csp-img-20261020'
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Assert surgical CSP change and critical invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "serdararminsargut/serdararminsargut.github.io"
+          test "$GITHUB_REF" = "refs/heads/test/serdar-yandex-csp-img-20261020"
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('_headers').read_text(encoding='utf8')
+          assert h.count('https://mc.yandex.com')==1
+          assert "img-src 'self' data: https://i.vimeocdn.com https://mc.yandex.ru https://mc.yandex.com;" in h
+          assert "connect-src 'self'" in h
+          assert "script-src 'self'" in h
+          assert "'unsafe-eval'" not in h
+          assert Path('robots.txt').is_file()
+          assert Path('sitemap.xml').is_file()
+          print('Yandex img-src MINIMAL_DIFF_SOURCE_ASSERT_PASS')
+          PY
+      - name: Copy full unchanged static site and generate 4 PDFs into temporary bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for item in .nojekyll _headers _redirects 404.html ai.txt ar assets az blog card.html casting-card de downloads en fa favicon.svg favicon.ico favicon-96x96.png fr index.html indexnow-key.txt 72f0dad836e29ffcc2d9dd42a794dbf0.txt erkek-cocuk-model spor-giyim-cocuk-modeli cocuk-giyim-modeli e-ticaret-cocuk-modeli it kk ky llms.txt llms-full.txt links postcard.html projeler rehber robots.txt ru sitemap.xml sitemap-google.xml sitemap.txt tk uz zh-cn; do
+            if test -e "$item"; then cp -R "$item" dist/; fi
+          done
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/serdar_generate_comp_cards.py dist
+          for lang in TR EN AR RU; do
+            f="dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
+            test -s "$f"
+            head -c 5 "$f" | grep -Fq '%PDF-'
+          done
+      - name: Preview indexing guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('dist/_headers')
+          s=h.read_text(encoding='utf8')
+          assert s.startswith('/*\n')
+          assert 'X-Robots-Tag: noindex' not in s
+          h.write_text(s.replace('/*\n','/*\n  X-Robots-Tag: noindex, nofollow, noarchive\n',1),encoding='utf8')
+          Path('dist/robots.txt').write_text('User-agent: *\nDisallow: /\n',encoding='utf8')
+          print('SERDAR_CSP_NOINDEX_GUARD_PASS')
+          PY
+          sha256sum dist/_headers dist/index.html dist/robots.txt
+      - name: Normalize existing Cloudflare account ID without settings changes
+        id: cf
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then id="${BASH_REMATCH[1]}"; fi
+          [[ "$id" =~ ^[a-fA-F0-9]{32}$ ]] || exit 1
+          echo "::add-mask::$id"
+          echo "account_id=$id" >> "$GITHUB_OUTPUT"
+      - name: Deploy isolated Cloudflare Pages preview only
+        id: deployed
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cf.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-yandex-csp-img-20261020
+      - name: Verify HTTP CSP and noindex on immutable deployment
+        shell: bash
+        env:
+          CANDIDATE: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE" =~ ^https://[a-f0-9]+\.serdararminsargut\.pages\.dev/?$ ]] || { echo "invalid preview"; exit 1; }
+          echo "SERDAR_YANDEX_CSP_PREVIEW=$CANDIDATE"
+          curl -fsSL -D /tmp/serdar-headers -o /tmp/serdar-home "$CANDIDATE/"
+          grep -Eiq '^x-robots-tag:[[:space:]]*noindex' /tmp/serdar-headers
+          grep -Eiq '^content-security-policy:.*img-src.*https://mc.yandex.ru https://mc.yandex.com;' /tmp/serdar-headers
+          grep -Fq 'Serdar Armin Sargut' /tmp/serdar-home
+          curl -fsSL "$CANDIDATE/robots.txt" | grep -Fxq 'Disallow: /'
+          echo 'SERDAR_YANDEX_CSP_HTTP_GUARD_PASS'
+      - name: Browser differential — new img-src permits documented host, baseline rejects
+        shell: bash
+        env:
+          CANDIDATE: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,asyncio,json
+          from playwright.async_api import async_playwright
+          async def run():
+              baseline='https://e471ceee.serdararminsargut.pages.dev'
+              candidate=os.environ['CANDIDATE'].rstrip('/')
+              async with async_playwright() as p:
+                  b=await p.chromium.launch(headless=True,args=['--no-sandbox'])
+                  for label,site in [('baseline',baseline),('candidate',candidate)]:
+                      c=await b.new_context(viewport={'width':393,'height':780},device_scale_factor=2.6,is_mobile=True,has_touch=True,service_workers='block')
+                      page=await c.new_page()
+                      # Do not transmit synthetic pixels or analytics hits to external services.
+                      routed=[]
+                      async def mock(route):
+                          routed.append(route.request.url)
+                          await route.fulfill(status=200,body=b'',content_type='image/png')
+                      await page.route('https://mc.yandex.com/**',mock)
+                      await page.route('**/www.googletagmanager.com/**',lambda route:route.fulfill(status=200,body='/* stub */',content_type='application/javascript'))
+                      await page.route('**/mc.yandex.ru/**',lambda route:route.fulfill(status=200,body='/* stub */',content_type='application/javascript'))
+                      await page.add_init_script("""() => {
+                        window.__serdarCspErrors=[];
+                        document.addEventListener('securitypolicyviolation', e => {
+                          window.__serdarCspErrors.push({directive:e.violatedDirective,uri:e.blockedURI});
+                        });
+                      }""")
+                      resp=await page.goto(site+'/',wait_until='domcontentloaded',timeout=30000)
+                      assert resp.status==200
+                      await page.evaluate("""() => {
+                        const im=new Image();
+                        im.src='https://mc.yandex.com/sync_cookie_image_check?serdar_csp_only_probe=1';
+                        document.body.appendChild(im);
+                      }""")
+                      await page.wait_for_timeout(600)
+                      violations=await page.evaluate('window.__serdarCspErrors')
+                      matched=[v for v in violations if 'mc.yandex.com' in v.get('uri','') and v.get('directive','').startswith('img-src')]
+                      print('SERDAR_CSP_BROWSER_DIFFERENTIAL='+json.dumps({'case':label,'matchedImgViolations':len(matched),'probeReachedLocalInterceptor':any('serdar_csp_only_probe=1' in x for x in routed),'otherViolations':violations[:3]},ensure_ascii=False),flush=True)
+                      if label=='baseline':
+                          assert matched and not routed,'Baseline must show blocked image by img-src'
+                      else:
+                          assert not matched and any('serdar_csp_only_probe=1' in x for x in routed),'Candidate image should pass CSP'
+                      await c.close()
+                  await b.close()
+              print('SERDAR_YANDEX_CSP_DIFFERENTIAL_PASS_OLDEST_PRODUCTION_UNCHANGED',flush=True)
+          asyncio.run(run())
+          PY
