@@ -66,6 +66,24 @@ class Head(HTMLParser):
             self.json_blocks.append("".join(self._buffer))
             self._json = False
 
+def missing_social_posting_date(payload):
+    """Catch missing Google-required dates on SocialMediaPosting graph items."""
+    roots = payload if isinstance(payload, list) else [payload]
+    for root in roots:
+        if not isinstance(root, dict):
+            continue
+        graph = root.get("@graph")
+        nodes = graph if isinstance(graph, list) else [root]
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            kinds = node.get("@type")
+            if kinds == "SocialMediaPosting" or (isinstance(kinds, list) and "SocialMediaPosting" in kinds):
+                date = node.get("datePublished")
+                if not isinstance(date, str) or not date.strip():
+                    return True
+    return False
+
 def main():
     cli = argparse.ArgumentParser()
     cli.add_argument("--root", required=True)
@@ -156,6 +174,8 @@ def main():
                 parsed = json.loads(data)
                 if not isinstance(parsed, (dict, list)):
                     raise ValueError("JSON-LD root must be an object or array")
+                if missing_social_posting_date(parsed):
+                    errors.append(f"{url}: JSON-LD block {pos} SocialMediaPosting missing datePublished")
             except (ValueError, json.JSONDecodeError) as exc:
                 errors.append(f"{url}: JSON-LD block {pos} invalid: {exc}")
         if parser.images_missing_dimensions:
