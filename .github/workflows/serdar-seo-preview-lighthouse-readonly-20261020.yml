@@ -1,0 +1,64 @@
+name: Serdar isolated preview Lighthouse (read-only)
+on:
+  push:
+    branches: ['test/serdar-seo-lastmod-20261020']
+    paths:
+      - '.github/workflows/serdar-seo-preview-lighthouse-readonly-20261020.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse-lab:
+    if: github.ref == 'refs/heads/test/serdar-seo-lastmod-20261020'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Prepare Lighthouse runner (no artifacts or deployments)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check Chrome installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v google-chrome-stable || command -v google-chrome || command -v chromium
+      - name: Measure isolated immutable preview in mobile and desktop profiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          target='https://276cc5fc.serdararminsargut.pages.dev/'
+          mkdir -p /tmp/serdar-lab
+          for profile in mobile desktop; do
+            args=()
+            if [ "$profile" = desktop ]; then args+=('--preset=desktop'); fi
+            npx --yes lighthouse@12.8.2 "$target" \
+              --chrome-flags='--headless --no-sandbox --disable-dev-shm-usage' \
+              --only-categories=performance --output=json \
+              --output-path="/tmp/serdar-lab/$profile.json" \
+              --quiet "${args[@]}"
+          done
+      - name: Print evidence-backed lab metrics (INP not lab-measurable)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          for profile in ('mobile','desktop'):
+              p='/tmp/serdar-lab/'+profile+'.json'
+              data=json.load(open(p))
+              assert not data.get('runtimeError'),data.get('runtimeError')
+              audits=data['audits']
+              metrics={}
+              for aid in ('largest-contentful-paint','cumulative-layout-shift','total-blocking-time','first-contentful-paint','speed-index'):
+                  v=audits[aid]
+                  metrics[aid]={'display':v.get('displayValue'), 'numeric':v.get('numericValue')}
+              score=data['categories']['performance']['score']
+              assert score is not None
+              print('SERDAR_PREVIEW_LIGHTHOUSE_'+profile.upper()+'='+json.dumps({
+                  'target':data['finalDisplayedUrl'],'lighthouseVersion':data['lighthouseVersion'],
+                  'performanceScore':round(score*100),'metrics':metrics,
+                  'kind':'Lighthouse lab synthetic, NOT field CWV; INP unverified'
+              },ensure_ascii=False),flush=True)
+          PY
