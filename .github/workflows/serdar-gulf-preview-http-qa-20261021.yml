@@ -32,3 +32,31 @@ jobs:
             grep -Fq "https://www.instagram.com/reel/$reel/" "$body" || { echo "NO-GO: visible Reel link missing $reel"; exit 1; }
           done
           echo 'SERDAR_PREVIEW_NOINDEX_HTTP_PASS, CANONICAL_PASS, TWO_REELS_LINKS_PASS, SOCIAL_MEDIA_POSTING_0'
+
+      - name: Read-only live production JSON-LD release verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://serdararminsargut.com/rehber/korfez-cocuk-model-portfoyu/'
+          hdr=$(mktemp); body=$(mktemp)
+          trap 'rm -f "$hdr" "$body"' EXIT
+          code=$(curl --silent --show-error --max-redirs 0 --connect-timeout 12 --max-time 35 -H 'Cache-Control: no-cache' --dump-header "$hdr" --output "$body" --write-out '%{http_code}' "$url")
+          echo "SERDAR_PRODUCTION_HTTP_STATUS=$code"
+          test "$code" = 200 || { echo 'NO-GO: production not HTTP 200'; exit 1; }
+          if grep -Eiq '^x-robots-tag:.*noindex' "$hdr"; then echo 'NO-GO: production noindex HTTP header'; exit 1; fi
+          python3 - "$body" <<'PY'
+          import sys,re,json
+          content=open(sys.argv[1],encoding='utf-8').read()
+          scripts=re.findall(r'<script\\b[^>]*type=["\\']application/ld\\+json["\\'][^>]*>(.*?)</script>',content,re.I|re.S)
+          assert len(scripts)==1,f"NO-GO: JSON-LD scripts={len(scripts)}"
+          data=json.loads(scripts[0])
+          graph=data.get("@graph",[])
+          types=[entry.get("@type") for entry in graph]
+          expected=["WebSite","WebPage","Article","Person","BreadcrumbList","TVSeries","VideoObject","FAQPage"]
+          assert types==expected,f"NO-GO: unexpected structured types: {types}"
+          assert "SocialMediaPosting" not in content,"NO-GO: stale SocialMediaPosting"
+          for slug in ["DZxu2ZzIxSO","DX6wDF_otuU"]:
+            assert f'href="https://www.instagram.com/reel/{slug}/"' in content,f"NO-GO: Reel HTML link missing {slug}"
+          assert 'https://serdararminsargut.com/rehber/korfez-cocuk-model-portfoyu/' in content,"NO-GO: canonical missing"
+          print("SERDAR_PRODUCTION_SCHEMA_PASS: 8 expected JSON-LD types, 0 SocialMediaPosting, 2 Instagram links, canonical present")
+          PY
