@@ -1,0 +1,174 @@
+name: Serdar Entity Authority eight-locale isolated preview (test)
+on:
+  push:
+    branches: ['test/serdar-entity-authority-20261020']
+    paths:
+      - index.html
+      - 'en/index.html'
+      - 'ar/index.html'
+      - 'ru/index.html'
+      - 'az/index.html'
+      - 'kk/index.html'
+      - 'uz/index.html'
+      - 'ky/index.html'
+      - '.github/workflows/serdar-entity-authority-preview-20261020.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  deployments: write
+concurrency:
+  group: serdar-entity-authority-preview-20261020
+  cancel-in-progress: true
+jobs:
+  preview-qa:
+    if: github.ref == 'refs/heads/test/serdar-entity-authority-20261020'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Assert eight locale identity mappings and unchanged JSON-LD graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          selected=['index.html']+[lang+'/index.html' for lang in ('en','ar','ru','az','kk','uz','ky')]
+          expected=[
+             'https://www.instagram.com/serdararminsargutt/',
+             'https://www.youtube.com/channel/UC1zT5xjVgAESaZ-Ci2n00qg',
+             'https://www.behance.net/gallery/256852873/Serdar-Armin-Sargut-Acting-Modeling-Portfolio-2026',
+             'https://www.pinterest.com/serdararminsargut/'
+          ]
+          for fn in selected:
+              s=Path(fn).read_text(encoding='utf-8')
+              m=re.search(r'<script type="application/ld\+json">([\s\S]*?)</script>',s)
+              assert m,fn
+              data=json.loads(m.group(1))
+              graph=data['@graph']
+              person=next(x for x in graph if x['@type']=='Person')
+              page=next(x for x in graph if x['@type']=='ProfilePage')
+              assert person['@id']=='https://serdararminsargut.com/#person',fn
+              assert page['mainEntity']['@id']==person['@id'],fn
+              assert person['sameAs']==expected,(fn,person['sameAs'])
+              assert 'linkedin.com' not in s and 'LinkedIn' not in s,fn
+              assert s.count('https://www.behance.net/gallery/256852873/')==2,fn
+              assert 'data-social-platform="behance"' in s,fn
+              assert s.lower().count('<h1')==1,fn
+              assert 'rel="canonical"' in s,fn
+              assert '<script src="/assets/js/site.js"' in s,fn
+          print('SERDAR_EIGHT_LOCALE_JSONLD_ENTITY_ID_AND_SAFETY_PASS',flush=True)
+          PY
+      - name: Copy full static site to isolated preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for item in .nojekyll _headers _redirects 404.html ai.txt ar assets az blog card.html casting-card de downloads en fa favicon.svg favicon.ico favicon-96x96.png fr index.html indexnow-key.txt 72f0dad836e29ffcc2d9dd42a794dbf0.txt erkek-cocuk-model spor-giyim-cocuk-modeli cocuk-giyim-modeli e-ticaret-cocuk-modeli it kk ky llms.txt llms-full.txt links postcard.html projeler rehber robots.txt ru sitemap.xml sitemap-google.xml sitemap.txt tk uz zh-cn; do
+            if test -e "$item"; then cp -R "$item" dist/; fi
+          done
+      - name: Generate unchanged PDF downloads for complete preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/serdar_generate_comp_cards.py dist
+          for lang in TR EN AR RU; do
+            f="dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
+            test -s "$f"
+            head -c 5 "$f" | grep -Fq '%PDF-'
+          done
+      - name: Force noindex only in temporary preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('dist/_headers')
+          s=h.read_text(encoding='utf-8')
+          assert s.startswith('/*\n')
+          assert 'X-Robots-Tag: noindex' not in s
+          h.write_text(s.replace('/*\n','/*\n  X-Robots-Tag: noindex, nofollow, noarchive\n',1),encoding='utf-8')
+          Path('dist/robots.txt').write_text('User-agent: *\nDisallow: /\n',encoding='utf-8')
+          print('SERDAR_ENTITY_NOINDEX_BUILD_PASS')
+          PY
+      - name: Validate Cloudflare account ID secret
+        id: cf
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then id="${BASH_REMATCH[1]}"; fi
+          [[ "$id" =~ ^[a-fA-F0-9]{32}$ ]] || exit 1
+          echo "::add-mask::$id"
+          echo "account_id=$id" >> "$GITHUB_OUTPUT"
+      - name: Deploy isolated branch preview, never main
+        id: deployed
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cf.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-entity-authority-20261020
+      - name: Live preview verify eight locales, canonical and safety
+        shell: bash
+        env:
+          PREVIEW: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          [[ "$PREVIEW" =~ ^https://[a-f0-9]+\.serdararminsargut\.pages\.dev/?$ ]] || { echo 'Not immutable preview'; exit 1; }
+          echo "SERDAR_ENTITY_PREVIEW=$PREVIEW"
+          for route in / /en/ /ar/ /ru/ /az/ /kk/ /uz/ /ky/; do
+            status=$(curl -sS -L --connect-timeout 10 --max-time 30 -D /tmp/hdr -o /tmp/body -w '%{http_code}' "$PREVIEW$route")
+            test "$status" = 200 || { echo "$route HTTP $status"; exit 1; }
+            grep -Eiq '^x-robots-tag:[[:space:]]*noindex' /tmp/hdr || { echo "$route missing noindex"; exit 1; }
+            grep -Fq 'Serdar Armin Sargut' /tmp/body || { echo "$route Serdar identity missing"; exit 1; }
+            grep -Fq 'www.behance.net/gallery/256852873/' /tmp/body || { echo "$route missing Behance"; exit 1; }
+            if grep -q 'tr.linkedin.com/in/serdar-armin-sargut' /tmp/body; then echo "$route stale LinkedIn"; exit 1; fi
+          done
+          curl -fsSL "$PREVIEW/robots.txt" | grep -Fxq 'Disallow: /'
+          echo 'SERDAR_ENTITY_EIGHT_LOCALE_PREVIEW_HTTP_PASS'
+      - name: Mobile Chromium verify real script graph and contact link
+        shell: bash
+        env:
+          PREVIEW: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import asyncio,json,os,re
+          from playwright.async_api import async_playwright
+          async def main():
+            async with async_playwright() as p:
+              browser=await p.chromium.launch(headless=True,args=['--no-sandbox'])
+              for route in ('/','/en/','/ar/','/ru/','/az/','/kk/','/uz/','/ky/'):
+                ctx=await browser.new_context(viewport={'width':393,'height':852},is_mobile=True,has_touch=True,service_workers='block')
+                page=await ctx.new_page()
+                errors=[]
+                page.on('pageerror',lambda e:errors.append(str(e)[:180]))
+                res=await page.goto(os.environ['PREVIEW'].rstrip('/')+route,wait_until='domcontentloaded',timeout=30000)
+                assert res.status==200
+                x=await page.evaluate('''() => {
+                  const all=[...document.querySelectorAll('script[type="application/ld+json"]')].map(s=>JSON.parse(s.textContent))
+                  const graph=all.flatMap(o=>o['@graph']||[o])
+                  const person=graph.find(o=>o['@type']==='Person')
+                  const social=document.querySelector('a[data-social-platform="behance"]')
+                  return {
+                    names:person?.sameAs,
+                    personId:person?.['@id'],
+                    socialUrl:social?.href,
+                    overflow:Math.max(0,document.documentElement.scrollWidth-document.documentElement.clientWidth),
+                    h1:document.querySelectorAll('h1').length
+                  }
+                }''')
+                assert x['personId']=='https://serdararminsargut.com/#person'
+                assert len(x['names'])==4 and all('linkedin.com' not in s for s in x['names'])
+                assert x['socialUrl'] and 'behance.net/gallery/256852873' in x['socialUrl']
+                assert x['overflow']<=3 and x['h1']==1 and not errors,(route,x,errors)
+                print('SERDAR_ENTITY_MOBILE_BROWSER_PASS='+json.dumps({'route':route,'overflow':x['overflow'],'schemaProfiles':len(x['names'])}),flush=True)
+                await ctx.close()
+              await browser.close()
+          asyncio.run(main())
+          PY
