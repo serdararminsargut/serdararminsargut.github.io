@@ -47,7 +47,7 @@ jobs:
           python3 - "$body" <<'PY'
           import sys,re,json
           content=open(sys.argv[1],encoding='utf-8').read()
-          scripts=re.findall(r'<script\\b[^>]*type=["\\']application/ld\\+json["\\'][^>]*>(.*?)</script>',content,re.I|re.S)
+          scripts=re.findall(r'<script[^>]+type="application/ld\+json"[^>]*>(.*?)</script>',content,re.I|re.S)
           assert len(scripts)==1,f"NO-GO: JSON-LD scripts={len(scripts)}"
           data=json.loads(scripts[0])
           graph=data.get("@graph",[])
