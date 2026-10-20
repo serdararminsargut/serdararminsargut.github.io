@@ -1,0 +1,130 @@
+name: Serdar isolated Turkish canonical redirect preview
+on:
+  push:
+    branches:
+      - test/serdar-seo-geo-aeo-tr-canonical-20261020
+    paths:
+      - _redirects
+      - .github/workflows/serdar-tr-redirect-preview-20261020.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: serdar-tr-canonical-preview-20261020
+  cancel-in-progress: true
+
+jobs:
+  preview-only:
+    if: github.ref == 'refs/heads/test/serdar-seo-geo-aeo-tr-canonical-20261020'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify redirect scope and protected source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "serdararminsargut/serdararminsargut.github.io"
+          test "$GITHUB_REF" = "refs/heads/test/serdar-seo-geo-aeo-tr-canonical-20261020"
+          grep -Eq '^/tr[[:space:]]+/[[:space:]]+301$' _redirects
+          grep -Eq '^/tr/[[:space:]]+/[[:space:]]+301$' _redirects
+          ! grep -Eq '^/tr/?.*302$' _redirects
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          ns={'s':'http://www.sitemaps.org/schemas/sitemap/0.9'}
+          urls=[e.findtext('s:loc',namespaces=ns) for e in ET.parse('sitemap.xml').getroot().findall('s:url',ns)]
+          assert len(urls)==90 and len(set(urls))==90
+          assert 'https://serdararminsargut.com/tr/' not in urls
+          print('NO_DUPLICATE_TURKISH_SITEMAP_PASS')
+          PY
+      - name: Build complete static preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for item in .nojekyll _headers _redirects 404.html ai.txt ar assets az blog card.html casting-card de downloads en fa favicon.svg favicon.ico favicon-96x96.png fr index.html indexnow-key.txt 72f0dad836e29ffcc2d9dd42a794dbf0.txt erkek-cocuk-model spor-giyim-cocuk-modeli cocuk-giyim-modeli e-ticaret-cocuk-modeli it kk ky llms.txt llms-full.txt links postcard.html projeler rehber robots.txt ru sitemap.xml sitemap-google.xml sitemap.txt tk uz zh-cn; do
+            if test -e "$item"; then cp -R "$item" dist/; fi
+          done
+          test -s dist/index.html
+          test -s dist/_redirects
+          test -s dist/_headers
+      - name: Rebuild existing four Comp Card PDFs for representative preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/serdar_generate_comp_cards.py dist
+          for lang in TR EN AR RU; do
+            f="dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
+            test -s "$f"
+            head -c 5 "$f" | grep -Fq '%PDF-'
+          done
+      - name: Apply noindex safety only within disposable preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('dist/_headers')
+          s=h.read_text(encoding='utf-8')
+          assert s.startswith('/*\n')
+          assert 'X-Robots-Tag: noindex' not in s
+          h.write_text(s.replace('/*\n','/*\n  X-Robots-Tag: noindex, nofollow, noarchive\n',1),encoding='utf-8')
+          Path('dist/robots.txt').write_text('User-agent: *\nDisallow: /\n',encoding='utf-8')
+          print('NOINDEX_PREVIEW_GUARD_PASS')
+          PY
+          sha256sum dist/_redirects dist/_headers dist/robots.txt
+      - name: Resolve existing Cloudflare account ID
+        shell: bash
+        id: cf
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then id="${BASH_REMATCH[1]}"; fi
+          [[ "$id" =~ ^[a-fA-F0-9]{32}$ ]] || { echo 'Invalid Cloudflare account ID'; exit 1; }
+          echo "::add-mask::$id"
+          echo "account_id=$id" >> "$GITHUB_OUTPUT"
+      - name: Deploy preview branch only
+        id: deployed
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cf.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-seo-geo-aeo-tr-canonical-20261020
+      - name: Test actual immutable preview redirect and noindex
+        shell: bash
+        env:
+          PREVIEW_URL: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          base="$PREVIEW_URL"
+          [[ "$base" =~ ^https://[a-f0-9]+\.serdararminsargut\.pages\.dev/?$ ]] || { echo "Unsafe preview URL: $base"; exit 1; }
+          echo "PREVIEW_IMMUTABLE_URL=$base"
+          for route in /tr /tr/; do
+            code=$(curl -sS --max-redirs 0 --connect-timeout 8 --max-time 20 -D /tmp/tr-headers -o /dev/null -w '%{http_code}' "$base$route")
+            location=$(awk 'tolower($1)=="location:" {gsub("\r",""); print $2}' /tmp/tr-headers | tail -n1)
+            echo "PREVIEW_REDIRECT route=$route status=$code location=$location"
+            [[ "$code" == "301" || "$code" == "308" ]] || exit 1
+            [[ "$location" == "/" || "$location" == "$base/" ]] || exit 1
+          done
+          curl -fsS -L --max-time 25 -D /tmp/tr-headers -o /tmp/tr-home "$base/"
+          grep -Eiq '^x-robots-tag:[[:space:]]*noindex' /tmp/tr-headers
+          grep -Fq 'Serdar Armin Sargut' /tmp/tr-home
+          curl -fsS -L --max-time 25 -o /tmp/tr-robots "$base/robots.txt"
+          grep -Fq 'Disallow: /' /tmp/tr-robots
+          echo 'SERDAR_TURKISH_REDIRECT_PREVIEW_PASS'
+      - name: Check actual production legacy host redirect without changes
+        shell: bash
+        run: |
+          for route in / /en/; do
+            code=$(curl -sS --max-redirs 0 --connect-timeout 8 --max-time 25 -D /tmp/old-host -o /dev/null -w '%{http_code}' "https://serdararminsargut.pages.dev$route" || true)
+            location=$(awk 'tolower($1)=="location:" {gsub("\r",""); print $2}' /tmp/old-host | tail -n1)
+            echo "PRODUCTION_LEGACY_READ_ONLY route=$route status=$code location=$location"
+          done
