@@ -126,7 +126,7 @@ jobs:
             test "$status" = 200 || { echo "BAD_HTTP $route $status"; exit 1; }
             grep -Eiq '^x-robots-tag:[[:space:]]*noindex' /tmp/ig-headers
           done
-          grep -Fq 'Disallow: /' /tmp/ig-body
+          curl -fsSL --connect-timeout 10 --max-time 25 "$PREVIEW/robots.txt" | grep -Fxq 'Disallow: /'
           echo 'SERDAR_INSTAGRAM_PREVIEW_HTTP_NOINDEX_PASS'
       - name: Browser QA 360, 393, 412 and desktop widths, images, analytics events
         shell: bash
