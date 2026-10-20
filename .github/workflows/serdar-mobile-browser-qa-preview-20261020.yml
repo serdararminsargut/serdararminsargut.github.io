@@ -1,0 +1,195 @@
+name: Serdar mobile Android-like browser QA (preview-only)
+on:
+  push:
+    branches:
+      - test/serdar-android-browser-emulation-20261020
+    paths:
+      - .github/workflows/serdar-mobile-browser-qa-preview-20261020.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+concurrency:
+  group: serdar-mobile-browser-qa-20261020
+  cancel-in-progress: true
+jobs:
+  mobile-preview:
+    if: github.ref == 'refs/heads/test/serdar-android-browser-emulation-20261020'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify read-only source and target boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "serdararminsargut/serdararminsargut.github.io"
+          test "$GITHUB_REF" = "refs/heads/test/serdar-android-browser-emulation-20261020"
+          test -s index.html
+          test -s sitemap.xml
+          test -s casting-card/comp-card-pdf-download.js
+      - name: Build isolated site and 4 unchanged Comp Card PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          for item in .nojekyll _headers _redirects 404.html ai.txt ar assets az blog card.html casting-card de downloads en fa favicon.svg favicon.ico favicon-96x96.png fr index.html indexnow-key.txt 72f0dad836e29ffcc2d9dd42a794dbf0.txt erkek-cocuk-model spor-giyim-cocuk-modeli cocuk-giyim-modeli e-ticaret-cocuk-modeli it kk ky llms.txt llms-full.txt links postcard.html projeler rehber robots.txt ru sitemap.xml sitemap-google.xml sitemap.txt tk uz zh-cn; do
+            if test -e "$item"; then cp -R "$item" dist/; fi
+          done
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/serdar_generate_comp_cards.py dist
+          for lang in TR EN AR RU; do
+            f="dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
+            test -s "$f"
+            head -c 5 "$f" | grep -Fq '%PDF-'
+          done
+      - name: Protect preview only from indexing
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('dist/_headers')
+          x=h.read_text(encoding='utf-8')
+          assert x.startswith('/*\n')
+          assert 'X-Robots-Tag: noindex' not in x
+          h.write_text(x.replace('/*\n','/*\n  X-Robots-Tag: noindex, nofollow, noarchive\n',1),encoding='utf-8')
+          Path('dist/robots.txt').write_text('User-agent: *\nDisallow: /\n',encoding='utf-8')
+          assert 'X-Robots-Tag: noindex' in h.read_text(encoding='utf-8')
+          print('MOBILE_PREVIEW_NOINDEX_BUNDLE_PASS',flush=True)
+          PY
+      - name: Resolve existing Cloudflare project account
+        id: cf
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then id="${BASH_REMATCH[1]}"; fi
+          [[ "$id" =~ ^[a-fA-F0-9]{32}$ ]] || { echo 'Invalid account ID'; exit 1; }
+          echo "::add-mask::$id"
+          echo "account_id=$id" >> "$GITHUB_OUTPUT"
+      - name: Deploy test branch to Cloudflare Pages preview only
+        id: deployed
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cf.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-android-browser-emulation-20261020
+      - name: Verify preview HTTP anti-indexing before browsing
+        shell: bash
+        env:
+          PREVIEW: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          [[ "$PREVIEW" =~ ^https://[a-f0-9]+\.serdararminsargut\.pages\.dev/?$ ]] || { echo 'Refusing non-immutable preview'; exit 1; }
+          echo "MOBILE_QA_IMMUTABLE_PREVIEW=$PREVIEW"
+          for route in / /casting-card/tr /en/ /robots.txt; do
+            code=$(curl -sS -L --connect-timeout 10 --max-time 25 -D /tmp/serdar-mob-head -o /tmp/serdar-mob-body -w '%{http_code}' "$PREVIEW$route")
+            test "$code" = 200
+            grep -Eiq '^x-robots-tag:[[:space:]]*noindex' /tmp/serdar-mob-head
+          done
+          curl -fsSL --max-time 15 "$PREVIEW/robots.txt" | grep -Fxq 'Disallow: /'
+          echo 'MOBILE_QA_PREVIEW_HTTP_NOINDEX_PASS'
+      - name: Android-like Chromium mobile emulation and four PDF clicks
+        shell: bash
+        env:
+          PREVIEW: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import asyncio, json, os, re, time
+          from playwright.async_api import async_playwright
+          base=os.environ['PREVIEW'].rstrip('/')
+          assert re.fullmatch(r'https://[a-f0-9]+\.serdararminsargut\.pages\.dev',base)
+          exceptions=[]
+          reports=[]
+          async def do_run(b,device,width,route,sample):
+              context=await b.new_context(viewport={'width':width,'height':780},device_scale_factor=2.6,
+                                           is_mobile=True,has_touch=True,service_workers='block',accept_downloads=True)
+              page=await context.new_page()
+              errors=[]
+              responses=[]
+              page.on('pageerror',lambda error: errors.append(str(error)[:160]))
+              page.on('requestfailed',lambda req: responses.append({'url':req.url[:180],'failure':req.failure}))
+              target=base+route
+              started=time.monotonic()
+              try:
+                  resp=await page.goto(target,wait_until='domcontentloaded',timeout=35000)
+                  await page.wait_for_timeout(1100)
+                  elapsed=round((time.monotonic()-started)*1000)
+                  assert resp and resp.status==200,(route,resp.status if resp else None)
+                  d=await page.evaluate('''() => ({
+                    viewport: document.documentElement.clientWidth,
+                    scrollWidth: document.documentElement.scrollWidth,
+                    bodyWidth: document.body?.scrollWidth,
+                    h1: document.querySelectorAll('h1').length,
+                    title: document.title,
+                    canonical: document.querySelector('link[rel="canonical"]')?.href,
+                    loadedImages: [...document.images].filter(x=>x.complete && x.naturalWidth>0).length,
+                    erroredImages: [...document.images].filter(x=>x.complete && x.naturalWidth===0).map(x=>x.src.slice(0,130)).slice(0,8),
+                    imagesTotal: document.images.length
+                  })''')
+                  row={'route':route,'width':width,'sample':sample,'domReadyMs':elapsed,'status':200,
+                       'overflowPx':max(0,d['scrollWidth']-d['viewport']), 'h1':d['h1'],
+                       'imagesTotal':d['imagesTotal'],'imagesLoaded':d['loadedImages'],
+                       'imageFailures':d['erroredImages'],'errors':errors[:3],
+                       'requestFailures':responses[:4],'canonical':d['canonical']}
+                  reports.append(row)
+                  assert row['overflowPx']<=3,f"HORIZONTAL_OVERFLOW {row}"
+                  assert row['h1']==1,f"H1_MISSING_OR_DUPLICATE {row}"
+                  assert not errors,f"PAGE_JS_ERROR {row}"
+                  assert row['canonical'] and row['canonical'].startswith('https://serdararminsargut.com/')
+                  return context,page,row
+              except Exception as err:
+                  await context.close()
+                  raise
+          async def main():
+              async with async_playwright() as pw:
+                  browser=await pw.chromium.launch(headless=True,args=['--no-sandbox','--disable-dev-shm-usage'])
+                  # Fresh, Android-like mobile browser contexts: no shared cache or storage.
+                  for width in (360,393,412):
+                      for sample in (1,2):
+                          ctx,page,row=await do_run(browser,None,width,'/',sample)
+                          await ctx.close()
+                          print('SERDAR_MOBILE_FRESH_HOME='+json.dumps(row,ensure_ascii=False),flush=True)
+                  for route in ('/en/','/ar/','/ru/','/links/'):
+                      ctx,page,row=await do_run(browser,None,393,route,1)
+                      await ctx.close()
+                      print('SERDAR_MOBILE_PAGE='+json.dumps(row,ensure_ascii=False),flush=True)
+                  ctx,page,row=await do_run(browser,None,393,'/casting-card/tr',1)
+                  assert await page.locator('#comp-card-pdf-download').count()==1
+                  await ctx.close()
+                  print('SERDAR_MOBILE_CASTING_CARD='+json.dumps(row,ensure_ascii=False),flush=True)
+                  # Each localized HTML Comp Card button must reach the matching same-origin PDF URL.
+                  for lang in ('tr','en','ar','ru'):
+                      ctx,page,row=await do_run(browser,None,393,'/casting-card/'+lang,2)
+                      expected='/downloads/Serdar-Armin-Sargut-Comp-Card-'+lang.upper()+'.pdf'
+                      button=page.locator('#comp-card-pdf-download')
+                      assert await button.count()==1,(lang,'button missing')
+                      button_url=await button.get_attribute('data-download-url')
+                      assert button_url==expected,(lang,button_url)
+                      pdf=await ctx.request.get(base+expected,timeout=25000)
+                      assert pdf.status==200,(lang,pdf.status)
+                      data=await pdf.body()
+                      assert data.startswith(b'%PDF-') and len(data)>20000,(lang,len(data))
+                      print('SERDAR_MOBILE_PDF_HTTP_PASS='+json.dumps({'lang':lang,'pdf':expected,'bytes':len(data)},ensure_ascii=False),flush=True)
+                      outgoing=[]
+                      page.on('request',lambda r: outgoing.append(r.url))
+                      try:
+                          await button.click(timeout=9000)
+                      except Exception as e:
+                          print('SERDAR_MOBILE_BUTTON_CLICK_NOTE='+json.dumps({'lang':lang,'message':str(e)[:140]},ensure_ascii=False),flush=True)
+                      await page.wait_for_timeout(1200)
+                      clickTriggered=any(expected in u for u in outgoing)
+                      print('SERDAR_MOBILE_PDF_BUTTON='+json.dumps({'lang':lang,'requestTriggered':clickTriggered,'outgoingCount':len(outgoing)},ensure_ascii=False),flush=True)
+                      assert clickTriggered,(lang,'button did not issue a PDF request')
+                      await ctx.close()
+                  print('SERDAR_ANDROID_LIKE_EMULATION_PASS='+json.dumps({'pagesChecked':len(reports),'pdfs':4,'freshHomeLoads':6,'caveat':'Chromium emulation on GitHub Linux runner, NOT actual Android device; no user field INP'},ensure_ascii=False),flush=True)
+                  await browser.close()
+          asyncio.run(main())
+          PY
