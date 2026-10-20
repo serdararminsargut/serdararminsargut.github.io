@@ -172,6 +172,11 @@ jobs:
                           images:imgs.map(x=>({complete:x.complete,loaded:x.naturalWidth>0,src:x.getAttribute('src')})),
                           links:links.map(x=>({placement:x.dataset.igPlacement,url:x.href})),
                           cardWidth:rect.width,
+                          ctaText:card.querySelector('.ig-feature__cta').textContent.trim(),
+                          ctaFontSize:parseFloat(getComputedStyle(card.querySelector('.ig-feature__cta')).fontSize),
+                          ctaFontWeight:getComputedStyle(card.querySelector('.ig-feature__cta')).fontWeight,
+                          ctaTextLines:(()=>{const r=document.createRange();r.selectNodeContents(card.querySelector('.ig-feature__cta'));return r.getClientRects().length;})(),
+                          ctaHeight:card.querySelector('.ig-feature__cta').getBoundingClientRect().height,
                           stickyStyle:getComputedStyle(document.querySelector('.mobile-ig')).display,
                           trackingReady:typeof window.sasTrackInstagram==='function',
                           hasGuardianText:card.textContent.includes('Veli tarafından yönetilen hesap')
@@ -182,6 +187,8 @@ jobs:
                       assert len(state['images'])==4 and all(x['loaded'] for x in state['images']),state
                       assert len(state['links'])==4 and all('instagram.com/serdararminsargutt' in x['url'] for x in state['links']),state
                       assert state['hasGuardianText'] and state['trackingReady'],state
+                      assert state['ctaFontSize']<=15 and state['ctaFontWeight']=='600',state
+                      assert state['ctaTextLines']==1 and state['ctaHeight']<=58,state
                       assert not errors,errors
                       if width<800: assert state['stickyStyle']=='none',state
                       if width==393:
