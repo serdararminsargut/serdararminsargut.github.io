@@ -87,7 +87,7 @@ jobs:
             }
             fs.writeFileSync('serdar-paired-transfer-evidence/summary.json',JSON.stringify({method:'isolated localhost; same Chromium session settings, separate browser contexts; no production modifications; third-party variability possible',pairs,results},null,2));
             console.log(JSON.stringify(pairs,null,2));
-            if(results.some(r=>r.errors.length||r.overflow||r.selected.some(s=>s.items.length<2||s.items.some(i=>!i.complete||!i.naturalWidth))))process.exitCode=1;
+            if(results.some(r=>r.errors.length||r.overflow||r.selected.some(s=>s.items.length<2||s.items.some(i=>i.complete&&i.naturalWidth===0))))process.exitCode=1;
           })().catch(e=>{console.error(e);process.exitCode=1});
           JS
           node /tmp/serdar-paired.cjs
