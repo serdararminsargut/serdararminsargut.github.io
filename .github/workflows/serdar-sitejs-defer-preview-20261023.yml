@@ -2,7 +2,7 @@ name: Serdar sitejs defer isolated preview (test only)
 on:
   push:
     branches: [test/serdar-sitejs-defer-20261023]
-    paths: ['.github/workflows/serdar-preview-lcp-20261023.yml']
+    paths: ['.github/workflows/serdar-sitejs-defer-preview-20261023.yml']
   workflow_dispatch:
 permissions:
   contents: read
