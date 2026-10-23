@@ -1,0 +1,18 @@
+{
+  "project": "SERDAR_ONLY",
+  "status": "TEST_DRAFT_NOINDEX",
+  "base_locale": "tr",
+  "existing_live_home_locales": ["tr", "en", "ar", "ru", "az", "kk", "uz", "ky"],
+  "existing_live_comp_card_locales": ["tr", "en", "ar", "ru"],
+  "target_locales": [
+    "tr", "en", "ru", "ar", "az", "de", "fr", "es", "kk", "uz", "ky", "tk",
+    "it", "pt-BR", "uk", "pl", "bg", "el", "sr-Latn", "sq", "fa", "ur", "hi",
+    "zh-CN", "ja", "ko"
+  ],
+  "editorial_rules": [
+    "New locale pages are test-only and noindex until editorial approval.",
+    "A page language is an interface/portfolio translation, never a claim that Serdar speaks that language.",
+    "No new child-sensitive information is introduced; public contact remains parent-managed email only.",
+    "No production main, DNS, Cloudflare configuration, sitemap, or canonical changes are included."
+  ]
+}
