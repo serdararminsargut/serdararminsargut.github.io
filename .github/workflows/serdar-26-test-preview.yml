@@ -1,7 +1,9 @@
 name: Serdar 26-locale test preview
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - test/serdar-26-regional-preview-20261023
 
 permissions:
   contents: read
