@@ -1,0 +1,54 @@
+name: Serdar live mobile Lighthouse read-only diagnostic
+on:
+  push:
+    branches: [test/serdar-sitejs-defer-20261023]
+    paths: ['.github/workflows/serdar-live-mobile-lcp-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  measure:
+    if: github.ref == 'refs/heads/test/serdar-sitejs-defer-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - run: npm install --no-save --no-package-lock --ignore-scripts lighthouse@12
+      - name: Verify public URL and measure mobile Lighthouse three times
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          set -euo pipefail
+          mkdir -p serdar-live-lcp-evidence
+          curl -fsSL -D serdar-live-lcp-evidence/headers.txt https://serdararminsargut.com/ -o /dev/null
+          for i in 1 2 3; do
+            ./node_modules/.bin/lighthouse https://serdararminsargut.com/ --chrome-path="$CHROME_PATH" --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --preset=perf --form-factor=mobile --output=json --output-path="serdar-live-lcp-evidence/mobile-$i.json" --quiet
+          done
+      - name: Summarize field-independent laboratory metrics
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,statistics
+          p=pathlib.Path('serdar-live-lcp-evidence')
+          rows=[]
+          for i in range(1,4):
+            x=json.loads((p/f'mobile-{i}.json').read_text())
+            a=x['audits']
+            rows.append({'run':i,'final_url':x.get('finalDisplayedUrl'),'score':round(x['categories']['performance']['score']*100),'lcp_ms':a['largest-contentful-paint']['numericValue'],'fcp_ms':a['first-contentful-paint']['numericValue'],'tbt_ms':a['total-blocking-time']['numericValue'],'cls':a['cumulative-layout-shift']['numericValue'],'speed_index_ms':a['speed-index']['numericValue'],'lcp_element':a.get('largest-contentful-paint-element',{}).get('details',{}).get('items',[]),'lcp_breakdown':a.get('lcp-breakdown-insight',{}).get('details',{}).get('items',[]),'render_blocking':a.get('render-blocking-resources',{}).get('details',{}).get('items',[])})
+          summary={'scope':'Serdar live site, READ-ONLY synthetic Lighthouse; not PSI field data','runs':rows,'medians':{k:statistics.median(r[k] for r in rows) for k in ['score','lcp_ms','fcp_ms','tbt_ms','cls','speed_index_ms']}}
+          (p/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
+          print(json.dumps(summary['medians'],indent=2))
+          PY
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-live-mobile-lcp-readonly-evidence
+          path: serdar-live-lcp-evidence/
+          retention-days: 14
