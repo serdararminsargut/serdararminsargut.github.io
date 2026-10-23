@@ -73,8 +73,8 @@ jobs:
         run: |
           set -euo pipefail
           for i in 1 2 3; do
-            for v in A B; do
-              if [[ "$v" == A ]]; then port=8765; else port=8766; fi
+            for v in A B C D; do
+              case "$v" in A) port=8765;; B) port=8766;; C) port=8767;; D) port=8768;; esac
               ./node_modules/.bin/lighthouse "http://127.0.0.1:$port/" --chrome-path="$CHROME_PATH" --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --preset=perf --form-factor=mobile --output=json --output-path="serdar-analytics-fourway-evidence/$v-$i.json" --quiet
             done
           done
