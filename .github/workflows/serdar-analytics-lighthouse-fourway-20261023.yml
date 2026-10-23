@@ -64,7 +64,9 @@ jobs:
           http.server.ThreadingHTTPServer(('127.0.0.1',int(sys.argv[1])),Handler).serve_forever()
           PY
           python3 /tmp/serdar-ab-server.py 8765 A > /tmp/serdar-A.log 2>&1 &
-          python3 /tmp/serdar-ab-server.py 8766 B > /tmp/serdar-B.log 2>&1 &\n          python3 /tmp/serdar-ab-server.py 8767 C > /tmp/serdar-C.log 2>&1 &\n          python3 /tmp/serdar-ab-server.py 8768 D > /tmp/serdar-D.log 2>&1 &
+          python3 /tmp/serdar-ab-server.py 8766 B > /tmp/serdar-B.log 2>&1 &
+          python3 /tmp/serdar-ab-server.py 8767 C > /tmp/serdar-C.log 2>&1 &
+          python3 /tmp/serdar-ab-server.py 8768 D > /tmp/serdar-D.log 2>&1 &
           for port in 8765 8766 8767 8768; do
             for i in {1..30}; do if curl -fsS "http://127.0.0.1:$port/" >/dev/null; then break; fi; sleep 1; done
             curl -fsSI "http://127.0.0.1:$port/" | grep -iq 'x-robots-tag: noindex'
