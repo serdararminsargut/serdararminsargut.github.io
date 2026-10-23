@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           for i in 1 2 3; do
             ./node_modules/.bin/lighthouse "$PREVIEW/" --chrome-path="$CHROME_PATH" --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --preset=perf --form-factor=mobile --output=json --output-path="analytics-ab-evidence/A-$i.json" --quiet
-            ./node_modules/.bin/lighthouse "$PREVIEW/" --chrome-path="$CHROME_PATH" --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --preset=perf --form-factor=mobile --blocked-url-patterns='*googletagmanager.com/*,*mc.yandex.ru/*' --output=json --output-path="analytics-ab-evidence/B-$i.json" --quiet
+            ./node_modules/.bin/lighthouse "$PREVIEW/" --chrome-path="$CHROME_PATH" --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --preset=perf --form-factor=mobile --blocked-url-patterns='*googletagmanager.com/*' --blocked-url-patterns='*mc.yandex.ru/*' --output=json --output-path="analytics-ab-evidence/B-$i.json" --quiet
           done
       - name: Summarize and validate B resource blocking
         run: |
@@ -57,7 +57,7 @@ jobs:
               x=json.loads((d/f'{group}-{i}.json').read_text())
               a=x['audits']
               configured=x.get('configSettings',{}).get('blockedUrlPatterns')
-              if group=='B' and (not configured or not any('googletagmanager.com' in str(p) for p in configured) or not any('mc.yandex.ru' in str(p) for p in configured)):
+              if group=='B' and (not isinstance(configured,list) or len(configured)!=2 or not any('googletagmanager.com' in str(p) for p in configured) or not any('mc.yandex.ru' in str(p) for p in configured)):
                 raise SystemExit('BLOCKING_CONFIG_MISSING: '+str(configured))
               resources=a.get('network-requests',{}).get('details',{}).get('items',[])
               third=[q.get('url','') for q in resources if ('googletagmanager.com/gtag/js' in q.get('url','') or 'mc.yandex.ru/metrika/tag.js' in q.get('url','')) and q.get('statusCode',0) == 200]
