@@ -1,0 +1,99 @@
+name: Serdar paired mobile transfer comparison (test only)
+on:
+  push:
+    branches: [test/serdar-sitejs-defer-20261023]
+    paths: ['.github/workflows/serdar-paired-mobile-transfer-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  compare:
+    if: github.ref == 'refs/heads/test/serdar-sitejs-defer-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: serdar-responsive-webp-candidates-evidence
+          run-id: 40001198275
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/serdar-candidates
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright-core
+          npx --yes playwright install chromium
+      - name: Prepare baseline and candidate isolated sites
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/serdar-baseline /tmp/serdar-candidate serdar-paired-transfer-evidence
+          cp -a index.html assets robots.txt /tmp/serdar-baseline/
+          cp -a /tmp/serdar-baseline/. /tmp/serdar-candidate/
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          root=Path('/tmp/serdar-candidate')
+          html=root/'index.html'
+          content=html.read_text()
+          for stem in ['serdar-armin-sargut-set-kamera-arkasi','serdar-armin-sargut-gri-takim-yelek','serdar-armin-sargut-siyah-moda-yakin-plan']:
+            for width in (320,640):
+              name=f'{stem}-{width}.webp'
+              shutil.copy2(Path('/tmp/serdar-candidates/candidates')/name,root/'assets/photos'/name)
+            original=root/'assets/photos'/f'{stem}.webp'
+            from PIL import Image
+            with Image.open(original) as img: original_width=img.width
+            old=f'src="/assets/photos/{stem}.webp"'
+            new=f'src="/assets/photos/{stem}.webp" srcset="/assets/photos/{stem}-320.webp 320w, /assets/photos/{stem}-640.webp 640w, /assets/photos/{stem}.webp {original_width}w" sizes="(max-width: 640px) 45vw, 640px"'
+            assert content.count(old)>=2,(stem,content.count(old))
+            content=content.replace(old,new)
+          html.write_text(content)
+          PY
+          (cd /tmp/serdar-baseline && python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/serdar-base.log 2>&1) &
+          (cd /tmp/serdar-candidate && python3 -m http.server 8766 --bind 127.0.0.1 >/tmp/serdar-candidate.log 2>&1) &
+      - name: Paired transfer audit
+        run: |
+          cat > /tmp/serdar-paired.cjs <<'JS'
+          const {chromium}=require(process.cwd()+'/node_modules/playwright-core'),fs=require('fs');
+          (async()=>{
+            const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+            const results=[];
+            for(const width of [360,390,430])for(const dpr of [1,2,3])for(const variant of ['baseline','candidate']){
+              const context=await browser.newContext({viewport:{width,height:780},deviceScaleFactor:dpr,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+              const page=await context.newPage(),cdp=await context.newCDPSession(page);
+              await cdp.send('Network.enable');
+              const records=new Map(),errors=[];
+              cdp.on('Network.requestWillBeSent',e=>records.set(e.requestId,{url:e.request.url,bytes:0,finished:false}));
+              cdp.on('Network.loadingFinished',e=>{const x=records.get(e.requestId);if(x){x.bytes=e.encodedDataLength;x.finished=true}});
+              page.on('pageerror',e=>errors.push(e.message));
+              await page.goto('http://127.0.0.1:'+(variant==='baseline'?8765:8766)+'/',{waitUntil:'load',timeout:30000});
+              await page.waitForTimeout(2500);
+              const initial=[...records.values()].filter(x=>x.finished);
+              const sum=arr=>arr.reduce((a,x)=>a+x.bytes,0);
+              const initialImages=initial.filter(x=>x.url.includes('/assets/photos/'));
+              const selected=await page.evaluate(()=>['serdar-armin-sargut-set-kamera-arkasi','serdar-armin-sargut-gri-takim-yelek','serdar-armin-sargut-siyah-moda-yakin-plan'].map(stem=>({stem,items:[...document.images].filter(i=>i.src.includes(stem)).map(i=>({selected:i.currentSrc.split('/').pop(),complete:i.complete,naturalWidth:i.naturalWidth}))})));
+              const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);
+              results.push({width,dpr,variant,initial_total_bytes:sum(initial),initial_image_bytes:sum(initialImages),initial_photo_requests:initialImages.map(x=>({file:x.url.split('/').pop(),bytes:x.bytes})),selected,overflow,errors});
+              await context.close();
+            }
+            await browser.close();
+            const pairs=[];
+            for(const width of [360,390,430])for(const dpr of [1,2,3]){
+              const a=results.find(r=>r.width===width&&r.dpr===dpr&&r.variant==='baseline'),b=results.find(r=>r.width===width&&r.dpr===dpr&&r.variant==='candidate');
+              pairs.push({width,dpr,baseline_image_bytes:a.initial_image_bytes,candidate_image_bytes:b.initial_image_bytes,image_savings_pct:Math.round(1000*(1-b.initial_image_bytes/a.initial_image_bytes))/10,baseline_total_bytes:a.initial_total_bytes,candidate_total_bytes:b.initial_total_bytes});
+            }
+            fs.writeFileSync('serdar-paired-transfer-evidence/summary.json',JSON.stringify({method:'isolated localhost; same Chromium session settings, separate browser contexts; no production modifications; third-party variability possible',pairs,results},null,2));
+            console.log(JSON.stringify(pairs,null,2));
+            if(results.some(r=>r.errors.length||r.overflow||r.selected.some(s=>s.items.length<2||s.items.some(i=>!i.complete||!i.naturalWidth))))process.exitCode=1;
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node /tmp/serdar-paired.cjs
+      - name: Upload comparison evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-paired-mobile-transfer-evidence
+          path: serdar-paired-transfer-evidence/
+          retention-days: 14
