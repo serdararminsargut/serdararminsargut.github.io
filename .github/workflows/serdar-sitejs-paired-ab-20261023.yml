@@ -1,0 +1,83 @@
+name: Serdar paired sitejs defer A-B (test only)
+on:
+  push:
+    branches: [test/serdar-sitejs-defer-20261023]
+    paths: ['.github/workflows/serdar-sitejs-paired-ab-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  paired:
+    if: github.ref == 'refs/heads/test/serdar-sitejs-defer-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - name: Install Lighthouse
+        run: npm install --no-save --no-package-lock --ignore-scripts lighthouse@12
+      - name: Verify immutable previews and exact variant
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p sitejs-paired-evidence
+          A=https://ad8b9ee5.serdararminsargut.pages.dev
+          B=https://63d472f9.serdararminsargut.pages.dev
+          for variant in A B; do
+            url="${!variant}"
+            curl -fsSL -D "sitejs-paired-evidence/$variant-headers.txt" "$url/" -o "sitejs-paired-evidence/$variant.html"
+            grep -Eiq '^x-robots-tag: noindex, nofollow, noarchive' "sitejs-paired-evidence/$variant-headers.txt"
+            curl -fsSL "$url/robots.txt" | grep -Fxq 'Disallow: /'
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          a=Path('sitejs-paired-evidence/A.html').read_text()
+          b=Path('sitejs-paired-evidence/B.html').read_text()
+          original='<script src="/assets/js/site.js"></script>'
+          candidate='<script defer src="/assets/js/site.js"></script>'
+          assert original in a and candidate not in a, 'A is not original'
+          assert candidate in b and original not in b, 'B is not defer'
+          assert a.replace(original,candidate)==b, 'Unexpected HTML changes between A/B'
+          print('HTML_VARIANT_DIFF_ONLY_DEFER: PASS')
+          PY
+      - name: Alternating mobile Lighthouse runs
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            for variant in A B; do
+              if [[ "$variant" == A ]]; then url=https://ad8b9ee5.serdararminsargut.pages.dev; else url=https://63d472f9.serdararminsargut.pages.dev; fi
+              ./node_modules/.bin/lighthouse "$url/" --chrome-path="$CHROME_PATH" --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --preset=perf --form-factor=mobile --output=json --output-path="sitejs-paired-evidence/$variant-$i.json" --quiet
+            done
+          done
+      - name: Summarize paired evidence
+        run: |
+          python3 - <<'PY'
+          import json,statistics,pathlib
+          d=pathlib.Path('sitejs-paired-evidence')
+          rows=[]
+          for v in 'AB':
+            for i in (1,2,3):
+              x=json.loads((d/f'{v}-{i}.json').read_text())
+              a=x['audits']
+              rows.append({'variant':v,'run':i,'score':round(x['categories']['performance']['score']*100),'lcp_ms':a['largest-contentful-paint']['numericValue'],'tbt_ms':a['total-blocking-time']['numericValue'],'cls':a['cumulative-layout-shift']['numericValue']})
+          med={v:{k:statistics.median(r[k] for r in rows if r['variant']==v) for k in ('score','lcp_ms','tbt_ms','cls')} for v in 'AB'}
+          result={'scope':'Paired Lighthouse synthetic Serdar preview A/B, no production changes','rows':rows,'medians':med,'delta_B_minus_A':{k:med['B'][k]-med['A'][k] for k in med['A']}}
+          (d/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
+          print(json.dumps(result,indent=2))
+          PY
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-sitejs-paired-ab-evidence
+          path: sitejs-paired-evidence/
+          retention-days: 14
