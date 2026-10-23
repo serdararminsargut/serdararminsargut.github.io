@@ -1,0 +1,75 @@
+name: Serdar preview analytics A-B diagnostic (test only)
+on:
+  push:
+    branches: [test/serdar-lcp-baseline-20261023]
+    paths: ['.github/workflows/serdar-analytics-ab-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  analytics-ab:
+    if: github.ref == 'refs/heads/test/serdar-lcp-baseline-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - name: Install isolated Lighthouse
+        run: npm install --no-save --no-package-lock --ignore-scripts lighthouse@12
+      - name: Verify fixed preview and noindex guards
+        env:
+          PREVIEW: https://ad8b9ee5.serdararminsargut.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p analytics-ab-evidence
+          [[ "$PREVIEW" =~ ^https://[a-f0-9]+\.serdararminsargut\.pages\.dev$ ]] || exit 1
+          curl -fsSL -D analytics-ab-evidence/headers.txt "$PREVIEW/" -o analytics-ab-evidence/home.html
+          grep -Eiq '^x-robots-tag: noindex, nofollow, noarchive' analytics-ab-evidence/headers.txt
+          curl -fsSL "$PREVIEW/robots.txt" | grep -Fxq 'Disallow: /'
+          ./node_modules/.bin/lighthouse --help | grep -q 'blocked-url-pattern'
+          echo "$PREVIEW" > analytics-ab-evidence/preview-url.txt
+      - name: Alternating 3x A (normal) and 3x B (block GA and Yandex in browser only)
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+          PREVIEW: https://ad8b9ee5.serdararminsargut.pages.dev
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            ./node_modules/.bin/lighthouse "$PREVIEW/" --chrome-path="$CHROME_PATH" --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --preset=perf --form-factor=mobile --output=json --output-path="analytics-ab-evidence/A-$i.json" --quiet
+            ./node_modules/.bin/lighthouse "$PREVIEW/" --chrome-path="$CHROME_PATH" --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --preset=perf --form-factor=mobile --blocked-url-pattern='*googletagmanager.com/*' --blocked-url-pattern='*mc.yandex.ru/*' --output=json --output-path="analytics-ab-evidence/B-$i.json" --quiet
+          done
+      - name: Summarize and validate B resource blocking
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,statistics
+          d=pathlib.Path('analytics-ab-evidence')
+          rows=[]
+          for group in ('A','B'):
+            for i in (1,2,3):
+              x=json.loads((d/f'{group}-{i}.json').read_text())
+              a=x['audits']
+              resources=a.get('network-requests',{}).get('details',{}).get('items',[])
+              third=[q.get('url','') for q in resources if ('googletagmanager.com/gtag/js' in q.get('url','') or 'mc.yandex.ru/metrika/tag.js' in q.get('url','')) and q.get('statusCode',0) == 200]
+              row=dict(group=group,run=i,score=round(x['categories']['performance']['score']*100),lcp_ms=a['largest-contentful-paint']['numericValue'],tbt_ms=a['total-blocking-time']['numericValue'],cls=a['cumulative-layout-shift']['numericValue'],third_party_success_count=len(third))
+              if group=='B' and third: raise SystemExit('BLOCKING_NOT_CONFIRMED: '+str(third))
+              rows.append(row)
+          med={g:{k:statistics.median(r[k] for r in rows if r['group']==g) for k in ('score','lcp_ms','tbt_ms','cls')} for g in ('A','B')}
+          result={'scope':'Serdar preview browser-only diagnostics; B deliberately blocks GA/Yandex; NOT a production recommendation','rows':rows,'medians':med,'delta_B_minus_A':{k:med['B'][k]-med['A'][k] for k in med['A']}}
+          (d/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
+          print(json.dumps(result,indent=2))
+          PY
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-analytics-ab-evidence
+          path: analytics-ab-evidence/
+          retention-days: 14
