@@ -1,0 +1,54 @@
+name: Serdar TK HTTP diagnostic (read only)
+on:
+  push:
+    branches:
+      - test/serdar-tk-http-diagnostic-20261023
+    paths:
+      - .github/workflows/serdar-tk-http-diagnostic.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Compare three Turkmen pages with normal and Googlebot user agents
+        shell: bash
+        run: |
+          set -uo pipefail
+          base='https://serdararminsargut.com'
+          paths=(
+            '/tk/caga-geyim-modeli/'
+            '/tk/caga-sport-geyim-modeli/'
+            '/tk/elektron-sowda-caga-modeli/'
+          )
+          agents=('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36' 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)')
+          names=('browser' 'googlebot-ua')
+          failures=0
+          for path in "${paths[@]}"; do
+            for i in 0 1; do
+              headers="$(mktemp)"
+              body="$(mktemp)"
+              echo "::group::PATH=$path AGENT=${names[$i]}"
+              curl --silent --show-error --location --max-redirs 5 --connect-timeout 10 --max-time 30 \
+                --user-agent "${agents[$i]}" \
+                --dump-header "$headers" --output "$body" \
+                --write-out 'HTTP_CODE=%{http_code}\nFINAL_URL=%{url_effective}\nREDIRECTS=%{num_redirects}\nCONTENT_TYPE=%{content_type}\n' \
+                "$base$path" || failures=$((failures+1))
+              grep -Ei '^(HTTP/|location:|content-type:|x-robots-tag:|cf-ray:|server:)' "$headers" || true
+              python3 - "$body" <<'PY'
+          import re, sys
+          text = open(sys.argv[1], 'rb').read().decode('utf-8', 'replace')
+          for label, pattern in [('CANONICAL', r'<link[^>]+rel=["\x27]canonical["\x27][^>]+href=["\x27]([^"\x27]+)'),
+                                 ('ROBOTS', r'<meta[^>]+name=["\x27]robots["\x27][^>]+content=["\x27]([^"\x27]+)')]:
+              m = re.search(pattern, text, re.I)
+              print(f'{label}={m.group(1) if m else "NOT_FOUND"}')
+          print(f'BODY_BYTES={len(text.encode("utf-8"))}')
+          PY
+              rm -f "$headers" "$body"
+              echo "::endgroup::"
+            done
+          done
+          echo "CURL_TRANSPORT_FAILURES=$failures"
+          test "$failures" -eq 0
