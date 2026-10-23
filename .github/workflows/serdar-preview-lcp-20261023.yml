@@ -20,8 +20,6 @@ jobs:
           node-version: '22'
       - uses: browser-actions/setup-chrome@v1
         id: chrome
-      - name: Install Lighthouse
-        run: npm install --no-save --no-package-lock --ignore-scripts lighthouse@12
       - name: Prepare isolated noindex site copy
         shell: bash
         run: |
@@ -70,6 +68,8 @@ jobs:
           grep -Eiq '^x-robots-tag: noindex, nofollow, noarchive' preview-lcp-evidence/headers.txt
           curl -fsSL "$PREVIEW/robots.txt" | grep -Fxq 'Disallow: /'
           echo "$PREVIEW" > preview-lcp-evidence/preview-url.txt
+      - name: Install Lighthouse
+        run: npm install --no-save --no-package-lock --ignore-scripts lighthouse@12
       - name: Three mobile Lighthouse runs on immutable preview
         shell: bash
         env:
