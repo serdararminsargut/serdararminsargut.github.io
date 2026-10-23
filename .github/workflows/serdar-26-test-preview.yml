@@ -1,0 +1,30 @@
+name: Serdar 26-locale test preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  preview:
+    if: github.ref == 'refs/heads/test/serdar-26-regional-preview-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Build and validate noindex preview only
+        run: |
+          set -euo pipefail
+          python3 serdar-26-test/validate_manifest.py
+          python3 serdar-26-test/build_preview.py
+          python3 serdar-26-test/validate_preview.py
+      - name: Deploy test preview only
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy serdar-26-test/dist --project-name=serdararminsargut --branch=test-serdar-26
