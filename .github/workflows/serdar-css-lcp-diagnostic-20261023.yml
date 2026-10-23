@@ -1,0 +1,60 @@
+name: Serdar CSS LCP read-only diagnostic
+on:
+  push:
+    branches: [test/serdar-lcp-baseline-20261023]
+    paths: ['.github/workflows/serdar-css-lcp-diagnostic-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    if: github.ref == 'refs/heads/test/serdar-lcp-baseline-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - run: npm install --no-save --no-package-lock --ignore-scripts lighthouse@12
+      - name: Verify noindex preview
+        run: |
+          set -euo pipefail
+          mkdir -p css-lcp-evidence
+          curl -fsSL -D css-lcp-evidence/headers.txt https://ad8b9ee5.serdararminsargut.pages.dev/ -o css-lcp-evidence/home.html
+          grep -Eiq '^x-robots-tag: noindex, nofollow, noarchive' css-lcp-evidence/headers.txt
+          curl -fsSL https://ad8b9ee5.serdararminsargut.pages.dev/robots.txt | grep -Fxq 'Disallow: /'
+      - name: Measure three mobile runs
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            ./node_modules/.bin/lighthouse https://ad8b9ee5.serdararminsargut.pages.dev/ --chrome-path="$CHROME_PATH" --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --preset=perf --form-factor=mobile --output=json --output-path="css-lcp-evidence/mobile-$i.json" --quiet
+          done
+      - name: Summarize CSS evidence
+        run: |
+          python3 - <<'PY'
+          import json,pathlib,statistics
+          d=pathlib.Path('css-lcp-evidence')
+          rows=[]
+          for i in (1,2,3):
+            x=json.loads((d/f'mobile-{i}.json').read_text())
+            a=x['audits']
+            requests=a.get('network-requests',{}).get('details',{}).get('items',[])
+            rows.append({'run':i,'lcp_ms':a['largest-contentful-paint']['numericValue'],'tbt_ms':a['total-blocking-time']['numericValue'],'css_requests':[r for r in requests if '/assets/css/site.css' in r.get('url','')],'render_blocking':a.get('render-blocking-resources',{}).get('details',{}).get('items',[]),'lcp_element':a.get('largest-contentful-paint-element',{}).get('details',{}).get('items',[])})
+          result={'scope':'Serdar immutable noindex preview, diagnostic only','median_lcp_ms':statistics.median(r['lcp_ms'] for r in rows),'rows':rows}
+          (d/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
+          print('median LCP ms:',result['median_lcp_ms'])
+          PY
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-css-lcp-evidence
+          path: css-lcp-evidence/
+          retention-days: 14
