@@ -1,0 +1,72 @@
+name: Serdar mobile LCP baseline (test only)
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - test/serdar-lcp-baseline-20261023
+    paths:
+      - .github/workflows/serdar-lcp-baseline-20261023.yml
+permissions:
+  contents: read
+jobs:
+  lcp-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - name: Install Lighthouse locally
+        run: npm install --no-save --no-package-lock --ignore-scripts lighthouse@12
+      - name: Start local server (no deployment)
+        run: |
+          mkdir -p lcp-evidence
+          python3 -m http.server 8767 --bind 127.0.0.1 --directory . > lcp-evidence/server.log 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8767/ -o /dev/null && exit 0; sleep 1; done
+          exit 1
+      - name: Three independent mobile Lighthouse runs
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: |
+          for i in 1 2 3; do
+            ./node_modules/.bin/lighthouse http://127.0.0.1:8767/ \
+              --chrome-path="$CHROME_PATH" \
+              --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" \
+              --only-categories=performance \
+              --preset=perf \
+              --form-factor=mobile \
+              --output=json \
+              --output-path="lcp-evidence/mobile-$i.json" \
+              --quiet
+          done
+      - name: Produce evidence summary
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, statistics
+          folder=pathlib.Path('lcp-evidence')
+          rows=[]
+          for i in (1,2,3):
+              report=json.loads((folder/f'mobile-{i}.json').read_text())
+              audits=report['audits']
+              row={'run':i,'score':report['categories']['performance']['score'],
+                   'lcp_ms':audits['largest-contentful-paint']['numericValue'],
+                   'fcp_ms':audits['first-contentful-paint']['numericValue'],
+                   'cls':audits['cumulative-layout-shift']['numericValue'],
+                   'tbt_ms':audits['total-blocking-time']['numericValue']}
+              rows.append(row)
+          result={'scope':'Serdar local-only mobile baseline; not production or field data',
+                  'runs':rows,'median_lcp_ms':statistics.median(r['lcp_ms'] for r in rows),
+                  'median_score':statistics.median(r['score'] for r in rows)}
+          (folder/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
+          print(json.dumps(result,indent=2))
+          PY
+      - name: Preserve measurement artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-lcp-baseline-evidence
+          path: lcp-evidence/
+          retention-days: 14
