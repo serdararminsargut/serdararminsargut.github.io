@@ -1,0 +1,69 @@
+name: Serdar responsive CSS computed-style audit (read-only)
+on:
+  push:
+    branches: [test/serdar-sitejs-defer-20261023]
+    paths: ['.github/workflows/serdar-responsive-css-audit-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  responsive:
+    if: github.ref == 'refs/heads/test/serdar-sitejs-defer-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runner
+        run: |
+          npm install --no-save --no-package-lock --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Audit immutable Serdar preview at four widths
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p serdar-responsive-evidence
+          curl -fsSL -D serdar-responsive-evidence/headers.txt https://ad8b9ee5.serdararminsargut.pages.dev/ -o serdar-responsive-evidence/home.html
+          grep -Eiq '^x-robots-tag: noindex, nofollow, noarchive' serdar-responsive-evidence/headers.txt
+          curl -fsSL https://ad8b9ee5.serdararminsargut.pages.dev/robots.txt | grep -Fxq 'Disallow: /'
+          cat > audit.cjs <<'JS'
+          const {chromium}=require('playwright');
+          const fs=require('fs');
+          (async()=>{
+            const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+            const results=[];
+            for(const width of [360,390,430,768]){
+              const page=await browser.newPage({viewport:{width,height:850},deviceScaleFactor:1});
+              const errors=[];
+              page.on('pageerror',e=>errors.push(String(e)));
+              await page.goto('https://ad8b9ee5.serdararminsargut.pages.dev/',{waitUntil:'networkidle',timeout:45000});
+              const data=await page.evaluate(()=>{
+                const pick=s=>{const e=document.querySelector(s);if(!e)return null;const c=getComputedStyle(e),r=e.getBoundingClientRect();return {display:c.display,position:c.position,width:Math.round(r.width),height:Math.round(r.height),top:Math.round(r.top),objectFit:c.objectFit,objectPosition:c.objectPosition,gridTemplateColumns:c.gridTemplateColumns}};
+                return {viewport:innerWidth,documentWidth:document.documentElement.scrollWidth,hero:pick('.hero'),heroMedia:pick('.hero-media'),heroImage:pick('.hero-media img'),heroContent:pick('.hero-content'),gallery:pick('.gallery'),videoGrid:pick('.video-grid'),nav:pick('nav .wrap'),imageLoaded:document.querySelector('.hero-media img')?.naturalWidth>0};
+              });
+              await page.screenshot({path:'serdar-responsive-evidence/mobile-'+width+'.png',fullPage:false});
+              results.push({width,...data,pageErrors:errors});
+              await page.close();
+            }
+            await browser.close();
+            fs.writeFileSync('serdar-responsive-evidence/summary.json',JSON.stringify(results,null,2));
+            for(const r of results){
+              const phone=r.width<=460;
+              if(!r.imageLoaded||r.documentWidth>r.viewport+2||r.pageErrors.length)throw Error('Image/overflow/JS failure '+r.width+': '+JSON.stringify(r));
+              if(phone && !(r.heroMedia.position==='relative' && r.heroContent.top>=r.heroMedia.top+r.heroMedia.height-2))throw Error('Phone hero flow failure '+r.width);
+            }
+            console.log(JSON.stringify(results,null,2));
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+          node audit.cjs
+      - name: Preserve responsive evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-responsive-css-audit-evidence
+          path: serdar-responsive-evidence/
+          retention-days: 14
