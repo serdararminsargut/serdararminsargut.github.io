@@ -1,0 +1,90 @@
+name: Serdar responsive srcset browser audit (test only)
+on:
+  push:
+    branches: [test/serdar-sitejs-defer-20261023]
+    paths: ['.github/workflows/serdar-responsive-srcset-audit-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  audit:
+    if: github.ref == 'refs/heads/test/serdar-sitejs-defer-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: serdar-responsive-webp-candidates-evidence
+          run-id: 40001198275
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/serdar-candidates
+      - name: Install browser
+        run: |
+          npm install --no-save playwright-core
+          npx --yes playwright install chromium
+      - name: Prepare isolated local test only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p serdar-srcset-audit-evidence
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          from html.parser import HTMLParser
+          root=Path('.')
+          html=root/'index.html'
+          source=html.read_text()
+          names=['serdar-armin-sargut-set-kamera-arkasi','serdar-armin-sargut-gri-takim-yelek','serdar-armin-sargut-siyah-moda-yakin-plan']
+          for stem in names:
+            for width in (320,640):
+              src=Path('/tmp/serdar-candidates/candidates')/(stem+f'-{width}.webp')
+              assert src.is_file(),str(src)
+              shutil.copy2(src,root/'assets/photos'/src.name)
+            old=f'src="/assets/photos/{stem}.webp"'
+            new=f'src="/assets/photos/{stem}.webp" srcset="/assets/photos/{stem}-320.webp 320w, /assets/photos/{stem}-640.webp 640w, /assets/photos/{stem}.webp 1536w" sizes="(max-width: 640px) 45vw, 640px"'
+            assert source.count(old)>=2,(stem,source.count(old))
+            source=source.replace(old,new)
+          html.write_text(source)
+          PY
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/serdar-srcset-server.log 2>&1 &
+      - name: Verify image selection and layout
+        shell: bash
+        run: |
+          cat > /tmp/serdar-srcset-test.cjs <<'JS'
+          const {chromium}=require(process.cwd()+'/node_modules/playwright-core');
+          const fs=require('fs');
+          (async()=>{
+            const browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+            const rows=[];
+            for(const width of [360,390,430]){
+              const context=await browser.newContext({viewport:{width,height:780},deviceScaleFactor:1,isMobile:true,hasTouch:true});
+              const page=await context.newPage(),errors=[];
+              page.on('pageerror',e=>errors.push(e.message));
+              await page.goto('http://127.0.0.1:8765/',{waitUntil:'domcontentloaded'});
+              await page.evaluate(async()=>{for(let y=0;y<document.documentElement.scrollHeight;y+=500){window.scrollTo(0,y);await new Promise(r=>setTimeout(r,65));}});
+              await page.waitForTimeout(1200);
+              const result=await page.evaluate(()=>{
+                const stems=['serdar-armin-sargut-set-kamera-arkasi','serdar-armin-sargut-gri-takim-yelek','serdar-armin-sargut-siyah-moda-yakin-plan'];
+                return {overflow:document.documentElement.scrollWidth>window.innerWidth,images:stems.map(stem=>({stem,items:[...document.images].filter(e=>e.src.includes(stem)).map(e=>({currentSrc:e.currentSrc.split('/').pop(),naturalWidth:e.naturalWidth,complete:e.complete,renderWidth:Math.round(e.getBoundingClientRect().width)}))}))};
+              });
+              rows.push({width,errors,...result});
+              await context.close();
+            }
+            await browser.close();
+            fs.writeFileSync('serdar-srcset-audit-evidence/summary.json',JSON.stringify({scope:'isolated localhost only; candidate images and index edits uncommitted',rows},null,2));
+            console.log(JSON.stringify(rows,null,2));
+            if(rows.some(r=>r.errors.length||r.overflow||r.images.some(i=>i.items.length<2||i.items.some(x=>!x.complete||x.naturalWidth===0))))process.exitCode=1;
+          })().catch(e=>{console.error(e);process.exitCode=1;});
+          JS
+          node /tmp/serdar-srcset-test.cjs
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-srcset-local-browser-evidence
+          path: serdar-srcset-audit-evidence/
+          retention-days: 14
