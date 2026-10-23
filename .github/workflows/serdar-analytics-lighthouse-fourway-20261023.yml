@@ -31,7 +31,11 @@ jobs:
           a=Path('assets/js/analytics.js').read_text()
           b=Path('experiments/serdar-analytics-minimum-delay-5000-candidate.js').read_text()
           expected=a.replace('window.requestIdleCallback(loadAnalytics, {timeout: 2500});','window.setTimeout(function () { window.requestIdleCallback(loadAnalytics, {timeout: 2500}); }, 5000);').replace('window.setTimeout(loadAnalytics, 1500);','window.setTimeout(loadAnalytics, 5000);')
-          assert a!=b and expected==b, 'Candidate differs from authorized timing-only edit'\n          for ms in (1000,3000):\n            candidate=Path(f'experiments/serdar-analytics-minimum-delay-{ms}-candidate.js').read_text()\n            exact=a.replace('window.requestIdleCallback(loadAnalytics, {timeout: 2500});',f'window.setTimeout(function () {{ window.requestIdleCallback(loadAnalytics, {{timeout: 2500}}); }}, {ms});').replace('window.setTimeout(loadAnalytics, 1500);',f'window.setTimeout(loadAnalytics, {ms});')\n            assert candidate==exact, f'{ms}ms candidate differs from timing-only edit'
+          assert a!=b and expected==b, 'Candidate differs from authorized timing-only edit'
+          for ms in (1000,3000):
+            candidate=Path(f'experiments/serdar-analytics-minimum-delay-{ms}-candidate.js').read_text()
+            exact=a.replace('window.requestIdleCallback(loadAnalytics, {timeout: 2500});',f'window.setTimeout(function () {{ window.requestIdleCallback(loadAnalytics, {{timeout: 2500}}); }}, {ms});').replace('window.setTimeout(loadAnalytics, 1500);',f'window.setTimeout(loadAnalytics, {ms});')
+            assert candidate==exact, f'{ms}ms candidate differs from timing-only edit'
           PY
           cat > /tmp/serdar-ab-server.py <<'PY'
           import http.server,os,sys
