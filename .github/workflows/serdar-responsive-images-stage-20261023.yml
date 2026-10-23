@@ -48,7 +48,7 @@ jobs:
               assert not dest.exists(),f'Would overwrite: {dest}'
               shutil.copy2(source,dest)
             old=f'src="/assets/photos/{stem}.webp"'
-            assert content.count(old)==3,(stem,content.count(old))
+            assert content.count(old)==2,(stem,content.count(old))
             new=f'src="/assets/photos/{stem}.webp" srcset="/assets/photos/{stem}-320.webp 320w, /assets/photos/{stem}-640.webp 640w, /assets/photos/{stem}.webp {ow}w" sizes="(max-width: 640px) 45vw, 640px"'
             content=content.replace(old,new)
           Path('index.html').write_text(content)
