@@ -1,0 +1,75 @@
+name: Serdar minimum 5s analytics delay A-B (test only)
+on:
+  push:
+    branches: [test/serdar-sitejs-defer-20261023]
+    paths: ['.github/workflows/serdar-analytics-minimum-delay-ab-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ab:
+    if: github.ref == 'refs/heads/test/serdar-sitejs-defer-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          npm install --no-save --no-package-lock --ignore-scripts playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Verify immutable preview and exact candidate difference
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p analytics-minimum-delay-evidence
+          curl -fsSL -D analytics-minimum-delay-evidence/headers.txt https://ad8b9ee5.serdararminsargut.pages.dev/ -o analytics-minimum-delay-evidence/home.html
+          grep -Eiq '^x-robots-tag: noindex, nofollow, noarchive' analytics-minimum-delay-evidence/headers.txt
+          curl -fsSL https://ad8b9ee5.serdararminsargut.pages.dev/robots.txt | grep -Fxq 'Disallow: /'
+          python3 - <<'PY'
+          from pathlib import Path
+          a=Path('assets/js/analytics.js').read_text()
+          b=Path('experiments/serdar-analytics-minimum-delay-5000-candidate.js').read_text()
+          assert 'timeout: 2500' in a and 'setTimeout(loadAnalytics, 1500)' in a
+          assert a.replace('window.requestIdleCallback(loadAnalytics, {timeout: 2500});','window.setTimeout(function () { window.requestIdleCallback(loadAnalytics, {timeout: 2500}); }, 5000);').replace('setTimeout(loadAnalytics, 1500)','setTimeout(loadAnalytics, 5000)')==b
+          print('CANDIDATE_TRUE_MINIMUM_DELAY_DIFF: PASS')
+          PY
+      - name: Alternating browser instrumentation without deploying code
+        shell: bash
+        run: |
+          cat > analytics-minimum-delay.cjs <<'JS'
+          const {chromium}=require('playwright'),fs=require('fs');
+          (async()=>{
+            const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+            const rows=[],source=fs.readFileSync('assets/js/analytics.js','utf8'),candidate=fs.readFileSync('experiments/serdar-analytics-minimum-delay-5000-candidate.js','utf8');
+            for(let i=1;i<=3;i++)for(const variant of ['A','B']){
+              const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'});
+              const page=await context.newPage(),requests=[],errors=[];
+              await page.addInitScript(()=>{window.__longTasks=[];new PerformanceObserver(l=>window.__longTasks.push(...l.getEntries().map(x=>({start:x.startTime,duration:x.duration})))).observe({type:'longtask',buffered:true})});
+              await page.route('**/assets/js/analytics.js',route=>route.fulfill({status:200,contentType:'application/javascript',body:variant==='A'?source:candidate}));
+              page.on('request',r=>{if(/googletagmanager|google-analytics|mc\.yandex\.ru/.test(r.url()))requests.push({url:r.url().slice(0,180),at:Date.now()})});
+              page.on('pageerror',e=>errors.push(String(e)));
+              const started=Date.now();
+              await page.goto('https://ad8b9ee5.serdararminsargut.pages.dev/',{waitUntil:'load',timeout:45000});
+              await page.waitForTimeout(8500);
+              const perf=await page.evaluate(()=>({longTasks:window.__longTasks||[],heroLoaded:document.querySelector('.hero-media img')?.naturalWidth>0,gaScript:!!document.querySelector('script[data-sas-ga]'),ymScript:!!document.querySelector('script[data-sas-ym]')}));
+              rows.push({run:i,variant,requests:requests.map(r=>({...r,elapsedMs:r.at-started})),errors,heroLoaded:perf.heroLoaded,gaScript:perf.gaScript,ymScript:perf.ymScript,longTaskCount:perf.longTasks.length,longTaskTotalMs:perf.longTasks.reduce((s,x)=>s+x.duration,0),longTaskBlockingMs:perf.longTasks.reduce((s,x)=>s+Math.max(0,x.duration-50),0)});
+              await context.close();
+            }
+            await browser.close();
+            fs.writeFileSync('analytics-minimum-delay-evidence/summary.json',JSON.stringify({scope:'Browser-only isolated Serdar noindex preview; no production or real analytics validation',rows},null,2));
+            for(const r of rows){if(!r.heroLoaded||r.errors.length||!r.gaScript||!r.ymScript)throw Error('Functional check failed: '+JSON.stringify(r));if(r.variant==='B' && r.requests.some(x=>/googletagmanager|mc\\.yandex/.test(x.url)&&x.elapsedMs<4500))throw Error('Candidate started too early: '+JSON.stringify(r))}
+            console.log(rows.map(r=>({run:r.run,variant:r.variant,blockingMs:r.longTaskBlockingMs,requestCount:r.requests.length,ga:r.gaScript,ym:r.ymScript})));
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+          node analytics-minimum-delay.cjs
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-analytics-minimum-delay-ab-evidence
+          path: analytics-minimum-delay-evidence/
+          retention-days: 14
