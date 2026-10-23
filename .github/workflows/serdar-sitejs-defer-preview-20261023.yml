@@ -1,0 +1,102 @@
+name: Serdar sitejs defer isolated preview (test only)
+on:
+  push:
+    branches: [test/serdar-sitejs-defer-20261023]
+    paths: ['.github/workflows/serdar-preview-lcp-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preview-lcp:
+    if: github.ref == 'refs/heads/test/serdar-sitejs-defer-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - name: Prepare isolated noindex site copy
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist sitejs-defer-evidence
+          cp index.html dist/
+          cp -R assets dist/
+          cp _redirects dist/ || true
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dist/_headers')
+          p.write_text('/*\n  X-Robots-Tag: noindex, nofollow, noarchive\n  Cache-Control: no-store\n',encoding='utf-8')
+          Path('dist/robots.txt').write_text('User-agent: *\nDisallow: /\n',encoding='utf-8')
+          assert Path('dist/index.html').exists()
+          assert Path('dist/assets/css/site.css').exists()
+          assert Path('dist/assets/js/analytics.js').exists()
+          assert '<script defer src="/assets/js/site.js"></script>' in Path('dist/index.html').read_text()
+          PY
+          sha256sum index.html dist/index.html assets/css/site.css dist/assets/css/site.css | tee sitejs-defer-evidence/source-hashes.txt
+      - name: Validate Cloudflare account ID
+        id: account
+        env:
+          RAW_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="$RAW_ACCOUNT"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then raw="${BASH_REMATCH[1]}"; fi
+          [[ "$raw" =~ ^[a-fA-F0-9]{32}$ ]] || exit 1
+          echo "::add-mask::$raw"
+          echo "id=$raw" >> "$GITHUB_OUTPUT"
+      - name: Deploy Serdar isolated test branch only
+        id: deployed
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.account.outputs.id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-sitejs-defer-20261023
+      - name: Validate immutable preview anti-indexing
+        shell: bash
+        env:
+          PREVIEW: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          [[ "$PREVIEW" =~ ^https://[a-f0-9]+\.serdararminsargut\.pages\.dev/?$ ]] || { echo "Non-immutable URL rejected"; exit 1; }
+          curl -fsSL -D sitejs-defer-evidence/headers.txt "$PREVIEW/" -o sitejs-defer-evidence/home.html
+          grep -Eiq '^x-robots-tag: noindex, nofollow, noarchive' sitejs-defer-evidence/headers.txt
+          curl -fsSL "$PREVIEW/robots.txt" | grep -Fxq 'Disallow: /'
+          echo "$PREVIEW" > sitejs-defer-evidence/preview-url.txt
+      - name: Install Lighthouse
+        run: npm install --no-save --no-package-lock --ignore-scripts lighthouse@12
+      - name: Three mobile Lighthouse runs on immutable preview
+        shell: bash
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+          PREVIEW: ${{ steps.deployed.outputs.deployment-url }}
+        run: |
+          set -euo pipefail
+          for i in 1 2 3; do
+            ./node_modules/.bin/lighthouse "$PREVIEW/" --chrome-path="$CHROME_PATH" --chrome-flags="--headless --no-sandbox --disable-dev-shm-usage" --only-categories=performance --preset=perf --form-factor=mobile --output=json --output-path="sitejs-defer-evidence/mobile-$i.json" --quiet
+          done
+          python3 - <<'PY'
+          import json,statistics,pathlib
+          d=pathlib.Path('sitejs-defer-evidence')
+          rows=[]
+          for i in (1,2,3):
+            x=json.loads((d/f'mobile-{i}.json').read_text())
+            a=x['audits']
+            rows.append(dict(run=i,score=round(x['categories']['performance']['score']*100),lcp_ms=a['largest-contentful-paint']['numericValue'],fcp_ms=a['first-contentful-paint']['numericValue'],cls=a['cumulative-layout-shift']['numericValue'],tbt_ms=a['total-blocking-time']['numericValue']))
+          result=dict(scope='Serdar immutable Cloudflare noindex preview; synthetic mobile lab data',runs=rows,median_lcp_ms=statistics.median(x['lcp_ms'] for x in rows),median_score=statistics.median(x['score'] for x in rows))
+          (d/'summary.json').write_text(json.dumps(result,indent=2)+'\n')
+          print(json.dumps(result,indent=2))
+          PY
+      - name: Retain evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-sitejs-defer-evidence
+          path: sitejs-defer-evidence/
+          retention-days: 14
