@@ -1,0 +1,63 @@
+name: Serdar responsive WebP candidate build (test only)
+on:
+  push:
+    branches: [test/serdar-sitejs-defer-20261023]
+    paths: ['.github/workflows/serdar-responsive-webp-candidates-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.ref == 'refs/heads/test/serdar-sitejs-defer-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install image tooling
+        run: python3 -m pip install --user Pillow
+      - name: Generate non-cropped 320 and 640 pixel candidates and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p serdar-responsive-webp-evidence/candidates
+          python3 - <<'PY'
+          import hashlib,json
+          from pathlib import Path
+          from PIL import Image
+          src=Path('assets/photos')
+          out=Path('serdar-responsive-webp-evidence/candidates')
+          names=['serdar-armin-sargut-set-kamera-arkasi.webp','serdar-armin-sargut-gri-takim-yelek.webp','serdar-armin-sargut-siyah-moda-yakin-plan.webp']
+          rows=[]
+          for name in names:
+            p=src/name
+            assert p.is_file(),name
+            with Image.open(p) as original:
+              original.load()
+              ow,oh=original.size
+              assert ow>=640 and oh>0,(name,original.size)
+              original_sha=hashlib.sha256(p.read_bytes()).hexdigest()
+              row={'source':name,'original_width':ow,'original_height':oh,'original_bytes':p.stat().st_size,'original_sha256':original_sha,'candidates':[]}
+              for width in (320,640):
+                height=round(oh*width/ow)
+                candidate=original.resize((width,height),Image.Resampling.LANCZOS)
+                target=out/(p.stem+f'-{width}.webp')
+                candidate.save(target,'WEBP',quality=82,method=6)
+                with Image.open(target) as check:
+                  assert check.size==(width,height)
+                data=target.read_bytes()
+                row['candidates'].append({'file':target.name,'width':width,'height':height,'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest(),'savings_pct':round(100*(1-len(data)/p.stat().st_size),1)})
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==original_sha,'Source unexpectedly changed'
+              rows.append(row)
+          (out.parent/'summary.json').write_text(json.dumps({'scope':'Serdar isolated image candidates only; no HTML, source or production changes','images':rows},indent=2)+'\n')
+          print(json.dumps(rows,indent=2))
+          PY
+          git diff --exit-code
+      - name: Preserve candidate WebPs and hashes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-responsive-webp-candidates-evidence
+          path: serdar-responsive-webp-evidence/
+          retention-days: 14
