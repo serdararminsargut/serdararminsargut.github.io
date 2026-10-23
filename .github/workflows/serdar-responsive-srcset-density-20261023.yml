@@ -2,7 +2,7 @@ name: Serdar responsive srcset high density audit (test only)
 on:
   push:
     branches: [test/serdar-sitejs-defer-20261023]
-    paths: ['.github/workflows/serdar-responsive-srcset-audit-20261023.yml']
+    paths: ['.github/workflows/serdar-responsive-srcset-density-20261023.yml']
   workflow_dispatch:
 permissions:
   contents: read
