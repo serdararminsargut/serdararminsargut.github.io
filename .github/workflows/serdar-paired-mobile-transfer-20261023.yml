@@ -25,6 +25,7 @@ jobs:
       - name: Install Playwright Chromium
         run: |
           npm install --no-save playwright-core
+          python3 -m pip install --user Pillow
           npx --yes playwright install chromium
       - name: Prepare baseline and candidate isolated sites
         run: |
