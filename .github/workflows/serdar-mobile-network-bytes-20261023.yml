@@ -1,0 +1,97 @@
+name: Serdar mobile initial network bytes audit (test only)
+on:
+  push:
+    branches: [test/serdar-sitejs-defer-20261023]
+    paths: ['.github/workflows/serdar-mobile-network-bytes-20261023.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    if: github.ref == 'refs/heads/test/serdar-sitejs-defer-20261023'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: browser-actions/setup-chrome@v1
+        id: chrome
+      - run: npm install --no-save --no-package-lock --ignore-scripts playwright-core
+      - name: Run isolated noindex server
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p serdar-network-bytes-evidence
+          cat > /tmp/serdar-image-server.py <<'PY'
+          import http.server
+          class Handler(http.server.SimpleHTTPRequestHandler):
+            def end_headers(self):
+              self.send_header('X-Robots-Tag','noindex, nofollow, noarchive')
+              super().end_headers()
+            def do_GET(self):
+              if self.path.split('?')[0]=='/robots.txt':
+                body=b'User-agent: *\nDisallow: /\n'
+                self.send_response(200)
+                self.send_header('Content-Type','text/plain')
+                self.send_header('Content-Length',str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+              else: super().do_GET()
+          http.server.ThreadingHTTPServer(('127.0.0.1',8765),Handler).serve_forever()
+          PY
+          python3 /tmp/serdar-image-server.py >/tmp/serdar-image-server.log 2>&1 &
+          for i in {1..30}; do if curl -fsS http://127.0.0.1:8765/ >/dev/null; then break; fi; sleep 1; done
+          curl -fsSI http://127.0.0.1:8765/ | grep -iq 'x-robots-tag: noindex'
+          curl -fsS http://127.0.0.1:8765/robots.txt | grep -Fxq 'Disallow: /'
+          sha256sum index.html assets/css/site.css assets/js/site.js > serdar-network-bytes-evidence/source-sha256.txt
+      - name: Measure initial and after-scroll transferred bytes
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        shell: bash
+        run: |
+          cat > /tmp/serdar-image-audit.cjs <<'JS'
+          const {chromium}=require(process.cwd()+'/node_modules/playwright-core');
+          const fs=require('fs');
+          (async()=>{
+            const browser=await chromium.launch({executablePath:process.env.CHROME_PATH,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+            const results=[];
+            for(const width of [360,390,430]){
+              const context=await browser.newContext({viewport:{width,height:780},deviceScaleFactor:1,isMobile:true,hasTouch:true});
+              const page=await context.newPage();
+              const cdp=await context.newCDPSession(page);
+              await cdp.send('Network.enable');
+              const requests=new Map(),errors=[];
+              cdp.on('Network.requestWillBeSent',e=>requests.set(e.requestId,{url:e.request.url,started:Date.now(),encoded:0,finished:false,type:e.type}));
+              cdp.on('Network.loadingFinished',e=>{const x=requests.get(e.requestId);if(x){x.encoded=e.encodedDataLength;x.finished=true;}});
+              page.on('pageerror',e=>errors.push(e.message));
+              await page.goto('http://127.0.0.1:8765/',{waitUntil:'load',timeout:30000});
+              await page.waitForTimeout(2500);
+              const before=new Set([...requests.entries()].filter(([id,r])=>r.finished).map(([id])=>id));
+              const initial=[...requests.entries()].filter(([id,r])=>before.has(id)).map(([id,r])=>r);
+              const initialImage=initial.filter(r=>r.url.includes('/assets/photos/'));
+              const initialBytes=initial.reduce((s,r)=>s+r.encoded,0);
+              const initialImageBytes=initialImage.reduce((s,r)=>s+r.encoded,0);
+              await page.evaluate(async()=>{for(let y=0;y<document.documentElement.scrollHeight;y+=500){window.scrollTo(0,y);await new Promise(r=>setTimeout(r,100));}});
+              await page.waitForTimeout(1800);
+              const all=[...requests.values()].filter(r=>r.finished);
+              results.push({width,initial_request_count:initial.length,initial_total_transfer_bytes:initialBytes,initial_image_transfer_bytes:initialImageBytes,initial_images:initialImage.map(r=>({file:r.url.split('/').pop(),bytes:r.encoded})).sort((a,b)=>b.bytes-a.bytes),after_scroll_total_transfer_bytes:all.reduce((s,r)=>s+r.encoded,0),after_scroll_image_transfer_bytes:all.filter(r=>r.url.includes('/assets/photos/')).reduce((s,r)=>s+r.encoded,0),errors,overflow:await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth)});
+              await context.close();
+            }
+            await browser.close();
+            fs.writeFileSync('serdar-network-bytes-evidence/summary.json',JSON.stringify({scope:'localhost mobile browser transfer audit; encodedDataLength includes response headers; excludes cross-origin tracking guarantees',results},null,2));
+            console.log(JSON.stringify(results.map(r=>({width:r.width,initial_request_count:r.initial_request_count,initial_total_transfer_bytes:r.initial_total_transfer_bytes,initial_image_transfer_bytes:r.initial_image_transfer_bytes,after_scroll_total_transfer_bytes:r.after_scroll_total_transfer_bytes,errors:r.errors,overflow:r.overflow})),null,2));
+            if(results.some(r=>r.errors.length||r.overflow))process.exitCode=1;
+          })().catch(e=>{console.error(e);process.exitCode=1;});
+          JS
+          node /tmp/serdar-image-audit.cjs
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-mobile-network-bytes-evidence
+          path: serdar-network-bytes-evidence/
+          retention-days: 14
