@@ -68,3 +68,54 @@ jobs:
           name: serdar-26-candidate-mobile-qa
           path: serdar-26-candidate/mobile-qa/
           if-no-files-found: error
+      - name: Prepare isolated noindex Cloudflare preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf preview-dist
+          mkdir -p preview-dist/assets/photos
+          cp -R serdar-26-candidate/casting-card preview-dist/casting-card
+          cp assets/portfolio-qr.png preview-dist/assets/portfolio-qr.png
+          for file in \
+            serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp \
+            serdar-armin-sargut-bej-takim-tam-boy.webp \
+            serdar-armin-sargut-gri-takim-yelek.webp \
+            serdar-armin-sargut-futbol-spor-portre.webp \
+            serdar-armin-sargut-beyaz-tisort-lifestyle.webp
+          do
+            cp "assets/photos/$file" preview-dist/assets/photos/"$file"
+          done
+          printf '/*\n  X-Robots-Tag: noindex, nofollow, noarchive\n  X-Content-Type-Options: nosniff\n' > preview-dist/_headers
+      - name: Normalize Cloudflare account id for isolated preview
+        id: cloudflare_account
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          account_id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account_id="${BASH_REMATCH[1]}"
+          fi
+          [[ "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]
+          echo "::add-mask::$account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+      - name: Deploy isolated noindex preview only
+        id: preview
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cloudflare_account.outputs.account_id }}
+          command: pages deploy preview-dist --project-name=serdararminsargut --branch=test-serdar-26-candidate
+      - name: Verify isolated preview headers and routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='${{ steps.preview.outputs.deployment-url }}'
+          test -n "$base"
+          for code in tr ar ja; do
+            curl -fsS -D /tmp/headers -o /tmp/body "$base/casting-card/$code.html"
+            grep -Eiq '^x-robots-tag:[[:space:]]*noindex, nofollow, noarchive' /tmp/headers
+            grep -Fq 'TEST PREVIEW · NOINDEX' /tmp/body
+            ! grep -Fq 'durumuallasargut' /tmp/body
+          done
+          echo "SERDAR_26_NOINDEX_PREVIEW_PASS $base"
