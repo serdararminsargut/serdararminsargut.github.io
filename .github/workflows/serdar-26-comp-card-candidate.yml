@@ -35,5 +35,16 @@ jobs:
               --print-to-pdf="$out" --no-pdf-header-footer \
               "http://127.0.0.1:8765/serdar-26-candidate/casting-card/${code}.html"
           done
+      - name: Compress PDFs for mobile delivery
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v gs
+          for input in serdar-26-candidate/pdfs/*.pdf; do
+            output="${input}.optimized"
+            gs -q -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 -dPDFSETTINGS=/ebook \
+              -dNOPAUSE -dQUIET -dBATCH -sOutputFile="$output" "$input"
+            mv "$output" "$input"
+          done
       - name: Verify all 26 rendered PDFs
         run: python3 scripts/verify_serdar_26_candidate_pdfs.py
