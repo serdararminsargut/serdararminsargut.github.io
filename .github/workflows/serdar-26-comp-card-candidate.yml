@@ -35,6 +35,8 @@ jobs:
               --print-to-pdf="$out" --no-pdf-header-footer \
               "http://127.0.0.1:8765/serdar-26-candidate/casting-card/${code}.html"
           done
+      - name: Install PDF optimizer
+        run: sudo apt-get update && sudo apt-get install -y ghostscript
       - name: Compress PDFs for mobile delivery
         shell: bash
         run: |
