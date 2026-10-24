@@ -19,6 +19,7 @@ def main() -> None:
         assert 'name="robots" content="noindex,nofollow,noarchive"' in body
         assert f'https://serdararminsargut.com/casting-card/{code}' in body
         assert "TEST PREVIEW · NOINDEX" in body
+        assert '<p class="language-disclaimer">' in body
         assert "info@serdararminsargut.com" in body
         assert "Serdar Armin Sargut" in body and "162" in body and "2014" in body
         assert ".fact>span:last-child{display:none}" in body
