@@ -24,12 +24,22 @@ def main() -> None:
                         try:
                             response = page.goto(f"http://127.0.0.1:8765/serdar-26-candidate/casting-card/{code}.html", wait_until="load", timeout=30000)
                             assert response and response.status == 200
+                            page.wait_for_function("""() => {
+                              const hero = document.querySelector('.headshot');
+                              return hero && hero.complete && hero.naturalWidth > 0
+                                && hero.getBoundingClientRect().width > 100
+                                && hero.getBoundingClientRect().height > 100;
+                            }""", timeout=15000)
+                            # Let Chromium paint decoded WebP pixels before preserving visual evidence.
+                            page.wait_for_timeout(500)
                             metrics = page.evaluate("""async () => {
                               await document.fonts.ready;
+                              const hero = document.querySelector('.headshot').getBoundingClientRect();
                               return {lang:document.documentElement.lang, dir:document.documentElement.dir || 'ltr',
                                 h1:document.querySelectorAll('h1').length, scrollWidth:document.documentElement.scrollWidth,
                                 viewport:window.innerWidth, robots:document.querySelector('meta[name=robots]')?.content || '',
                                 selector:document.querySelectorAll('.language-switch a').length,
+                                hero:{width:hero.width,height:hero.height},
                                 images:[...document.images].map(x=>({ok:x.complete && x.naturalWidth>0,src:x.currentSrc}))};
                             }""")
                             assert metrics["lang"] == code
@@ -38,6 +48,7 @@ def main() -> None:
                             assert metrics["scrollWidth"] <= metrics["viewport"] + 2, metrics
                             assert metrics["robots"] == "noindex,nofollow,noarchive"
                             assert metrics["selector"] == 26
+                            assert metrics["hero"]["width"] > 100 and metrics["hero"]["height"] > 100, metrics["hero"]
                             assert all(i["ok"] for i in metrics["images"]), metrics["images"]
                             results.append({"locale": code, "width": width, "result": "PASS"})
                             if code in {"tr", "ar", "ja"} and width == 390:
