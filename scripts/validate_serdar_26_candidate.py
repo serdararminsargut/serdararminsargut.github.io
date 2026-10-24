@@ -21,6 +21,7 @@ def main() -> None:
         assert "TEST PREVIEW · NOINDEX" in body
         assert "info@serdararminsargut.com" in body
         assert "Serdar Armin Sargut" in body and "162" in body and "2014" in body
+        assert ".fact>span:last-child{display:none}" in body
         assert "Duru" not in body and "durumuallasargut" not in body
         assert not re.search(r"(?:tel:|\+90|serdararminsargut@gmail\.com)", body, re.I)
         for asset in required_assets:
