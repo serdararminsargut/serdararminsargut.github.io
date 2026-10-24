@@ -18,6 +18,18 @@ jobs:
         run: python3 scripts/build_serdar_26_candidate.py
       - name: Verify privacy, scope, locale and asset invariants
         run: python3 scripts/validate_serdar_26_candidate.py
+      - name: Install local mobile browser test dependencies
+        run: |
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0'
+          python3 -m playwright install --with-deps chromium
+      - name: Run 390 and 430 px local mobile matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/serdar-26-mobile-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+          python3 scripts/serdar_26_candidate_mobile_qa.py
       - name: Install offline PDF verifier
         run: python3 -m pip install --disable-pip-version-check 'pypdf>=5,<7'
       - name: Render all 26 A4 PDF candidates locally
@@ -50,3 +62,9 @@ jobs:
           done
       - name: Verify all 26 rendered PDFs
         run: python3 scripts/verify_serdar_26_candidate_pdfs.py
+      - name: Keep mobile QA evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-26-candidate-mobile-qa
+          path: serdar-26-candidate/mobile-qa/
+          if-no-files-found: error
