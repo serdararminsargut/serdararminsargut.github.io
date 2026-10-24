@@ -113,9 +113,19 @@ jobs:
           base='${{ steps.preview.outputs.deployment-url }}'
           test -n "$base"
           for code in tr ar ja; do
-            curl -fsS -D /tmp/headers -o /tmp/body "$base/casting-card/$code.html"
-            grep -Eiq '^x-robots-tag:[[:space:]]*noindex, nofollow, noarchive' /tmp/headers
-            grep -Fq 'TEST PREVIEW · NOINDEX' /tmp/body
-            ! grep -Fq 'durumuallasargut' /tmp/body
+            passed=0
+            for attempt in $(seq 1 12); do
+              if curl -fsSL --connect-timeout 8 --max-time 24 \
+                -D /tmp/headers -o /tmp/body "$base/casting-card/$code.html" \
+                && grep -Eiq '^x-robots-tag:[[:space:]]*noindex, nofollow, noarchive' /tmp/headers \
+                && grep -Fq 'TEST PREVIEW · NOINDEX' /tmp/body \
+                && ! grep -Fq 'durumuallasargut' /tmp/body
+              then
+                passed=1
+                break
+              fi
+              sleep 5
+            done
+            [[ "$passed" == 1 ]]
           done
           echo "SERDAR_26_NOINDEX_PREVIEW_PASS $base"
