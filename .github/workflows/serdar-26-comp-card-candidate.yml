@@ -18,3 +18,22 @@ jobs:
         run: python3 scripts/build_serdar_26_candidate.py
       - name: Verify privacy, scope, locale and asset invariants
         run: python3 scripts/validate_serdar_26_candidate.py
+      - name: Install offline PDF verifier
+        run: python3 -m pip install --disable-pip-version-check 'pypdf>=5,<7'
+      - name: Render all 26 A4 PDF candidates locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p serdar-26-candidate/pdfs
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/serdar-26-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+          for code in tr en ru ar az de fr es kk uz ky tk it pt-br uk pl bg el sr-latn sq fa ur hi zh-hans ja ko; do
+            out="serdar-26-candidate/pdfs/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
+            google-chrome --headless --no-sandbox --disable-gpu --disable-dev-shm-usage \
+              --run-all-compositor-stages-before-draw --virtual-time-budget=2500 \
+              --print-to-pdf="$out" --no-pdf-header-footer \
+              "http://127.0.0.1:8765/serdar-26-candidate/casting-card/${code}.html"
+          done
+      - name: Verify all 26 rendered PDFs
+        run: python3 scripts/verify_serdar_26_candidate_pdfs.py
