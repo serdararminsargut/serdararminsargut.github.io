@@ -1,0 +1,20 @@
+name: Serdar 26-language Comp Card candidate
+
+on:
+  push:
+    branches: [test/serdar-26-comp-card-candidate-20261024]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-candidate-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the isolated noindex candidate
+        run: python3 scripts/build_serdar_26_candidate.py
+      - name: Verify privacy, scope, locale and asset invariants
+        run: python3 scripts/validate_serdar_26_candidate.py
