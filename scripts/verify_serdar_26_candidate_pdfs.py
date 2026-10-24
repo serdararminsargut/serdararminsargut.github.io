@@ -10,7 +10,7 @@ EXPECTED = ("tr","en","ru","ar","az","de","fr","es","kk","uz","ky","tk","it","pt
 def main() -> None:
     for code in EXPECTED:
         file = PDFS / f"Serdar-Armin-Sargut-Comp-Card-{code.upper()}.pdf"
-        assert file.is_file() and file.stat().st_size > 20_000, (code, "missing or tiny PDF")
+        assert file.is_file() and 20_000 < file.stat().st_size < 1_200_000, (code, "missing, tiny or too large for mobile delivery")
         raw = file.read_bytes()
         assert raw.startswith(b"%PDF-"), (code, "not a PDF")
         reader = PdfReader(str(file))
