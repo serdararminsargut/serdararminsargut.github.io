@@ -75,6 +75,7 @@ jobs:
           rm -rf preview-dist
           mkdir -p preview-dist/assets/photos
           cp -R serdar-26-candidate/casting-card preview-dist/casting-card
+          cp -R serdar-26-candidate/pdfs preview-dist/pdfs
           cp assets/portfolio-qr.png preview-dist/assets/portfolio-qr.png
           for file in \
             serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp \
@@ -127,5 +128,9 @@ jobs:
               sleep 5
             done
             [[ "$passed" == 1 ]]
+            pdf="/tmp/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
+            curl -fsSL --connect-timeout 8 --max-time 24 \
+              -o "$pdf" "$base/pdfs/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
+            head -c 4 "$pdf" | grep -Fq '%PDF'
           done
           echo "SERDAR_26_NOINDEX_PREVIEW_PASS $base"
