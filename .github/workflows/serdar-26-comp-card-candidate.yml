@@ -11,7 +11,7 @@ permissions:
 jobs:
   static-candidate-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - name: Build production-shaped locale sources without touching live routes
@@ -34,6 +34,17 @@ jobs:
           server_pid=$!
           trap 'kill $server_pid 2>/dev/null || true' EXIT
           python3 scripts/serdar_26_candidate_mobile_qa.py
+      - name: Run 390 and 430 px production-shaped source mobile matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8765 --bind 127.0.0.1 >/tmp/serdar-26-release-source-mobile-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+          SERDAR_26_SOURCE_DIR=serdar-26-release-sources/casting-card \
+          SERDAR_26_QA_OUT=serdar-26-release-sources/mobile-qa \
+          SERDAR_26_EXPECTED_ROBOTS=index,follow \
+          python3 scripts/serdar_26_candidate_mobile_qa.py
       - name: Install offline PDF verifier
         run: python3 -m pip install --disable-pip-version-check 'pypdf>=5,<7'
       - name: Render all 26 A4 PDF candidates locally
@@ -51,26 +62,53 @@ jobs:
               --print-to-pdf="$out" --no-pdf-header-footer \
               "http://127.0.0.1:8765/serdar-26-candidate/casting-card/${code}.html"
           done
+      - name: Render all 26 production-shaped source PDFs locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p serdar-26-release-sources/pdfs
+          python3 -m http.server 8766 --bind 127.0.0.1 >/tmp/serdar-26-release-source-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid 2>/dev/null || true' EXIT
+          for code in tr en ru ar az de fr es kk uz ky tk it pt-br uk pl bg el sr-latn sq fa ur hi zh-hans ja ko; do
+            out="serdar-26-release-sources/pdfs/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
+            google-chrome --headless --no-sandbox --disable-gpu --disable-dev-shm-usage \
+              --run-all-compositor-stages-before-draw --virtual-time-budget=2500 \
+              --print-to-pdf="$out" --no-pdf-header-footer \
+              "http://127.0.0.1:8766/serdar-26-release-sources/casting-card/${code}.html"
+          done
       - name: Install PDF optimizer
         run: sudo apt-get update && sudo apt-get install -y ghostscript
-      - name: Compress PDFs for mobile delivery
+      - name: Compress rendered PDFs for mobile delivery
         shell: bash
         run: |
           set -euo pipefail
           command -v gs
-          for input in serdar-26-candidate/pdfs/*.pdf; do
-            output="${input}.optimized"
-            gs -q -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 -dPDFSETTINGS=/ebook \
-              -dNOPAUSE -dQUIET -dBATCH -sOutputFile="$output" "$input"
-            mv "$output" "$input"
+          for root in serdar-26-candidate serdar-26-release-sources; do
+            for input in "$root"/pdfs/*.pdf; do
+              output="${input}.optimized"
+              gs -q -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 -dPDFSETTINGS=/ebook \
+                -dNOPAUSE -dQUIET -dBATCH -sOutputFile="$output" "$input"
+              mv "$output" "$input"
+            done
           done
-      - name: Verify all 26 rendered PDFs
+      - name: Verify all 26 isolated candidate PDFs
         run: python3 scripts/verify_serdar_26_candidate_pdfs.py
+      - name: Verify all 26 production-shaped source PDFs
+        run: SERDAR_26_PDF_ROOT=serdar-26-release-sources SERDAR_26_PDF_LABEL=RELEASE_SOURCE python3 scripts/verify_serdar_26_candidate_pdfs.py
       - name: Keep mobile QA evidence
         uses: actions/upload-artifact@v4
         with:
           name: serdar-26-candidate-mobile-qa
           path: serdar-26-candidate/mobile-qa/
+          if-no-files-found: error
+      - name: Keep production-shaped source QA evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-26-release-source-qa
+          path: |
+            serdar-26-release-sources/mobile-qa/
+            serdar-26-release-sources/pdfs/
           if-no-files-found: error
       - name: Prepare isolated noindex Cloudflare preview bundle
         shell: bash
