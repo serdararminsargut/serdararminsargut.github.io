@@ -8,6 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "serdar-26-candidate" / "mobile-qa"
 LOCALES = ("tr","en","ru","ar","az","de","fr","es","kk","uz","ky","tk","it","pt-br","uk","pl","bg","el","sr-latn","sq","fa","ur","hi","zh-hans","ja","ko")
 RTL = {"ar", "fa", "ur"}
+LANG_TAG = {code: code for code in LOCALES}
+LANG_TAG.update({"pt-br": "pt-BR", "sr-latn": "sr-Latn", "zh-hans": "zh-Hans"})
 WIDTHS = (390, 430)
 
 def main() -> None:
@@ -42,7 +44,7 @@ def main() -> None:
                                 hero:{width:hero.width,height:hero.height},
                                 images:[...document.images].map(x=>({ok:x.complete && x.naturalWidth>0,src:x.currentSrc}))};
                             }""")
-                            assert metrics["lang"] == code
+                            assert metrics["lang"] == LANG_TAG[code]
                             assert metrics["dir"] == ("rtl" if code in RTL else "ltr")
                             assert metrics["h1"] == 1
                             assert metrics["scrollWidth"] <= metrics["viewport"] + 2, metrics
