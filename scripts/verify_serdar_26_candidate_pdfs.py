@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
-"""Verify PDFs produced from the isolated 26-language candidate, offline."""
+"""Verify a rendered Serdar 26-locale PDF package offline.
+
+The default stays the isolated noindex candidate.  The same gate can also
+validate the production-shaped source package without copying its PDFs to a
+live route.
+"""
 from pathlib import Path
+import os
 from pypdf import PdfReader
 
 ROOT = Path(__file__).resolve().parents[1]
-PDFS = ROOT / "serdar-26-candidate" / "pdfs"
+PDF_ROOT = os.environ.get("SERDAR_26_PDF_ROOT", "serdar-26-candidate")
+PDFS = ROOT / PDF_ROOT / "pdfs"
+LABEL = os.environ.get("SERDAR_26_PDF_LABEL", "CANDIDATE")
 EXPECTED = ("tr","en","ru","ar","az","de","fr","es","kk","uz","ky","tk","it","pt-br","uk","pl","bg","el","sr-latn","sq","fa","ur","hi","zh-hans","ja","ko")
 
 def main() -> None:
@@ -17,7 +25,7 @@ def main() -> None:
         assert 1 <= len(reader.pages) <= 2, (code, len(reader.pages))
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
         assert "Serdar" in text and "162" in text and "2014" in text, (code, "required profile facts missing")
-    print("SERDAR_26_CANDIDATE_PDF_PASS 26/26")
+    print(f"SERDAR_26_{LABEL}_PDF_PASS 26/26")
 
 if __name__ == "__main__":
     main()
