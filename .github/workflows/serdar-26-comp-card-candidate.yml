@@ -14,6 +14,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+      - name: Build production-shaped locale sources without touching live routes
+        run: python3 scripts/build_serdar_26_release_sources.py
+      - name: Verify production-shaped source structure and isolation
+        run: python3 scripts/validate_serdar_26_release_sources.py
       - name: Build the isolated noindex candidate
         run: python3 scripts/build_serdar_26_candidate.py
       - name: Verify privacy, scope, locale and asset invariants
