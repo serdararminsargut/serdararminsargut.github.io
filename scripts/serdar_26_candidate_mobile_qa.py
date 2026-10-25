@@ -2,10 +2,13 @@
 """Local responsive browser gate for the isolated Serdar 26-locale candidate."""
 from pathlib import Path
 import json
+import os
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "serdar-26-candidate" / "mobile-qa"
+SOURCE = ROOT / os.environ.get("SERDAR_26_SOURCE_DIR", "serdar-26-candidate/casting-card")
+OUT = ROOT / os.environ.get("SERDAR_26_QA_OUT", "serdar-26-candidate/mobile-qa")
+EXPECTED_ROBOTS = os.environ.get("SERDAR_26_EXPECTED_ROBOTS", "noindex,nofollow,noarchive")
 LOCALES = ("tr","en","ru","ar","az","de","fr","es","kk","uz","ky","tk","it","pt-br","uk","pl","bg","el","sr-latn","sq","fa","ur","hi","zh-hans","ja","ko")
 RTL = {"ar", "fa", "ur"}
 LANG_TAG = {code: code for code in LOCALES}
@@ -24,7 +27,8 @@ def main() -> None:
                     for code in LOCALES:
                         page = context.new_page()
                         try:
-                            response = page.goto(f"http://127.0.0.1:8765/serdar-26-candidate/casting-card/{code}.html", wait_until="load", timeout=30000)
+                            relative_source = SOURCE.relative_to(ROOT).as_posix()
+                            response = page.goto(f"http://127.0.0.1:8765/{relative_source}/{code}.html", wait_until="load", timeout=30000)
                             assert response and response.status == 200
                             page.wait_for_function("""() => {
                               const hero = document.querySelector('.headshot');
@@ -48,7 +52,7 @@ def main() -> None:
                             assert metrics["dir"] == ("rtl" if code in RTL else "ltr")
                             assert metrics["h1"] == 1
                             assert metrics["scrollWidth"] <= metrics["viewport"] + 2, metrics
-                            assert metrics["robots"] == "noindex,nofollow,noarchive"
+                            assert metrics["robots"] == EXPECTED_ROBOTS
                             assert metrics["selector"] == 26
                             assert metrics["hero"]["width"] > 100 and metrics["hero"]["height"] > 100, metrics["hero"]
                             assert all(i["ok"] for i in metrics["images"]), metrics["images"]
@@ -64,7 +68,7 @@ def main() -> None:
                     context.close()
         finally:
             browser.close()
-    (OUT / "report.json").write_text(json.dumps({"project":"SERDAR_ONLY","scope":"LOCAL_TEST_ONLY","results":results,"failures":failures}, ensure_ascii=False, indent=2), encoding="utf-8")
+    (OUT / "report.json").write_text(json.dumps({"project":"SERDAR_ONLY","scope":"LOCAL_TEST_ONLY","source":str(SOURCE.relative_to(ROOT)),"results":results,"failures":failures}, ensure_ascii=False, indent=2), encoding="utf-8")
     if failures:
         raise SystemExit("SERDAR_26_MOBILE_QA_FAIL\n" + "\n".join(failures))
     print(f"SERDAR_26_MOBILE_QA_PASS {len(results)}/{len(LOCALES)*len(WIDTHS)}")
