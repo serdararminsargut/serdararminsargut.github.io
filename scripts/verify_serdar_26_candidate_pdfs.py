@@ -7,6 +7,7 @@ live route.
 """
 from pathlib import Path
 import os
+import re
 from pypdf import PdfReader
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +27,7 @@ def main() -> None:
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
         assert "Serdar" in text and "162" in text, (code, "required profile facts missing")
         assert "2014" not in text, (code, "birth year must not be exposed")
+        assert not re.search(r"(?:tel:|\\+90|(?:^|[^\\d])(?:5\\d{2}|2\\d{2})[\\s().-]*\\d{3}[\\s().-]*\\d{2}[\\s().-]*\\d{2}|serdararminsargut@gmail\\.com|birthDate)", text, re.I), (code, "forbidden child-safety data")
     print(f"SERDAR_26_{LABEL}_PDF_PASS 26/26")
 
 if __name__ == "__main__":

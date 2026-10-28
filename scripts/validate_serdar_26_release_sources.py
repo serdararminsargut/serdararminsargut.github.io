@@ -33,7 +33,7 @@ def main() -> None:
             assert f'hreflang="{LANG_TAG[other]}" href="https://serdararminsargut.com/casting-card/{other}"' in body
         assert 'hreflang="x-default" href="https://serdararminsargut.com/casting-card/tr"' in body
         assert "durumuallasargut" not in body and "Duru" not in body
-        assert not re.search(r"(?:tel:|\+90|gmail\.com)", body, re.I)
+        assert not re.search(r"(?:tel:|\\+90|(?:^|[^\\d])(?:5\\d{2}|2\\d{2})[\\s().-]*\\d{3}[\\s().-]*\\d{2}[\\s().-]*\\d{2}|serdararminsargut@gmail\\.com|birthDate)", body, re.I), (code, "forbidden child-safety data")
     print("SERDAR_26_RELEASE_SOURCE_STATIC_PASS 26/26")
 
 

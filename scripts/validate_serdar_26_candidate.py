@@ -28,7 +28,7 @@ def main() -> None:
         assert "2014" not in body, (code, "birth year must not be exposed")
         assert ".fact>span:last-child{display:none}" in body
         assert "Duru" not in body and "durumuallasargut" not in body
-        assert not re.search(r"(?:tel:|\+90|serdararminsargut@gmail\.com)", body, re.I)
+        assert not re.search(r"(?:tel:|\\+90|(?:^|[^\\d])(?:5\\d{2}|2\\d{2})[\\s().-]*\\d{3}[\\s().-]*\\d{2}[\\s().-]*\\d{2}|serdararminsargut@gmail\\.com|birthDate)", body, re.I), (code, "forbidden child-safety data")
         for asset in required_assets:
             assert asset in body, (code, asset)
         for target in EXPECTED:
