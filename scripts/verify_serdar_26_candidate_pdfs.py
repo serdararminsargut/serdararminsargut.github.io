@@ -24,7 +24,8 @@ def main() -> None:
         reader = PdfReader(str(file))
         assert 1 <= len(reader.pages) <= 2, (code, len(reader.pages))
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
-        assert "Serdar" in text and "162" in text and "2014" in text, (code, "required profile facts missing")
+        assert "Serdar" in text and "162" in text, (code, "required profile facts missing")
+        assert "2014" not in text, (code, "birth year must not be exposed")
     print(f"SERDAR_26_{LABEL}_PDF_PASS 26/26")
 
 if __name__ == "__main__":

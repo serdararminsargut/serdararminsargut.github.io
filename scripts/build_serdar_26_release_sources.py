@@ -88,8 +88,9 @@ def generic_nav(code: str, portfolio: str) -> tuple[str, str, str, str, str]:
 
 def page(code: str, data: tuple[str, ...], stylesheet: str) -> str:
     label, direction, role, intro, _notice, facts, values, words = data
-    fact_labels, fact_values, words = split(facts), split(values), split(words)
-    assert len(fact_labels) == len(fact_values) == 7 and len(words) == 10
+    # Do not expose a child's birth date/year in HTML or the rendered PDF.
+    fact_labels, fact_values, words = split(facts)[1:], split(values)[1:], split(words)
+    assert len(fact_labels) == len(fact_values) == 6 and len(words) == 10
     tag = LANG_TAG[code]
     rtl = ' dir="rtl"' if direction == "rtl" else ""
     nav_portfolio, nav_showreel, nav_blog, nav_contact, nav_pdf = generic_nav(code, words[1])

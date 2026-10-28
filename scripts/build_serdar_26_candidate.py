@@ -103,8 +103,9 @@ def page(code: str, data: tuple[str, ...]) -> str:
     label, direction, role, intro, notice, facts, values, words = data
     language_note = LANGUAGE_NOTE[code]
     language_tag = LANG_TAG[code]
-    fact_labels, fact_values, words = split(facts), split(values), split(words)
-    assert len(fact_labels) == len(fact_values) == 7 and len(words) == 10
+    # Do not expose a child's birth date/year in HTML or the rendered PDF.
+    fact_labels, fact_values, words = split(facts)[1:], split(values)[1:], split(words)
+    assert len(fact_labels) == len(fact_values) == 6 and len(words) == 10
     lang_links = "".join(
         '<a{} href="./{}.html">{}</a>'.format(
             ' class="active" aria-current="page"' if other == code else "",

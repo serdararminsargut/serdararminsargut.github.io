@@ -20,6 +20,7 @@ def main() -> None:
         assert f'<html lang="{tag}"' in body
         assert (f'<html lang="{tag}" dir="rtl"' in body) == (code in RTL)
         assert 'name="robots" content="index,follow"' in body
+        assert "2014" not in body, (code, "birth year must not be exposed")
         assert f'<link rel="canonical" href="https://serdararminsargut.com/casting-card/{code}">' in body
         assert LANGUAGE_NOTE[code] in body
         assert EXTRAS[code][0] in body and EXTRAS[code][1] in body

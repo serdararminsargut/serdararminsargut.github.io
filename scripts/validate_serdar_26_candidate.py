@@ -24,7 +24,8 @@ def main() -> None:
         assert '<p class="language-disclaimer">' in body
         assert f'href="../pdfs/Serdar-Armin-Sargut-Comp-Card-{code.upper()}.pdf" download' in body
         assert "info@serdararminsargut.com" in body
-        assert "Serdar Armin Sargut" in body and "162" in body and "2014" in body
+        assert "Serdar Armin Sargut" in body and "162" in body
+        assert "2014" not in body, (code, "birth year must not be exposed")
         assert ".fact>span:last-child{display:none}" in body
         assert "Duru" not in body and "durumuallasargut" not in body
         assert not re.search(r"(?:tel:|\+90|serdararminsargut@gmail\.com)", body, re.I)
