@@ -96,6 +96,107 @@ jobs:
         run: python3 scripts/verify_serdar_26_candidate_pdfs.py
       - name: Verify all 26 production-shaped source PDFs
         run: SERDAR_26_PDF_ROOT=serdar-26-release-sources SERDAR_26_PDF_LABEL=RELEASE_SOURCE python3 scripts/verify_serdar_26_candidate_pdfs.py
+      - name: Build and verify 26-locale SHA-256 evidence package
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd serdar-26-release-sources
+            mkdir -p evidence
+            {
+              find casting-card -maxdepth 1 -type f -name '*.html' -print0
+              find pdfs -maxdepth 1 -type f -name '*.pdf' -print0
+            } | sort -z | xargs -0 sha256sum > evidence/SHA256SUMS
+            test "$(wc -l < evidence/SHA256SUMS)" -eq 52
+            sha256sum -c evidence/SHA256SUMS
+            tar -czf evidence/serdar-26-release-source-package.tar.gz \
+              casting-card pdfs evidence/SHA256SUMS
+            gzip -t evidence/serdar-26-release-source-package.tar.gz
+            test "$(tar -tzf evidence/serdar-26-release-source-package.tar.gz | grep -Ec '^(casting-card/.*\\.html|pdfs/.*\\.pdf|evidence/SHA256SUMS)
+        with:
+          name: serdar-26-candidate-mobile-qa
+          path: serdar-26-candidate/mobile-qa/
+          if-no-files-found: error
+      - name: Keep production-shaped source QA evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-26-release-source-qa
+          path: |
+            serdar-26-release-sources/mobile-qa/
+            serdar-26-release-sources/pdfs/
+            serdar-26-release-sources/evidence/
+          if-no-files-found: error
+      - name: Prepare isolated noindex Cloudflare preview bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf preview-dist
+          mkdir -p preview-dist/assets/photos
+          cp -R serdar-26-candidate/casting-card preview-dist/casting-card
+          cp -R serdar-26-candidate/pdfs preview-dist/pdfs
+          cp assets/portfolio-qr.png preview-dist/assets/portfolio-qr.png
+          for file in \
+            serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp \
+            serdar-armin-sargut-bej-takim-tam-boy.webp \
+            serdar-armin-sargut-gri-takim-yelek.webp \
+            serdar-armin-sargut-futbol-spor-portre.webp \
+            serdar-armin-sargut-beyaz-tisort-lifestyle.webp
+          do
+            cp "assets/photos/$file" preview-dist/assets/photos/"$file"
+          done
+          printf '/*\n  X-Robots-Tag: noindex, nofollow, noarchive\n  X-Content-Type-Options: nosniff\n' > preview-dist/_headers
+      - name: Normalize Cloudflare account id for isolated preview
+        id: cloudflare_account
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          account_id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account_id="${BASH_REMATCH[1]}"
+          fi
+          [[ "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]
+          echo "::add-mask::$account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+      - name: Deploy isolated noindex preview only
+        id: preview
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cloudflare_account.outputs.account_id }}
+          command: pages deploy preview-dist --project-name=serdararminsargut --branch=test-serdar-26-candidate
+      - name: Verify isolated preview headers and routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='${{ steps.preview.outputs.deployment-url }}'
+          test -n "$base"
+          for code in tr en ru ar az de fr es kk uz ky tk it pt-br uk pl bg el sr-latn sq fa ur hi zh-hans ja ko; do
+            passed=0
+            for attempt in $(seq 1 12); do
+              if curl -fsSL --connect-timeout 8 --max-time 24 \
+                -D /tmp/headers -o /tmp/body "$base/casting-card/$code.html" \
+                && grep -Eiq '^x-robots-tag:[[:space:]]*noindex, nofollow, noarchive' /tmp/headers \
+                && grep -Fq 'TEST PREVIEW · NOINDEX' /tmp/body \
+                && ! grep -Fq 'durumuallasargut' /tmp/body
+              then
+                passed=1
+                break
+              fi
+              sleep 5
+            done
+            [[ "$passed" == 1 ]]
+            pdf="/tmp/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
+            curl -fsSL --connect-timeout 8 --max-time 24 \
+              -D /tmp/pdf-headers -o "$pdf" "$base/pdfs/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
+            grep -Eiq '^content-type:[[:space:]]*application/pdf([;[:space:]]|$)' /tmp/pdf-headers
+            head -c 4 "$pdf" | grep -Fq '%PDF'
+          done
+          echo "SERDAR_26_NOINDEX_PREVIEW_PASS $base"
+)" -eq 53
+            sha256sum evidence/serdar-26-release-source-package.tar.gz > evidence/ARCHIVE-SHA256SUM
+            sha256sum -c evidence/ARCHIVE-SHA256SUM
+          )
       - name: Keep mobile QA evidence
         uses: actions/upload-artifact@v4
         with:
@@ -109,6 +210,7 @@ jobs:
           path: |
             serdar-26-release-sources/mobile-qa/
             serdar-26-release-sources/pdfs/
+            serdar-26-release-sources/evidence/
           if-no-files-found: error
       - name: Prepare isolated noindex Cloudflare preview bundle
         shell: bash
