@@ -109,7 +109,7 @@ jobs:
             } | sort -z | xargs -0 sha256sum > evidence/SHA256SUMS
             test "$(wc -l < evidence/SHA256SUMS)" -eq 52
             sha256sum -c evidence/SHA256SUMS
-            tar -czf evidence/serdar-26-release-source-package.tar.gz \
+            tar --owner=0 --group=0 --numeric-owner -czf evidence/serdar-26-release-source-package.tar.gz \
               casting-card pdfs evidence/SHA256SUMS
             gzip -t evidence/serdar-26-release-source-package.tar.gz
             member_count=$(tar -tzf evidence/serdar-26-release-source-package.tar.gz | grep -E '^(casting-card/.*[.]html|pdfs/.*[.]pdf|evidence/SHA256SUMS)$' | wc -l)
@@ -128,6 +128,7 @@ jobs:
         with:
           name: serdar-26-release-source-qa
           path: |
+            serdar-26-release-sources/casting-card/
             serdar-26-release-sources/mobile-qa/
             serdar-26-release-sources/pdfs/
             serdar-26-release-sources/evidence/
