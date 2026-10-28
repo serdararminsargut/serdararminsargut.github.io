@@ -155,7 +155,7 @@ jobs:
           set -euo pipefail
           base='${{ steps.preview.outputs.deployment-url }}'
           test -n "$base"
-          for code in tr ar ja; do
+          for code in tr en ru ar az de fr es kk uz ky tk it pt-br uk pl bg el sr-latn sq fa ur hi zh-hans ja ko; do
             passed=0
             for attempt in $(seq 1 12); do
               if curl -fsSL --connect-timeout 8 --max-time 24 \
@@ -172,7 +172,8 @@ jobs:
             [[ "$passed" == 1 ]]
             pdf="/tmp/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
             curl -fsSL --connect-timeout 8 --max-time 24 \
-              -o "$pdf" "$base/pdfs/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
+              -D /tmp/pdf-headers -o "$pdf" "$base/pdfs/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
+            grep -Eiq '^content-type:[[:space:]]*application/pdf([;[:space:]]|$)' /tmp/pdf-headers
             head -c 4 "$pdf" | grep -Fq '%PDF'
           done
           echo "SERDAR_26_NOINDEX_PREVIEW_PASS $base"
