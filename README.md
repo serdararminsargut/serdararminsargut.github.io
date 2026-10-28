@@ -6,7 +6,7 @@
 
 https://serdararminsargut.com/
 
-https://serdararminsargut.com adresi güncel ve canonical ana sitedir. Bu GitHub Pages deposu yalnızca ikincil ayna ve erişim yedeği olarak tutulur. Arama motorları için `noindex,follow` ve .com canonical adresleri bilinçli olarak kullanılır.
+https://serdararminsargut.com adresi güncel ve canonical ana sitedir. Bu GitHub Pages deposu ikincil bir portföy aynasıdır. Depodaki ana sayfa .com adresini canonical olarak belirtir; canlı ayna ve indeksleme durumu ayrıca doğrulanmalıdır.
 
 ## V14.0 bölgesel sayfalar
 
@@ -26,6 +26,12 @@ https://serdararminsargut.com adresi güncel ve canonical ana sitedir. Bu GitHub
 - YouTube: https://www.youtube.com/channel/UC1zT5xjVgAESaZ-Ci2n00qg
 - LinkedIn: https://tr.linkedin.com/in/serdar-armin-sargut-670a19429
 - Pinterest: https://www.pinterest.com/serdararminsargut/
+- WordPress: https://serdararminsargut.wordpress.com/
+- Blogger: https://serdararminsargutportfolio.blogspot.com/
+
+## Profesyonel iletişim
+
+Casting ve iş birliği talepleri ebeveyn yönetimindeki Sargut Portfolio Team aracılığıyla yürütülür: [info@serdararminsargut.com](mailto:info@serdararminsargut.com).
 
 ## Ayna politikası
 
@@ -35,6 +41,6 @@ https://serdararminsargut.com adresi güncel ve canonical ana sitedir. Bu GitHub
 - `robots.txt`, arama/getirme botları ile eğitim amaçlı botları ayırır.
 - `sitemap.xml`, `llms.txt`, `llms-full.txt` ve `ai.txt` canonical kaynağı açıkça gösterir.
 
-Son V14.0 ayna güncellemesi: 31 Ağustos 2026.
+Önceki sürüm notu: V14.0, 31 Ağustos 2026. Bu tarih mevcut canlı aynanın güncelliğini doğrulamaz.
 
 > Bu hesap ve depo ebeveyn gözetiminde yönetilmektedir.
