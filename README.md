@@ -36,10 +36,9 @@ Casting ve iş birliği talepleri ebeveyn yönetimindeki Sargut Portfolio Team a
 ## Ayna politikası
 
 - `.nojekyll`, statik dosyaların GitHub Pages tarafından doğrudan yayımlanmasını sağlar.
-- Kök portföy sayfası canonical Cloudflare içeriğini yansıtır; görseller ve bölgesel bağlantılar ana siteye gider.
-- `404.html`, yalnızca doğrulanmış canonical yolları ana .com sitesine yönlendirir.
-- `robots.txt`, arama/getirme botları ile eğitim amaçlı botları ayırır.
-- `sitemap.xml`, `llms.txt`, `llms-full.txt` ve `ai.txt` canonical kaynağı açıkça gösterir.
+- Depodaki ana sayfa, resmî .com adresini canonical olarak belirtir.
+- Depodaki `robots.txt`, genel tarayıcılara ve listelenen arama botlarına erişime izin verir; sitemap adresi resmî .com alan adına işaret eder.
+- Canlı aynanın içeriği, yönlendirmeleri ve indeksleme davranışı ayrıca doğrulanmalıdır.
 
 Önceki sürüm notu: V14.0, 31 Ağustos 2026. Bu tarih mevcut canlı aynanın güncelliğini doğrulamaz.
 
