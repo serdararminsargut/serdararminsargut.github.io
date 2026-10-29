@@ -1,0 +1,55 @@
+name: Isolated HugoBlox toolchain export (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/hugoblox-content-20261029
+    paths:
+      - .github/workflows/hugoblox-portable-toolchain.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export-toolchain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.162.0'
+          extended: true
+      - name: Vendor public HugoBlox module, install generic frontend tooling
+        working-directory: experiments/hugoblox-20261029
+        run: |
+          hugo mod vendor
+          npm install --no-audit --no-fund
+          test -d _vendor || test -d vendor
+          test -d node_modules
+      - name: Bundle only binaries and open-source dependencies
+        run: |
+          mkdir -p /tmp/hb-tools/bin /tmp/hb-tools/project
+          cp "$(command -v hugo)" /tmp/hb-tools/bin/hugo
+          cp -a experiments/hugoblox-20261029/node_modules /tmp/hb-tools/project/
+          if [ -d experiments/hugoblox-20261029/_vendor ]; then
+            cp -a experiments/hugoblox-20261029/_vendor /tmp/hb-tools/project/
+          else
+            cp -a experiments/hugoblox-20261029/vendor /tmp/hb-tools/project/
+          fi
+          tar -C /tmp/hb-tools -czf /tmp/hugoblox-portable-toolchain.tar.gz .
+          sha256sum /tmp/hugoblox-portable-toolchain.tar.gz
+          ls -lh /tmp/hugoblox-portable-toolchain.tar.gz
+      - name: Archive tools, not portfolio or user content (NO DEPLOY)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hugoblox-public-toolchain-only
+          path: /tmp/hugoblox-portable-toolchain.tar.gz
+          retention-days: 1
+          if-no-files-found: error
