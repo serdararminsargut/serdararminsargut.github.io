@@ -38,6 +38,28 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: HugoBlox build and noindex test
         run: npm run build:test
+      - name: Chrome over local HTTP viewport and JavaScript QA (NO DEPLOY)
+        run: |
+          CHROME_BIN="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          test -n "$CHROME_BIN" || { echo "Chrome not installed on runner"; exit 1; }
+          echo "CHROME_BIN=$CHROME_BIN" >> "$GITHUB_ENV"
+          npm install --no-save --no-audit --no-fund playwright-core
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory public >/tmp/hugoblox-http.log 2>&1 &
+          S_PID=$!
+          trap 'kill "$S_PID" 2>/dev/null || true' EXIT
+          for i in $(seq 1 12); do
+            if curl -fsS http://127.0.0.1:8765/ >/dev/null; then break; fi
+            sleep 1
+          done
+          node scripts/browser_http_qa.cjs
+      - name: Archive HTTP browser QA evidence (NOT DEPLOY)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hugoblox-serdar-http-browser-evidence
+          path: experiments/hugoblox-20261029/qa_artifacts/
+          if-no-files-found: warn
+          retention-days: 7
       - name: Archive isolated test output (NOT DEPLOY)
         uses: actions/upload-artifact@v4
         with:
