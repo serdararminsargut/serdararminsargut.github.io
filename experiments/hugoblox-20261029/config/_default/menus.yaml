@@ -1,0 +1,7 @@
+main:
+  - name: "İçerik Rehberleri"
+    url: "/post/"
+    weight: 10
+  - name: "Resmî Portföy"
+    url: "https://serdararminsargut.com/"
+    weight: 20
