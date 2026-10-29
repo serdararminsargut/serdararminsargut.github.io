@@ -21,4 +21,32 @@ Katalog çekimiyle yaşam tarzı reklam görseli farklı hedeflere hizmet eder. 
 
 Çocukların beden ve ayakkabı ölçüleri değişebilir. Eski ölçüler kalıcı sayfalarda kesin veri olarak sunulmamalı; güncel bilgiler yalnızca veli kanalı üzerinden doğrulanmalıdır.
 
+## Katalog, ürün sayfası ve reklam görselleri aynı şey değildir
+
+Bir e-ticaret ürün sayfasında fotoğrafın temel görevi kıyafetin kesimini, boyunu ve kullanım biçimini anlaşılır göstermektir. Bu nedenle ürün sayfasına uygun bir seçki hazırlanırken tam boy, önden görünüm ve gerekli durumlarda yan veya detay kadrajının birbirini tamamlayıp tamamlamadığına bakılır. Katalog görselleri koleksiyonun bütünlüğünü göstermeye, reklam görselleri ise belirli bir duygu veya kullanım sahnesi oluşturmaya daha çok odaklanabilir. Bu üç alanı tek bir başlık altında sunmak, fotoğrafların amacını belirsizleştirir.
+
+Çocuk model portföyünde fotoğrafları çekim amacına göre ayırmak, markanın ihtiyacına en yakın örneği daha hızlı bulmasına yardımcı olur. Farklı pozların gerçekten farklı bir bilgi verip vermediği sorulmalıdır. Aynı açıdan çekilmiş on kare yerine, iyi seçilmiş birkaç farklı kadraj daha işlevsel olabilir.
+
+## Portföyü inceleyen ekip için beş kontrol noktası
+
+- **Ürün okunabilirliği:** Kıyafetin ana formu ve önemli ayrıntıları kadrajda görülebiliyor mu?
+- **Fotoğraf çeşitliliği:** Tam boy, orta plan ve gerekli detaylar birbirini tekrarlamadan sunuluyor mu?
+- **Görsel tutarlılık:** Renkler, oranlar ve kırpma biçimleri ürün hakkında yanlış izlenim oluşturuyor mu?
+- **Mobil erişim:** Galeri telefonda kolay açılıyor, metinler ve bağlantılar rahat kullanılabiliyor mu?
+- **İş kanıtı:** Marka, çekim türü veya rol belirtiliyorsa doğrulanmış bir kaynak mevcut mu?
+
+Bu liste çekim için zorunlu bir standart değil, portföyü daha anlaşılır düzenlemek amacıyla kullanılabilecek bir değerlendirme çerçevesidir.
+
+## Dosya adları ve erişilebilirlik
+
+Görseller, rastgele dosya numaraları yerine içeriği tanımlayan anlamlı adlarla düzenlenebilir. Alternatif metinler de fotoğrafın gerçekten gösterdiği sahneyi anlatmalıdır. Aynı anahtar kelimeyi bütün görsellere tekrarlamak, gerçek bir görsel açıklaması sağlamaz. Yüksek çözünürlüklü dosyalar saklanırken, internet sayfasında daha hafif ve mobil uyumlu sürümlere yer verilebilir.
+
+## Sık sorulan sorular
+
+**Portföyde kaç fotoğraf olmalı?** Evrensel bir sayı yoktur. Her fotoğraf farklı bir çekim türünü veya ifadeyi gösteriyorsa seçkiye katkı sağlar; birbirini tekrar eden karelerin sayısı azaltılabilir.
+
+**Güncel ölçüler herkese açık sayfada yayımlanmalı mı?** Hayır. Çocuklarda ölçüler zamanla değişebildiği için güncellik doğrulaması ve paylaşım izni veli üzerinden yürütülmelidir.
+
+**Model portföyü ile casting kartı aynı dosya mıdır?** Tam olarak değil. Birincisi çekim çeşitliliğini gösterebilir; ikincisi oyunculuk değerlendirmesi için daha kısa ve hedefe yönelik bir sunum olabilir.
+
 Doğrulanmış çalışma örnekleri ve profesyonel iletişim için [resmî portföye](https://serdararminsargut.com/) başvurulmalıdır.
