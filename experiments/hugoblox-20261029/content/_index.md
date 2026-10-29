@@ -1,37 +1,34 @@
 ---
-title: "Serdar Armin Sargut — İçerik Denemesi"
+title: "Çocuk Giyim Çekimleri ve Casting Rehberi | Serdar Armin Sargut"
 type: landing
 draft: true
-description: "Bu test alanı çocuk giyim çekimleri, ürün odaklı portföy düzeni ve casting dosyalarını açıklayan özgün içeriklerden oluşur."
+description: "E-ticaret çekimlerinden spor giyim kataloglarına, casting dosyalarından ürün fotoğrafı seçimine uzanan bilgilendirici bir içerik denemesi."
 sections:
-  - block: hero
-    content:
-      title: "Çocuk giyim, katalog ve casting sunumu"
-      text: "Bu test alanı çocuk giyim çekimleri, ürün odaklı portföy düzeni ve casting dosyalarını açıklayan özgün içeriklerden oluşur."
-      primary_action:
-        text: "Resmî portföye git"
-        url: "https://serdararminsargut.com/"
-    design:
-      spacing:
-        padding: ['5rem', 0, '4rem', 0]
-  - block: features
-    content:
-      title: "Konu rehberleri"
-      items:
-        - name: "Çocuk giyim e-ticaret çekimlerinde portföy seçimi"
-          description: "Ürün odaklı kadraj, galeri çeşitliliği ve portföyde aranabilecek temel özellikler."
-        - name: "Spor giyim ve ayakkabı kataloglarında fotoğraf seçimi"
-          description: "Hareketli çekimler, tam boy kadraj ve ürün görünürlüğünün dengesi."
-        - name: "Çocuk oyuncu casting sunum dosyası"
-          description: "Seçilmiş fotoğraf, doğrulanmış proje ve veli yönetimli iletişim düzeni."
   - block: markdown
     content:
-      title: "İçerik rehberleri"
       text: |
-        - [Çocuk giyim e-ticaret portföyü](/post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/)
-        - [Spor giyim ve ayakkabı katalogları](/post/spor-giyim-ayakkabi-katalog-fotograflari/)
-        - [Çocuk oyuncu casting dosyası](/post/cocuk-oyuncu-casting-sunum-dosyasi/)
+        # Çocuk giyim çekimleri ve casting sunumu
 
+        E-ticaret çekimlerinden spor giyim kataloglarına, casting dosyalarından ürün fotoğrafı seçimine uzanan bilgilendirici bir içerik denemesi.
+
+        ## İçerik rehberleri
+
+        ### [Çocuk giyim e-ticaret çekimlerinde portföy seçimi](/post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/)
+
+        Ürün fotoğraflarında kadraj, galeri seçimi ve çekim türleri.
+
+        ### [Spor giyim ve ayakkabı kataloglarında fotoğraf seçimi](/post/spor-giyim-ayakkabi-katalog-fotograflari/)
+
+        Hareket, tam boy fotoğraf ve ürün görünürlüğü.
+
+        ### [Çocuk oyuncu casting sunum dosyası](/post/cocuk-oyuncu-casting-sunum-dosyasi/)
+
+        Fotoğraflar, doğrulanmış çalışmalar ve veli iletişimi.
+
+        **[Resmî portföy ve iletişim](https://serdararminsargut.com/)**
+
+        Bu derleme henüz canlı bir site olarak yayımlanmamıştır. Ancak bu test dalı herkese açık bir GitHub deposundadır; taslak kaynaklar görüntülenebilir.
+    design:
+      spacing:
+        padding: ['3rem', 0, '3rem', 0]
 ---
-
-**Bu test içeriği halka açık değildir.** Güncel çalışmalar ve iletişim için [resmî portföy](https://serdararminsargut.com/) kullanılır.
