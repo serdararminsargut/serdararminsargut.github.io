@@ -1,0 +1,40 @@
+name: HugoBlox isolated build check (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/hugoblox-content-20261029
+    paths:
+      - 'experiments/hugoblox-20261029/**'
+      - '.github/workflows/hugoblox-isolated-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: experiments/hugoblox-20261029
+    steps:
+      - name: Checkout test branch
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - name: Setup Hugo Extended
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.162.0'
+          extended: true
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: HugoBlox build and noindex test
+        run: npm run build:test
