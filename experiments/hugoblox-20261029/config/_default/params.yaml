@@ -1,0 +1,40 @@
+hugoblox:
+  schema: "2.0"
+  identity:
+    name: "Serdar Armin Sargut"
+    organization: ""
+    type: person
+    tagline: "Veli yönetiminde portföy bilgi alanı — test"
+    description: "Çocuk giyim çekimleri, ürün fotoğrafları ve casting sunumu üzerine açıklayıcı içerikler."
+  theme:
+    mode: light
+    pack: "default"
+  typography:
+    pack: "system"
+  layout:
+    radius: "md"
+    spacing: "comfortable"
+    avatar_shape: circle
+  header:
+    enable: true
+    style: navbar
+    sticky: true
+    align: center
+    search: false
+    theme_toggle: false
+  footer:
+    style: minimal
+  copyright:
+    notice: "© {year} {name}"
+  content:
+    math:
+      enable: false
+    toc:
+      enable: true
+    reading_time:
+      enable: true
+  search:
+    enable: false
+  locale:
+    date_format: "2 Jan 2006"
+    time_format: "15:04"
