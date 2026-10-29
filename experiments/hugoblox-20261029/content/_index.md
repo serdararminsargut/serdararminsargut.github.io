@@ -24,6 +24,14 @@ sections:
           description: "Hareketli çekimler, tam boy kadraj ve ürün görünürlüğünün dengesi."
         - name: "Çocuk oyuncu casting sunum dosyası"
           description: "Seçilmiş fotoğraf, doğrulanmış proje ve veli yönetimli iletişim düzeni."
+  - block: markdown
+    content:
+      title: "İçerik rehberleri"
+      text: |
+        - [Çocuk giyim e-ticaret portföyü](/post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/)
+        - [Spor giyim ve ayakkabı katalogları](/post/spor-giyim-ayakkabi-katalog-fotograflari/)
+        - [Çocuk oyuncu casting dosyası](/post/cocuk-oyuncu-casting-sunum-dosyasi/)
+
 ---
 
 **Bu test içeriği halka açık değildir.** Güncel çalışmalar ve iletişim için [resmî portföy](https://serdararminsargut.com/) kullanılır.
