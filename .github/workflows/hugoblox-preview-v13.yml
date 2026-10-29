@@ -1,0 +1,95 @@
+name: HugoBlox Serdar — restricted Cloudflare PREVIEW v13 (NO PRODUCTION)
+
+on:
+  push:
+    branches:
+      - test/hugoblox-preview-v13-20261030
+    paths:
+      - '.github/workflows/hugoblox-preview-v13.yml'
+      - 'experiments/hugoblox-20261029/**'
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: serdar-hugoblox-preview-v13
+  cancel-in-progress: true
+
+jobs:
+  preview-only:
+    # Triple guard: never deploy from production or another branch.
+    if: github.ref == 'refs/heads/test/hugoblox-preview-v13-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.162.0'
+          extended: true
+      - name: Build isolated HugoBlox preview (drafts allowed, index forbidden)
+        shell: bash
+        working-directory: experiments/hugoblox-20261029
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          npm run build:test
+      - name: Fail closed on missing noindex, unexpected files, or incorrect branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "test/hugoblox-preview-v13-20261030"
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root=Path('experiments/hugoblox-20261029/public')
+          assert root.joinpath('index.html').is_file()
+          assert 'Disallow: /' in root.joinpath('robots.txt').read_text()
+          headers=root.joinpath('_headers').read_text()
+          assert 'X-Robots-Tag: noindex' in headers
+          pages=list(root.rglob('*.html'))
+          assert len(pages) >= 6, f"Expected several HugoBlox pages, found {len(pages)}"
+          for p in pages:
+              html=p.read_text()
+              assert re.search(r'<meta\\s+name=["\\\']?robots', html, re.I), p
+              assert 'noindex' in html.lower(), p
+              assert 'example.invalid' not in html, p
+          assert not root.joinpath('sitemap.xml').exists()
+          print(f'PREVIEW ONLY: verified {len(pages)} HTML files')
+          PY
+      - name: Validate required Cloudflare deploy credentials are configured
+        id: cf
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] && [ -n "$CLOUDFLARE_API_TOKEN" ]
+          raw="$CLOUDFLARE_ACCOUNT_ID"
+          account_id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account_id="${BASH_REMATCH[1]}"
+          fi
+          [[ "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]
+          echo "::add-mask::$account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+      - name: Deploy ONLY Cloudflare restricted test branch, never main
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cf.outputs.account_id }}
+          command: pages deploy experiments/hugoblox-20261029/public --project-name=serdararminsargut --branch=test/hugoblox-preview-v13-20261030
+      - name: Record preview-scope confirmation
+        run: |
+          echo 'HugoBlox Serdar PREVIEW attempted for test/hugoblox-preview-v13-20261030 only.'
+          echo 'Do not merge into main or change production settings.'
