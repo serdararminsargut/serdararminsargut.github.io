@@ -38,3 +38,10 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: HugoBlox build and noindex test
         run: npm run build:test
+      - name: Archive isolated test output (NOT DEPLOY)
+        uses: actions/upload-artifact@v4
+        with:
+          name: hugoblox-serdar-proof
+          path: experiments/hugoblox-20261029/public/
+          if-no-files-found: error
+          retention-days: 7
