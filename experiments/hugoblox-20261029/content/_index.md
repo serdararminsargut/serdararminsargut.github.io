@@ -1,5 +1,5 @@
 ---
-title: "Çocuk Giyim Çekimleri ve Casting Rehberi | Serdar Armin Sargut"
+title: "Çocuk Giyim Çekimleri ve Casting Rehberi"
 type: landing
 draft: true
 description: "E-ticaret çekimlerinden spor giyim kataloglarına, casting dosyalarından ürün fotoğrafı seçimine uzanan bilgilendirici bir içerik denemesi."
