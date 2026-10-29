@@ -37,9 +37,14 @@ def scrub_metadata(html):
     if not match:
         raise ValueError('missing head closing tag')
     html=html[:match.start()]+'<meta name="robots" content="noindex,nofollow,noarchive">\n'+html[match.start():]
+    # Disable social-share actions on unpublished previews; their targets
+    # point at the fake build origin and must never be shared.
+    html=re.sub(r'<a\b(?=[^>]*\bid\s*=\s*[\"\']?share-link-[a-z0-9_-]+)[^>]*>[\s\S]*?</a>', '', html, flags=re.I)
     head=html.split('</head>',1)[0]
     if 'example.invalid' in head.lower():
         raise ValueError('unexpected placeholder reference in head')
+    if 'example.invalid' in html.lower():
+        raise ValueError('unexpected fake preview URL anywhere in HTML')
     return html
 
 count=0
