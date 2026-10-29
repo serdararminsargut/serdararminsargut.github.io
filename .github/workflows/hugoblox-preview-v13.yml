@@ -60,7 +60,7 @@ jobs:
           assert len(pages) >= 6, f"Expected several HugoBlox pages, found {len(pages)}"
           for p in pages:
               html=p.read_text()
-              assert re.search(r'<meta\\s+name=["\\\']?robots', html, re.I), p
+              assert '<meta name="robots"' in html, p
               assert 'noindex' in html.lower(), p
               assert 'example.invalid' not in html, p
           assert not root.joinpath('sitemap.xml').exists()
