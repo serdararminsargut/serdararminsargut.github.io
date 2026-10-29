@@ -18,7 +18,7 @@ for p in files:
     head=s.lower().split('</head>',1)[0]
     assert '<html' in s.lower() and '</html' in s.lower(), f'FAIL HTML {p}'
     assert len(re.findall(r'<meta\s+name="robots"\s+content="noindex,nofollow,noarchive"', head,flags=re.I))==1, f'FAIL robots count {p}'
-    assert 'example.invalid' not in head, f'FAIL placeholder reference {p}'
+    assert 'example.invalid' not in s.lower(), f'FAIL placeholder reference {p}'
     assert not re.search(r'<link\b[^>]*\brel\s*=\s*["\']?canonical(?:["\']|\s|>)', head,re.I),f'FAIL canonical in preview {p}'
     assert not re.search(r'<meta\b[^>]*\bproperty\s*=\s*["\']?og:image(?:["\']|\s|>)', head,re.I),f'FAIL unapproved OG in preview {p}'
     assert not re.search(r'<script\b[^>]*\btype\s*=\s*["\']?application/ld\+json(?:["\']|\s|>)',head,re.I), f'FAIL placeholder JSON-LD {p}'
