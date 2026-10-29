@@ -1,16 +1,29 @@
 ---
-title: "Serdar Armin Sargut — İçerik denemesi"
+title: "Serdar Armin Sargut — İçerik Denemesi"
 type: landing
 draft: true
-description: "Çocuk giyim çekimleri, kamera önü sunumu ve portföy seçimi üzerine özgün içerikler."
+description: "Bu test alanı çocuk giyim çekimleri, ürün odaklı portföy düzeni ve casting dosyalarını açıklayan özgün içeriklerden oluşur."
+sections:
+  - block: hero
+    content:
+      title: "Çocuk giyim, katalog ve casting sunumu"
+      text: "Bu test alanı çocuk giyim çekimleri, ürün odaklı portföy düzeni ve casting dosyalarını açıklayan özgün içeriklerden oluşur."
+      primary_action:
+        text: "Resmî portföye git"
+        url: "https://serdararminsargut.com/"
+    design:
+      spacing:
+        padding: ['5rem', 0, '4rem', 0]
+  - block: features
+    content:
+      title: "Konu rehberleri"
+      items:
+        - name: "Çocuk giyim e-ticaret çekimlerinde portföy seçimi"
+          description: "Ürün odaklı kadraj, galeri çeşitliliği ve portföyde aranabilecek temel özellikler."
+        - name: "Spor giyim ve ayakkabı kataloglarında fotoğraf seçimi"
+          description: "Hareketli çekimler, tam boy kadraj ve ürün görünürlüğünün dengesi."
+        - name: "Çocuk oyuncu casting sunum dosyası"
+          description: "Seçilmiş fotoğraf, doğrulanmış proje ve veli yönetimli iletişim düzeni."
 ---
 
-# Serdar Armin Sargut — İçerik denemesi
-
-Bu alan çocuk giyim çekimlerinde portföy seçimi, spor giyim katalogları ve casting sunumuna yönelik bilgi yazılarının testidir.
-
-- [Çocuk Giyim E-Ticaret Çekimlerinde Portföy Seçimi](./post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/)
-- [Spor Giyim ve Ayakkabı Kataloglarında Fotoğraf Seçimi](./post/spor-giyim-ayakkabi-katalog-fotograflari/)
-- [Çocuk Oyuncu Casting Sunum Dosyasında Neler Bulunmalı?](./post/cocuk-oyuncu-casting-sunum-dosyasi/)
-
-[Resmî portföy](https://serdararminsargut.com/)
+**Bu test içeriği halka açık değildir.** Güncel çalışmalar ve iletişim için [resmî portföy](https://serdararminsargut.com/) kullanılır.
