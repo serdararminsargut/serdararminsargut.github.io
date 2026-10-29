@@ -1,0 +1,14 @@
+{
+  "name": "hugoblox-serdar-isolated-preview",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build:test": "hugo --buildDrafts --minify --baseURL https://example.invalid/ && python3 scripts/lock_preview.py && python3 scripts/validate_preview.py"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "4.1.12",
+    "@tailwindcss/typography": "0.5.10",
+    "tailwindcss": "4.1.12",
+    "preact": "10.27.2"
+  }
+}
