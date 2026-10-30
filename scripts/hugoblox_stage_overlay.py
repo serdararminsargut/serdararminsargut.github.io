@@ -56,7 +56,7 @@ for css in (root/'css').rglob('*.css'):
 # browsers silently reject HTTP 200 CSS because its integrity hash no longer matches.
 import base64
 import hashlib
-import html
+import html as html_parser
 sri_updates = 0
 for page in new_pages:
     html = page.read_text(encoding='utf-8')
@@ -101,7 +101,7 @@ for page in new_pages:
         assert cssfile.is_file(), f'CSS SRI POSTCHECK missing file: {cssfile}'
         algo = integrity.group(2).lower()
         expected = base64.b64encode(hashlib.new(algo, cssfile.read_bytes()).digest()).decode('ascii')
-        assert html.unescape(integrity.group(3)) == expected, f'CSS SRI POSTCHECK mismatch: {page}: {path}'
+        assert html_parser.unescape(integrity.group(3)) == expected, f'CSS SRI POSTCHECK mismatch: {page}: {path}'
         page_css_verified += 1
         sri_verified += 1
     assert page_css_verified > 0, f'CSS SRI POSTCHECK no fingerprinted CSS: {page}'
