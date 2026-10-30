@@ -27,7 +27,8 @@ for name in ('index.html', 'post', 'css', 'js', 'media'):
     shutil.copytree(source, dest) if source.is_dir() else shutil.copy2(source, dest)
 
 pattern = re.compile(r"""(?P<attr>\b(?:href|src|content)\s*=\s*)(?P<q>["'])(?P<url>/(?:post|css|js|media)/[^"']*|/)(?P=q)""", re.I)
-for page in root.rglob('*.html'):
+new_pages = [root/'index.html'] + list((root/'post').rglob('*.html'))
+for page in new_pages:
     body = page.read_text(encoding='utf-8')
     def change(m):
         url = m.group('url')
@@ -49,7 +50,7 @@ for css in (root/'css').rglob('*.css'):
 for sitemap in ('sitemap.xml','sitemap-google.xml'):
     (site/sitemap).unlink(missing_ok=True)
 
-files=list(root.rglob('*.html'))
+files=new_pages
 assert len(files)==5, 'Expected homepage, post index, and 3 posts'
 for page in files:
     body=page.read_text(encoding='utf-8')
