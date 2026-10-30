@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="tr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Serdar HugoBlox V18 mobil yerleşim QA</title>
+<style>
+  :root{font-family:system-ui,-apple-system,sans-serif;color:#162135;background:#fff}
+  body{max-width:850px;margin:0 auto;padding:18px;line-height:1.5}
+  h1{font-size:1.5rem}p{font-size:.95rem}
+  table{border-collapse:collapse;width:100%;font-size:.87rem}
+  th,td{border-bottom:1px solid #d8dfea;padding:9px 5px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+  .pass{color:#116535;font-weight:bold}.fail{color:#a52121;font-weight:bold}.review{color:#8a5600;font-weight:bold}
+  pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f5f9;padding:12px;border-radius:8px;font-size:.78rem}
+</style></head>
+<body><h1>V18 — Mobil yerleşim ve menü testi</h1>
+<p>Korumalı Preview, yalnızca salt-okunur tarayıcı testi. <strong>Bu test production onayı değildir.</strong>
+360, 390, 430 ve 1280 piksel görünümünü aynı tarayıcıda kontrol eder.</p>
+<p id="summary">Kontrol çalışıyor…</p>
+<table><thead><tr><th>Genişlik</th><th>CSS / taşma</th><th>Menü</th></tr></thead><tbody id="checks"></tbody></table>
+<h2>Teknik bulgular</h2><pre id="log">Başlıyor…</pre>
+<script>
+(async function(){
+  const summary=document.getElementById('summary'), rows=document.getElementById('checks'), log=document.getElementById('log');
+  const notes=[], widths=[360,390,430,1280], results=[];
+  function line(x){notes.push(x);log.textContent=notes.join('\n')}
+  function cell(tr,value,kind){const td=document.createElement('td');td.textContent=value;if(kind)td.className=kind;tr.appendChild(td)}
+  const url='/rehber/?qa_layout_v18=1';
+  try{
+    const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+    const html=await response.text();
+    line('Origin='+location.origin+' UTC='+new Date().toISOString());
+    line('Homepage HTTP='+response.status+' bytes='+html.length+' html='+(/<html\b/i.test(html)));
+    if(!response.ok||!/<html\b/i.test(html))throw Error('Ana sayfa geçerli HTML vermedi');
+    for(const width of widths){
+      const frame=document.createElement('iframe');
+      frame.setAttribute('aria-hidden','true');
+      frame.style.cssText='position:fixed;left:-10000px;top:0;border:0;width:'+width+'px;height:900px;visibility:hidden';
+      document.body.appendChild(frame);
+      try{
+        await new Promise((resolve,reject)=>{
+          const timeout=setTimeout(()=>reject(Error('iframe timeout')),12000);
+          frame.onload=()=>{clearTimeout(timeout);resolve()};
+          frame.onerror=()=>{clearTimeout(timeout);reject(Error('iframe load error'))};
+          frame.src=url+'&w='+width;
+        });
+        await new Promise(r=>setTimeout(r,850));
+        const doc=frame.contentDocument,win=frame.contentWindow;
+        if(!doc||!doc.body)throw Error('iframe document unavailable');
+        const style=win.getComputedStyle(doc.body);
+        const cssRules=[...doc.styleSheets].map(s=>{try{return s.cssRules.length}catch(e){return 0}}).reduce((a,b)=>a+b,0);
+        const sw=doc.documentElement.scrollWidth, cw=doc.documentElement.clientWidth;
+        const svg=[...doc.querySelectorAll('svg')].map(e=>e.getBoundingClientRect()).reduce((m,r)=>Math.max(m,r.width,r.height),0);
+        const fontOk=!/(^|,)\s*["']?Times New Roman/i.test(style.fontFamily) && /sans-serif|system-ui/i.test(style.fontFamily);
+        const overflow=Math.max(0,sw-cw);
+        const layoutOk=cssRules>=100&&fontOk&&svg<=130&&overflow<=3;
+        let nav='Not tested',navKind='review';
+        if(width<1024){
+          const toggle=doc.querySelector('#nav-toggle');
+          const label=doc.querySelector('label[for="nav-toggle"]');
+          if(toggle&&label){
+            const previous=Boolean(toggle.checked);
+            label.click();
+            await new Promise(r=>setTimeout(r,160));
+            const changed=Boolean(toggle.checked)!==previous;
+            nav=changed?'Switch changed':'Switch did not change';
+            navKind=changed?'pass':'fail';
+          }else{
+            const button=doc.querySelector('button[aria-expanded][aria-controls]');
+            if(button){
+              const previous=button.getAttribute('aria-expanded');
+              button.click();
+              await new Promise(r=>setTimeout(r,160));
+              const changed=button.getAttribute('aria-expanded')!==previous;
+              nav=changed?'Expanded changed':'Expanded unchanged';
+              navKind=changed?'pass':'review';
+            }else nav='Manuel menü testi gerekli';
+          }
+        } else nav='Desktop / manuel kontrol';
+        const tr=document.createElement('tr');
+        cell(tr,width+' px');
+        cell(tr,(layoutOk?'PASS':'FAIL')+' | rules='+cssRules+' overflow='+overflow+'px SVG='+Math.round(svg)+'px',layoutOk?'pass':'fail');
+        cell(tr,nav,navKind);
+        rows.appendChild(tr);
+        results.push({width,layoutOk,navKind});
+        line(width+'px computedFont='+style.fontFamily+' cssRules='+cssRules+' svgMax='+Math.round(svg)+' overflow='+overflow+' menu='+nav);
+      }catch(e){
+        const tr=document.createElement('tr');cell(tr,width+' px');cell(tr,'ERROR','fail');cell(tr,String(e),'fail');rows.appendChild(tr);
+        results.push({width,layoutOk:false,navKind:'fail'});
+        line(width+'px ERROR: '+String(e));
+      }finally{frame.remove()}
+    }
+    const allLayout=results.length===4&&results.every(x=>x.layoutOk);
+    const mobileNav=results.filter(x=>x.width<1024);
+    const allNav=mobileNav.every(x=>x.navKind==='pass');
+    const anyNavFail=mobileNav.some(x=>x.navKind==='fail');
+    const state=!allLayout||anyNavFail?'FAIL':allNav?'PASS':'MANUEL KONTROL';
+    summary.textContent='V18_LAYOUT_GATE='+state+' | layout='+ (allLayout?'4/4 PASS':'eksik/başarısız')+
+       ' | mobileMenu='+(allNav?'3/3 PASS':anyNavFail?'FAIL':'REVIEW');
+    summary.className=state==='PASS'?'pass':state==='FAIL'?'fail':'review';
+    line('NOT: PASS yalnızca bu ekran genişliklerinde CSS/taşma ve menü geçişi ölçümüdür; görsel yayın kabulü değildir.');
+  }catch(e){summary.textContent='V18_LAYOUT_GATE=FAIL: '+String(e);summary.className='fail';line('ERROR '+String(e))}
+})();
+</script></body></html>
