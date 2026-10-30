@@ -35,7 +35,7 @@ for page in new_pages:
         return m.group('attr') + m.group('q') + ('/rehber/' if url=='/' else '/rehber'+url) + m.group('q')
     body = pattern.sub(change, body)
     # Hugo --minify emits unquoted href=/css/... and src=/js/... attributes.
-    bare = re.compile(r'(?P<attr>\b(?:href|src|content)\s*=\s*)(?P<url>/(?:post|css|js|media)/[^\s>]+|/)(?=[\s>])', re.I)
+    bare = re.compile(r'(?P<attr>\b(?:href|src|content)\s*=\s*)(?P<url>/(?:post|css|js|media)/[^\s>]*|/)(?=[\s>])', re.I)
     def change_bare(m):
         url = m.group('url')
         return m.group('attr') + ('/rehber/' if url=='/' else '/rehber'+url)
