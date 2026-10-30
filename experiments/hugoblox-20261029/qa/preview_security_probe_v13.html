@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>HugoBlox Preview Güvenlik Tanılama v13</title>
+<style>body{font:16px/1.55 system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:1rem;color:#20242a;background:#f6f8fb}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:white;border:1px solid #ccd2dc;padding:1rem;border-radius:8px}h1{font-size:1.5rem}.note{color:#505967}</style></head>
+<body><h1>HugoBlox — canlı Preview SEO güvenlik kontrolü</h1>
+<p class="note">Yalnızca Cloudflare Access ile giriş yapılmış korumalı test ortamında çalışır. Üretim sitesine yazmaz; aynı kökendeki dosyaları okur.</p>
+<pre id="results">Kontrol sürüyor…</pre>
+<script>
+(function(){
+'use strict';
+var pages=location.hostname.indexOf('duru-')>=0 ?
+['/','/post/','/post/tiyatro-deneyiminden-kamera-onu-oyunculuguna/','/post/cocuk-oyuncu-self-tape-dosya-duzeni/','/post/genc-oyuncu-showreel-sahne-ve-ekran-secimi/'] :
+['/','/post/','/post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/','/post/spor-giyim-ayakkabi-katalog-fotograflari/','/post/cocuk-oyuncu-casting-sunum-dosyasi/'];
+var output=document.getElementById('results'),lines=[];
+function render(){output.textContent=lines.join('\n')}
+async function inspect(path){
+try {
+var response=await fetch(path+'?preview_security_probe_v13=1',{credentials:'same-origin',cache:'no-store',redirect:'follow'});
+var body=await response.text();
+var dom=new DOMParser().parseFromString(body,'text/html');
+var meta=Array.from(dom.querySelectorAll('meta[name]')).filter(function(n){return (n.getAttribute('name')||'').toLowerCase()==='robots'}).map(function(n){return n.getAttribute('content')||''});
+var header=response.headers.get('x-robots-tag')||'MISSING';
+var robotsOK=meta.some(function(m){return /noindex/i.test(m)&&/nofollow/i.test(m)});
+var headerOK=/noindex/i.test(header);
+var placeholder=/example\.invalid|example\.com/i.test((dom.head&&dom.head.innerHTML)||'');
+var canonical=Array.from(dom.querySelectorAll('link[rel]')).filter(function(n){return (n.getAttribute('rel')||'').toLowerCase()==='canonical'}).map(function(n){return n.getAttribute('href')||''});
+var pass=response.ok&&robotsOK&&headerOK&&!placeholder&&response.url.indexOf('/cdn-cgi/access')<0;
+lines.push((pass?'PASS':'FAIL')+' '+path+' — HTTP '+response.status+
+' | meta='+JSON.stringify(meta)+' | X-Robots-Tag='+header+
+' | canonical='+JSON.stringify(canonical)+' | placeholder='+(placeholder?'YES':'NO')+
+' | title='+(dom.title||'MISSING'));
+return pass;
+} catch(e){lines.push('FAIL '+path+' — '+String(e));return false;}
+}
+async function run(){
+lines=['Kaynak: '+location.origin,'Zaman (UTC): '+new Date().toISOString(),''];
+var ok=0;
+for(var i=0;i<pages.length;i++){if(await inspect(pages[i]))ok++;render()}
+try{
+var rr=await fetch('/robots.txt?preview_security_probe_v13=1',{credentials:'same-origin',cache:'no-store'});
+var txt=await rr.text();
+var robotsOK=rr.ok&&/Disallow:\s*\//i.test(txt);
+lines.push((robotsOK?'PASS':'FAIL')+' /robots.txt — HTTP '+rr.status+' | Disallow:/='+(robotsOK?'YES':'NO'));
+if(robotsOK)ok++;
+}catch(e){lines.push('FAIL /robots.txt — '+String(e))}
+lines.push('','TOPLAM: '+ok+'/'+(pages.length+1)+' PASS');
+lines.push('Nihai kabul yalnızca tüm kontroller PASS ve production izole ise verilir.');
+render();
+}
+run();
+})();
+</script></body></html>

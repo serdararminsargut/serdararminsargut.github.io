@@ -1,0 +1,22 @@
+title: "Serdar Armin Sargut | Casting ve Çekim İçerikleri"
+baseURL: "https://example.invalid/"
+defaultContentLanguage: tr
+hasCJKLanguage: false
+defaultContentLanguageInSubdir: false
+removePathAccents: true
+enableEmoji: true
+enableRobotsTXT: false
+disableAliases: true
+enableGitInfo: false
+summaryLength: 35
+build:
+  writeStats: true
+outputs:
+  home: [HTML, RSS, backlinks]
+  section: [HTML, RSS]
+markup:
+  _merge: deep
+security:
+  _merge: deep
+sitemap:
+  _merge: deep

@@ -1,0 +1,10 @@
+/* Isolated mobile navigation accessibility enhancement; no production deployment. */
+@media (max-width: 1023px) {
+  label[for="nav-toggle"] {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
