@@ -1,0 +1,47 @@
+name: Serdar single-A4 Comp Card prototype (isolated - no deploy)
+on:
+  push:
+    branches:
+      - test/serdar-compcard-onepage-20261030
+    paths:
+      - 'casting-card/tr.html'
+      - 'scripts/serdar_pdf_preview_tr_qa.py'
+      - '.github/workflows/serdar-compcard-onepage-preview.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pdf-preview:
+    if: github.ref == 'refs/heads/test/serdar-compcard-onepage-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Stage local files only - no Cloudflare
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'test/serdar-compcard-onepage-20261030'
+          mkdir dist
+          cp -R casting-card assets dist/
+          test -s dist/assets/portfolio-qr.png
+      - name: Install local PDF tools
+        run: |
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13' 'pymupdf>=1.24,<2'
+          python3 -m playwright install --with-deps chromium
+      - name: Generate unchanged four PDF pipeline, accept only Turkish prototype
+        run: |
+          set -euo pipefail
+          python3 scripts/serdar_generate_comp_cards.py dist
+          python3 scripts/serdar_pdf_preview_tr_qa.py
+      - name: Retain temporary proof for visual review - never publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: Serdar-Turkish-single-A4-PREVIEW-ONLY
+          path: |
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf
+            dist/downloads/Serdar-TR-A4-preview.png
+            dist/downloads/serdar-tr-a4-preview-evidence.json
+          retention-days: 1
+          if-no-files-found: error
