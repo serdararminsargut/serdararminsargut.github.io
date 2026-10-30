@@ -1,0 +1,121 @@
+name: Serdar A4 release candidate - isolated PDF verification (no deploy)
+
+on:
+  push:
+    branches:
+      - test/serdar-compcard-a4-release-candidate-20261030
+    paths:
+      - 'casting-card/tr.html'
+      - 'casting-card/en.html'
+      - 'casting-card/ar.html'
+      - 'casting-card/ru.html'
+      - 'scripts/serdar_validate_four_a4_release.py'
+      - '.github/workflows/serdar-compcard-a4-rc-readonly-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-pdf-acceptance:
+    if: github.ref == 'refs/heads/test/serdar-compcard-a4-release-candidate-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout approved test branch only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Confirm print-only changes and immutable production baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'test/serdar-compcard-a4-release-candidate-20261030'
+          python3 - <<'PY'
+          import subprocess
+          from pathlib import Path
+          base='bb4737ed7367b84008c860ec3f722055a56ae518'
+          marker='/* PREVIEW ONLY:'
+          for lang in ('tr','en','ar','ru'):
+              p=f'casting-card/{lang}.html'
+              original=subprocess.check_output(['git','show',f'{base}:{p}']).decode()
+              candidate=Path(p).read_text(encoding='utf-8')
+              start=candidate.index(marker)
+              end=candidate.index('</style>',start)
+              css=candidate[start:end]
+              assert css.count('@media print')==1,(lang,'print-only CSS rule missing')
+              assert 'font-size:7.1pt!important' in css,(lang,'7.1pt label missing')
+              assert '.qr-copy span,.qr-copy .ar{font-size:7pt!important' in css,(lang,'QR copy 7pt missing')
+              restored=(candidate[:start]+candidate[end:]).replace('\n\n</style>','\n</style>')
+              assert restored==original,(lang,'non-print HTML content changed')
+              print(f'PASS {lang}: only print CSS differs from frozen production baseline')
+          PY
+
+      - name: Stage static local site without Cloudflare
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp -R casting-card assets dist/
+          test -s dist/casting-card/tr.html
+          test -s dist/assets/portfolio-qr.png
+
+      - name: Install isolated PDF renderer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13' 'pymupdf>=1.24,<2'
+          python3 -m playwright install --with-deps chromium
+
+      - name: Render and verify the four actual release-candidate PDFs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/serdar_generate_comp_cards.py dist
+          python3 scripts/serdar_validate_four_a4_release.py dist
+          python3 - <<'PY'
+          from pathlib import Path
+          import fitz,json,hashlib
+          result=[]
+          out=Path('dist/downloads')
+          for lang in ('TR','EN','AR','RU'):
+              p=out/f'Serdar-Armin-Sargut-Comp-Card-{lang}.pdf'
+              doc=fitz.open(p)
+              assert len(doc)==1,(lang,'multi-page')
+              page=doc[0]
+              spans=[s for b in page.get_text('dict')['blocks'] if 'lines' in b for line in b['lines'] for s in line['spans'] if s['text'].strip()]
+              assert spans,(lang,'no text')
+              min_size=min(s['size'] for s in spans)
+              assert min_size>=6.95,(lang,'font below 7 pt',min_size)
+              assert len(page.get_images(full=True))>=6,(lang,'missing photo/QR')
+              for b in page.get_text('blocks'):
+                  if b[6]!=0: continue
+                  x0,y0,x1,y1=b[:4]
+                  assert 0<=x0<x1<=page.rect.width+1 and 0<=y0<y1<=page.rect.height+1,(lang,'text clipped',b[:4])
+              visible=page.get_text()
+              if lang=='AR':
+                  assert any('\u0600'<=c<='\u06ff' for c in visible),'Arabic letters missing'
+              if lang=='RU':
+                  assert any('\u0400'<=c<='\u04ff' for c in visible),'Cyrillic letters missing'
+              page.get_pixmap(matrix=fitz.Matrix(1.5,1.5),alpha=False).save(str(out/f'Serdar-{lang}-A4-RC.png'))
+              result.append({'lang':lang,'pages':1,'minimum_font_pt':round(min_size,2),'images':len(page.get_images(full=True)),'sha256':hashlib.sha256(p.read_bytes()).hexdigest()})
+              print('SERDAR_RC_INDEPENDENT_PASS',json.dumps(result[-1]),flush=True)
+          (out/'serdar-rc-acceptance.json').write_text(json.dumps({'testBranchOnly':True,'neverDeployed':True,'results':result},indent=2)+'\n')
+          print('SERDAR_RC_FOUR_LANGUAGES_PASS 4/4',flush=True)
+          PY
+
+      - name: Save short-lived evidence for inspection (no deployment)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Serdar-A4-RC-four-languages-NOT-LIVE
+          retention-days: 2
+          if-no-files-found: error
+          path: |
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-EN.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-AR.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-RU.pdf
+            dist/downloads/Serdar-*-A4-RC.png
+            dist/downloads/serdar-rc-acceptance.json
