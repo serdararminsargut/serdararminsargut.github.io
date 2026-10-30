@@ -8,7 +8,8 @@ raw=p.read_bytes()
 assert raw.startswith(b"%PDF-")
 doc=PdfReader(str(p))
 assert len(doc.pages)==1,f"TR onepage FAIL: {len(doc.pages)} PDF pages"
-page=fitz.open(p)[0]
+pdf_document=fitz.open(p)
+page=pdf_document[0]
 assert abs(page.rect.width-595)<3 and abs(page.rect.height-842)<3,"A4 size mismatch"
 text=page.get_text()
 for required in ["Serdar","2014","162","37"]:
