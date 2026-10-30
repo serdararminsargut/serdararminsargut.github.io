@@ -1,4 +1,5 @@
-# Preview-only Turkish correction for an untranslated upstream HugoBlox message.
-# Keep other translations inherited from the upstream module.
+# Serdar-only HugoBlox staging translations; do not modify the upstream module.
 - id: last_updated
-  translation: "Son güncelleme:"
+  translation: "Son güncelleme: "
+- id: minute_read
+  translation: "dakika okuma"

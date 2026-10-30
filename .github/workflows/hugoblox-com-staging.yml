@@ -59,6 +59,7 @@ jobs:
           set -euo pipefail
           npm install --no-audit --no-fund
           npm run build:test
+          python3 scripts/verify_turkish_ui.py public
       - name: Mount HugoBlox under /rehber/ without replacing portfolio
         run: |
           set -euo pipefail
