@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build:test": "hugo --buildDrafts --minify --baseURL https://example.invalid/ && python3 scripts/lock_preview.py && python3 scripts/validate_preview.py"
+    "build:test": "hugo --buildDrafts --minify --baseURL https://example.invalid/ && python3 scripts/preview_localize_tr.py public && python3 scripts/lock_preview.py && python3 scripts/validate_preview.py"
   },
   "dependencies": {
     "@tailwindcss/cli": "4.1.12",
