@@ -1,0 +1,4 @@
+# Preview-only Turkish correction for an untranslated upstream HugoBlox message.
+# Keep other translations inherited from the upstream module.
+- id: last_updated
+  translation: "Son güncelleme:"
