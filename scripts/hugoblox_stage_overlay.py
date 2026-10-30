@@ -80,6 +80,15 @@ for page in new_pages:
     html = re.sub(r'<link\b[^>]*>', refresh_link_integrity, html, flags=re.I)
     page.write_text(html, encoding='utf-8')
 print(f'PREVIEW CSS SRI: updated {sri_updates} link integrity values after CSS relocation')
+# Safe staging diagnostics: only print CSS link paths and SRI presence, no secrets.
+head_html = (root/'index.html').read_text(encoding='utf-8')
+for tag in re.findall(r'<link\\b[^>]*>', head_html, flags=re.I):
+    if '.css' not in tag:
+        continue
+    href = re.search(r'''\\bhref\\s*=\\s*(?:"([^"]+)"|'([^']+)'|([^\\s>]+))''', tag, flags=re.I)
+    url = next((value for value in href.groups() if value is not None), '') if href else '?'
+    print('PREVIEW CSS TAG DIAGNOSTIC: href='+url+', integrity='+str(bool(re.search(r'\\bintegrity\\s*=',tag,re.I))))
+
 
 # Fail closed: successful HTTP fetching does not prove that CSS passes browser SRI.
 # Independently verify every staged page's local CSS fingerprint against the
