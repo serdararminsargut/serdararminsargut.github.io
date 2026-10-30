@@ -13,5 +13,3 @@ mounts:
     target: layouts
   - source: assets
     target: assets
-  - source: i18n
-    target: i18n
