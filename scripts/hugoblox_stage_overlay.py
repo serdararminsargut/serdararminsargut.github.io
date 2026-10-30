@@ -50,6 +50,37 @@ for css in (root/'css').rglob('*.css'):
                 lambda m:'url('+m.group(1)+'/rehber/'+m.group(2)+'/',body)
     css.write_text(body,encoding='utf-8')
 
+
+# Recompute subresource integrity for any CSS whose URLs were rewritten above.
+# Hugo fingerprint is computed BEFORE this staging-only relocation. Without this,
+# browsers silently reject HTTP 200 CSS because its integrity hash no longer matches.
+import base64
+import hashlib
+sri_updates = 0
+for page in new_pages:
+    html = page.read_text(encoding='utf-8')
+    def refresh_link_integrity(match):
+        global sri_updates
+        tag = match.group(0)
+        href = re.search(r'''\bhref\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))''', tag, flags=re.I)
+        integrity = re.search(r'''\bintegrity\s*=\s*(["']?)(sha(?:256|384|512))-([A-Za-z0-9+/=]+)\1''', tag, flags=re.I)
+        if not href or not integrity:
+            return tag
+        url = next((v for v in href.groups() if v is not None), '')
+        path = url.split('?', 1)[0].split('#', 1)[0]
+        if not path.startswith('/rehber/css/') or not path.endswith('.css'):
+            return tag
+        filepath = site / path.lstrip('/')
+        assert filepath.is_file(), 'Missing SRI resource: '+str(filepath)
+        algorithm = integrity.group(2).lower()
+        digest = base64.b64encode(hashlib.new(algorithm, filepath.read_bytes()).digest()).decode('ascii')
+        expected = algorithm+'-'+digest
+        sri_updates += 1
+        return tag[:integrity.start()]+('integrity="'+expected+'"')+tag[integrity.end():]
+    html = re.sub(r'<link\b[^>]*>', refresh_link_integrity, html, flags=re.I)
+    page.write_text(html, encoding='utf-8')
+print(f'PREVIEW CSS SRI: updated {sri_updates} link integrity values after CSS relocation')
+
 # Critical: all Preview URLs, including original portfolio content, stay non-indexable.
 (site/'robots.txt').write_text('User-agent: *\nDisallow: /\n',encoding='utf-8')
 (site/'_headers').write_text('/*\n  X-Robots-Tag: noindex, nofollow, noarchive\n  Cache-Control: no-store\n',encoding='utf-8')
