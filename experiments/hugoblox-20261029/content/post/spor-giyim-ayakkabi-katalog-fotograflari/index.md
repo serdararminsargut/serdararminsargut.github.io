@@ -57,3 +57,7 @@ Bu tablo bir işin gerçekten yapıldığını kanıtlamaz. Portföyde kullanıl
 **Fotoğraflara marka adı eklemek SEO için gerekli mi?** Yalnızca adı geçen marka ile doğrulanmış ve paylaşımına izin verilen bir çalışma varsa eklenmelidir.
 
 Doğrulanmış çalışma örnekleri ve profesyonel iletişim için [resmî portföye](https://serdararminsargut.com/) başvurulmalıdır.
+
+## İlgili resmî portföy ve içerikler
+
+Bu yazı **spor giyim ve ayakkabı çekimlerinde kare seçimi** ile sınırlıdır. Çalışma örneklerini görmek için [spor giyim çocuk modeli portföyü](https://serdararminsargut.com/spor-giyim-cocuk-modeli/), koleksiyon sunumunun genel ilkeleri için [kidswear katalog rehberi](https://serdararminsargut.com/blog/kidswear-cocuk-model-katalog/) kullanılabilir.

@@ -50,3 +50,7 @@ Görseller, rastgele dosya numaraları yerine içeriği tanımlayan anlamlı adl
 **Model portföyü ile casting kartı aynı dosya mıdır?** Tam olarak değil. Birincisi çekim çeşitliliğini gösterebilir; ikincisi oyunculuk değerlendirmesi için daha kısa ve hedefe yönelik bir sunum olabilir.
 
 Doğrulanmış çalışma örnekleri ve profesyonel iletişim için [resmî portföye](https://serdararminsargut.com/) başvurulmalıdır.
+
+## İlgili resmî rehberler ve portföy
+
+Bu yazı, **çekim dosyasındaki fotoğraf seçimine** odaklanır. Çocuk model portföyünün genel hazırlanışı için [çocuk model portföyü rehberi](https://serdararminsargut.com/blog/cocuk-model-portfoyu/); koleksiyon ve ürün sunumunun genel çerçevesi için [kidswear katalog rehberi](https://serdararminsargut.com/blog/kidswear-cocuk-model-katalog/) incelenebilir. Doğrulanmış görsel çalışma örnekleri için [e-ticaret çocuk modeli portföyüne](https://serdararminsargut.com/e-ticaret-cocuk-modeli/) bakılabilir.
