@@ -53,3 +53,7 @@ Başvuru talimatları, genel şablondan her zaman önce gelir. Örneğin belirli
 **İletişim formu yeterli midir?** Formun çalıştığı test edilmelidir. Mesajların veliye ulaştığı doğrulanmadan form çalışıyor kabul edilmemelidir.
 
 Doğrulanmış çalışma örnekleri ve profesyonel iletişim için [resmî portföye](https://serdararminsargut.com/) başvurulmalıdır.
+
+## İlgili resmî casting kaynakları
+
+Bu yazının odağı **başvuru dosyasının içeriğini ve sırasını düzenlemek**tir. Casting sürecinin genel akışı için [İstanbul çocuk oyuncu casting rehberi](https://serdararminsargut.com/blog/istanbul-cocuk-oyuncu-casting/), güncel profesyonel profil için [Serdar'ın Türkçe casting kartı](https://serdararminsargut.com/casting-card/tr.html) incelenebilir. Başvurularda her zaman ilanın istediği format esas alınmalıdır.
