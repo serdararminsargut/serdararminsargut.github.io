@@ -34,6 +34,12 @@ for page in new_pages:
         url = m.group('url')
         return m.group('attr') + m.group('q') + ('/rehber/' if url=='/' else '/rehber'+url) + m.group('q')
     body = pattern.sub(change, body)
+    # Hugo --minify emits unquoted href=/css/... and src=/js/... attributes.
+    bare = re.compile(r'(?P<attr>\b(?:href|src|content)\s*=\s*)(?P<url>/(?:post|css|js|media)/[^\s>]+|/)(?=[\s>])', re.I)
+    def change_bare(m):
+        url = m.group('url')
+        return m.group('attr') + ('/rehber/' if url=='/' else '/rehber'+url)
+    body = bare.sub(change_bare, body)
     assert '<meta name="robots" content="noindex,nofollow,noarchive">' in body, page
     assert 'example.invalid' not in body, page
     body = body.replace('</head>', '<meta name="x-preview-purpose" content="hugo-staging-noindex"></head>',1)
@@ -56,5 +62,6 @@ for page in files:
     body=page.read_text(encoding='utf-8')
     assert '/rehber/css/' in body or '/rehber/js/' in body
     assert not re.search(r"""(?:href|src)=["']/(?:post|css|js|media)/""",body),page
+    assert not re.search(r'''(?:href|src)=/(?:post|css|js|media)/''',body),page
 assert (site/'index.html').is_file(), 'Portfolio baseline not preserved'
 print('PASS: HugoBlox mounted at /rehber/ with three articles; portfolio preserved; Preview noindex')
