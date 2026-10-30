@@ -62,6 +62,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/hugoblox_stage_overlay.py --site-root dist --hugo-root experiments/hugoblox-20261029/public
+          cp scripts/hugoblox_staging_qa_v14.html dist/__qa_integration_v14.html
+          grep -Fq 'noindex,nofollow,noarchive' dist/__qa_integration_v14.html
           sha256sum --check /tmp/serdar-stage-baseline.sha
           test -s dist/rehber/index.html
           test -s dist/rehber/post/index.html
