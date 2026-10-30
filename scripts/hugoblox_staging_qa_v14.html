@@ -1,0 +1,26 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>HugoBlox V14 Staging Kabul Kontrolü</title><style>body{font:15px/1.6 system-ui;max-width:900px;margin:2rem auto;padding:1rem}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6fa;padding:1rem;border-radius:8px}</style></head><body><h1>HugoBlox V14 — Portföy ve rehber canlı kabulü</h1><p>Yalnızca korumalı Preview'da, aynı kökenden salt-okunur HTTP/SEO kontrolü.</p><pre id="qa">Yükleniyor…</pre><script>
+(async()=>{
+const duru=location.hostname.includes('duru-mualla-sargut-site'), name=duru?'Duru':'Serdar';
+const base=duru?['/','/comp-card/tr/','/comp-card/en/','/comp-card/ko/','/comp-card/ur/','/comp-card/ja/']:['/','/blog/','/rehber/korfez-cocuk-model-portfoyu/','/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/'];
+const posts=duru?['tiyatro-deneyiminden-kamera-onu-oyunculuguna','cocuk-oyuncu-self-tape-dosya-duzeni','genc-oyuncu-showreel-sahne-ve-ekran-secimi']:['cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi','spor-giyim-ayakkabi-katalog-fotograflari','cocuk-oyuncu-casting-sunum-dosyasi'];
+const urls=[...base,'/rehber/','/rehber/post/',...posts.map(s=>'/rehber/post/'+s+'/')], out=document.getElementById('qa');
+const lines=['Origin: '+location.origin,'Site: '+name,'UTC: '+new Date().toISOString(),''];let good=0,bad=0,styles=[];
+function display(){out.textContent=lines.join('\n')}
+for(const path of urls){
+try{
+ const res=await fetch(path+'?v14qa=1',{credentials:'same-origin',cache:'no-store',redirect:'follow'});
+ const html=await res.text(),doc=new DOMParser().parseFromString(html,'text/html');
+ const xrobots=res.headers.get('x-robots-tag')||'', meta=Array.from(doc.querySelectorAll('meta[name]')).filter(m=>m.getAttribute('name').toLowerCase()==='robots').map(m=>m.getAttribute('content'));
+ const isHB=path==='/rehber/'||path.startsWith('/rehber/post/');
+ if(path==='/rehber/')styles.push(...Array.from(doc.querySelectorAll('link[rel="stylesheet"]')).map(l=>l.getAttribute('href')).filter(Boolean));
+ const pass=res.ok&&/noindex/i.test(xrobots)&&(!isHB||meta.some(m=>/noindex/i.test(m)))&&!/example\.invalid/.test(doc.head.innerHTML)&&!res.url.includes('/cdn-cgi/access/');
+ lines.push((pass?'PASS':'FAIL')+' '+path+' HTTP='+res.status+' header='+JSON.stringify(xrobots)+' robots='+JSON.stringify(meta)+' title='+doc.title);
+ if(pass)good++;else bad++;
+}catch(e){bad++;lines.push('FAIL '+path+' '+String(e))}
+display();
+}
+for(const path of [...new Set(styles)]){try{let r=await fetch(path+'?v14qa=1',{credentials:'same-origin',cache:'no-store'});let pass=r.ok&&/css/i.test(r.headers.get('content-type')||'');lines.push((pass?'PASS':'FAIL')+' CSS '+path+' HTTP='+r.status);if(pass)good++;else bad++}catch(e){bad++;lines.push('FAIL CSS '+path+' '+String(e))}display()}
+try{let r=await fetch('/robots.txt?v14qa=1',{credentials:'same-origin',cache:'no-store'});let body=await r.text(),pass=r.ok&&/Disallow:\s*\//.test(body);lines.push((pass?'PASS':'FAIL')+' /robots.txt HTTP='+r.status);if(pass)good++;else bad++}catch(e){bad++;lines.push('FAIL /robots.txt '+String(e))}
+lines.push('','TOTAL '+good+' PASS / '+bad+' FAIL');display()
+})();
+</script></body></html>
