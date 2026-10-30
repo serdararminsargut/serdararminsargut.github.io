@@ -1,0 +1,108 @@
+name: Serdar Economy A4 PDFs - isolated white print test, NO DEPLOY
+on:
+  push:
+    branches:
+      - test/serdar-compcard-eco-print-20261031
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  economy-proof:
+    if: github.ref == 'refs/heads/test/serdar-compcard-eco-print-20261031'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify only print-only economy CSS was appended
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess
+          from pathlib import Path
+          base='8801e4080e5741daa3370d3c7ed93fffc2e59f65'
+          marker='/* ECONOMY PRINT EXPERIMENT ONLY;'
+          for lang in ('tr','en','ar','ru'):
+              path=f'casting-card/{lang}.html'
+              original=subprocess.check_output(['git','show',f'{base}:{path}']).decode()
+              source=Path(path).read_text(encoding='utf-8')
+              assert source.count(marker)==1,lang
+              start=source.index(marker)
+              end=source.index('</style>',start)
+              economy=source[start:end]
+              assert economy.count('@media print')==1,(lang,'print media only')
+              restored=(source[:start]+source[end:]).replace('\n\n</style>','\n</style>')
+              assert restored==original,(lang,'non-print content changed')
+              print('PASS economy CSS isolation',lang)
+          PY
+      - name: Stage files without network deployment
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp -R casting-card assets dist/
+          test -s dist/assets/portfolio-qr.png
+      - name: Install local PDF renderer
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13' 'pymupdf>=1.24,<2'
+          python3 -m playwright install --with-deps chromium
+      - name: Generate and verify four economy PDFs (not live)
+        run: |
+          set -euo pipefail
+          python3 scripts/serdar_generate_comp_cards.py dist
+          python3 scripts/serdar_validate_four_a4_release.py dist
+          python3 - <<'PY'
+          import fitz,json,hashlib
+          from pathlib import Path
+          from PIL import Image
+          root=Path('dist/downloads')
+          evidence=[]
+          for lang in ('TR','EN','AR','RU'):
+              p=root/f'Serdar-Armin-Sargut-Comp-Card-{lang}.pdf'
+              d=fitz.open(p)
+              assert len(d)==1,(lang,'not one page')
+              page=d[0]
+              spans=[span for block in page.get_text('dict')['blocks'] if 'lines' in block for line in block['lines'] for span in line['spans'] if span['text'].strip()]
+              minpt=min(span['size'] for span in spans)
+              assert minpt>=6.95,(lang,'font too small',minpt)
+              assert len(page.get_images(full=True))>=6,(lang,'images or QR missing')
+              content=page.get_text()
+              if lang=='AR':
+                  assert any('\u0600'<=c<='\u06ff' for c in content),(lang,'Arabic chars missing')
+              if lang=='RU':
+                  assert any('\u0400'<=c<='\u04ff' for c in content),(lang,'Cyrillic chars missing')
+              for block in page.get_text('blocks'):
+                  if block[6]!=0:continue
+                  x0,y0,x1,y1=block[:4]
+                  assert 0<=x0<x1<=page.rect.width+1 and 0<=y0<y1<=page.rect.height+1,(lang,'clipped',block[:4])
+              pix=page.get_pixmap(matrix=fitz.Matrix(1.5,1.5),alpha=False)
+              png=root/f'Serdar-{lang}-ECONOMY-A4.png'
+              pix.save(str(png))
+              im=Image.open(png).convert('RGB').resize((400,560))
+              rgb=list(im.getdata())
+              dark=sum(max(v)<70 for v in rgb)/len(rgb)
+              coverage=sum(1-sum(v)/(255*3) for v in rgb)/len(rgb)
+              assert dark<0.48,(lang,'dark coverage too high',round(dark,3))
+              assert coverage<0.51,(lang,'raster coverage too high',round(coverage,3))
+              item={'lang':lang,'pages':1,'minimum_font_pt':round(minpt,2),'images':len(page.get_images(full=True)),'dark_pixel_share_percent':round(dark*100,2),'mean_raster_coverage_percent':round(coverage*100,2),'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
+              evidence.append(item)
+              print('PASS SERDAR_ECONOMY_A4',json.dumps(item),flush=True)
+          (root/'serdar-economy-a4-evidence.json').write_text(json.dumps({'environment':'isolated test only','livePublished':False,'results':evidence},indent=2)+'\n')
+          print('SERDAR_ECONOMY_FOUR_LANGUAGES_PASS 4/4',flush=True)
+          PY
+      - name: Retain isolated QA output without publishing
+        uses: actions/upload-artifact@v4
+        with:
+          name: Serdar-Economy-A4-TR-EN-AR-RU-NOT-LIVE
+          retention-days: 2
+          if-no-files-found: error
+          path: |
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-EN.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-AR.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-RU.pdf
+            dist/downloads/Serdar-*-ECONOMY-A4.png
+            dist/downloads/serdar-economy-a4-evidence.json
