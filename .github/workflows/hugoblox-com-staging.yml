@@ -1,0 +1,91 @@
+name: Serdar HugoBlox /rehber/ integration STAGING — no production
+
+on:
+  push:
+    branches:
+      - test/hugoblox-com-integration-20261030
+    paths:
+      - '.github/workflows/hugoblox-com-staging.yml'
+      - 'experiments/hugoblox-20261029/**'
+      - 'scripts/hugoblox_stage_overlay.py'
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: hugoblox-serdar-com-staging-v14
+  cancel-in-progress: true
+
+jobs:
+  staging:
+    if: github.ref == 'refs/heads/test/hugoblox-com-integration-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+      - uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.162.0'
+          extended: true
+      - name: Assemble exact existing portfolio and editorial static routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'test/hugoblox-com-integration-20261030'
+          mkdir -p dist
+          for item in .nojekyll _headers _redirects 404.html ai.txt ar assets az blog card.html casting-card cocuk-giyim-modeli de downloads en fa favicon.svg favicon.ico favicon-96x96.png fr index.html indexnow-key.txt 72f0dad836e29ffcc2d9dd42a794dbf0.txt erkek-cocuk-model e-ticaret-cocuk-modeli it kk ky llms.txt llms-full.txt links postcard.html projeler rehber robots.txt ru sitemap.xml sitemap-google.xml sitemap.txt spor-giyim-cocuk-modeli tk uz zh-cn yandex_*.html; do
+            for match in $item; do
+              if [ -e "$match" ]; then cp -a "$match" dist/; fi
+            done
+          done
+          test -s dist/index.html
+          test -s dist/blog/index.html
+          test -s dist/rehber/korfez-cocuk-model-portfoyu/index.html
+          test -s dist/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/index.html
+          sha256sum dist/index.html dist/blog/index.html dist/rehber/korfez-cocuk-model-portfoyu/index.html dist/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/index.html > /tmp/serdar-stage-baseline.sha
+      - name: Build HugoBlox isolated drafts to secure output
+        working-directory: experiments/hugoblox-20261029
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          npm run build:test
+      - name: Mount HugoBlox under /rehber/ without replacing portfolio
+        run: |
+          set -euo pipefail
+          python3 scripts/hugoblox_stage_overlay.py --site-root dist --hugo-root experiments/hugoblox-20261029/public
+          sha256sum --check /tmp/serdar-stage-baseline.sha
+          test -s dist/rehber/index.html
+          test -s dist/rehber/post/index.html
+          test "$(find dist/rehber/post -mindepth 2 -maxdepth 2 -name index.html | wc -l)" -eq 3
+          grep -Fq 'Disallow: /' dist/robots.txt
+          grep -Fq 'X-Robots-Tag: noindex' dist/_headers
+          test ! -e dist/sitemap.xml
+      - name: Validate Cloudflare secret account identifier
+        id: cf
+        shell: bash
+        env:
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$CF_ACCOUNT" && test -n "$CF_TOKEN"
+          account_id="$CF_ACCOUNT"
+          if [[ "$account_id" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then account_id="${BASH_REMATCH[1]}"; fi
+          [[ "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]
+          echo "::add-mask::$account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+      - name: Deploy only restricted Cloudflare Preview branch
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.cf.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/hugoblox-com-integration-20261030
