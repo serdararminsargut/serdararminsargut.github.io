@@ -123,6 +123,7 @@ jobs:
           python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
           python3 -m playwright install --with-deps chromium
           python3 scripts/serdar_generate_comp_cards.py dist
+          python3 scripts/serdar_validate_four_a4_release.py dist
           for lang in TR EN AR RU; do
             test -s "dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
           done
