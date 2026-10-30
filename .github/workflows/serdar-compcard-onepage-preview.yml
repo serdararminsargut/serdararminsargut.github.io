@@ -5,7 +5,10 @@ on:
       - test/serdar-compcard-onepage-20261030
     paths:
       - 'casting-card/tr.html'
-      - 'scripts/serdar_pdf_preview_tr_qa.py'
+      - 'scripts/serdar_pdf_preview_4lang_qa.py'
+      - 'casting-card/en.html'
+      - 'casting-card/ar.html'
+      - 'casting-card/ru.html'
       - '.github/workflows/serdar-compcard-onepage-preview.yml'
   workflow_dispatch:
 permissions:
@@ -30,18 +33,18 @@ jobs:
         run: |
           python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13' 'pymupdf>=1.24,<2'
           python3 -m playwright install --with-deps chromium
-      - name: Generate unchanged four PDF pipeline, accept only Turkish prototype
+      - name: Generate and strictly verify all four isolated A4 PDFs
         run: |
           set -euo pipefail
           python3 scripts/serdar_generate_comp_cards.py dist
-          python3 scripts/serdar_pdf_preview_tr_qa.py
+          python3 scripts/serdar_pdf_preview_4lang_qa.py
       - name: Retain temporary proof for visual review - never publish
         uses: actions/upload-artifact@v4
         with:
-          name: Serdar-Turkish-single-A4-PREVIEW-ONLY
+          name: Serdar-Four-Language-single-A4-PREVIEW-ONLY
           path: |
-            dist/downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf
-            dist/downloads/Serdar-TR-A4-preview.png
-            dist/downloads/serdar-tr-a4-preview-evidence.json
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-*.pdf
+            dist/downloads/Serdar-*-A4-preview.png
+            dist/downloads/serdar-four-a4-preview-evidence.json
           retention-days: 1
           if-no-files-found: error
