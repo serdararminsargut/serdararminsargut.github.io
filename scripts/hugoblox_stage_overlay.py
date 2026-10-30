@@ -56,6 +56,7 @@ for css in (root/'css').rglob('*.css'):
 # browsers silently reject HTTP 200 CSS because its integrity hash no longer matches.
 import base64
 import hashlib
+import html
 sri_updates = 0
 for page in new_pages:
     html = page.read_text(encoding='utf-8')
@@ -63,7 +64,7 @@ for page in new_pages:
         global sri_updates
         tag = match.group(0)
         href = re.search(r'''\bhref\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))''', tag, flags=re.I)
-        integrity = re.search(r'''\bintegrity\s*=\s*(["']?)(sha(?:256|384|512))-([A-Za-z0-9+/=]+)\1''', tag, flags=re.I)
+        integrity = re.search(r'''\bintegrity\s*=\s*(["']?)(sha(?:256|384|512))-([^"'\s>]+)\1''', tag, flags=re.I)
         if not href or not integrity:
             return tag
         url = next((v for v in href.groups() if v is not None), '')
@@ -80,12 +81,6 @@ for page in new_pages:
     html = re.sub(r'<link\b[^>]*>', refresh_link_integrity, html, flags=re.I)
     page.write_text(html, encoding='utf-8')
 print(f'PREVIEW CSS SRI: updated {sri_updates} link integrity values after CSS relocation')
-# Safe staging diagnostics: CSS link markup only; no credentials.
-head_html = (root/'index.html').read_text(encoding='utf-8')
-for tag in re.findall(r'<link\b[^>]*>', head_html, flags=re.I):
-    if '.css' in tag:
-        print('PREVIEW CSS TAG DIAGNOSTIC: '+tag[:450])
-
 # Fail closed: successful HTTP fetching does not prove that CSS passes browser SRI.
 # Independently verify every staged page's local CSS fingerprint against the
 # bytes actually deployed, so a later overlay rewrite cannot silently regress.
@@ -95,7 +90,7 @@ for page in new_pages:
     page_css_verified = 0
     for tag in re.findall(r'<link\b[^>]*>', html, flags=re.I):
         href = re.search(r'''\bhref\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))''', tag, flags=re.I)
-        integrity = re.search(r'''\bintegrity\s*=\s*(["']?)(sha(?:256|384|512))-([A-Za-z0-9+/=]+)\1''', tag, flags=re.I)
+        integrity = re.search(r'''\bintegrity\s*=\s*(["']?)(sha(?:256|384|512))-([^"'\s>]+)\1''', tag, flags=re.I)
         if not href or not integrity:
             continue
         url = next((v for v in href.groups() if v is not None), '')
@@ -106,7 +101,7 @@ for page in new_pages:
         assert cssfile.is_file(), f'CSS SRI POSTCHECK missing file: {cssfile}'
         algo = integrity.group(2).lower()
         expected = base64.b64encode(hashlib.new(algo, cssfile.read_bytes()).digest()).decode('ascii')
-        assert integrity.group(3) == expected, f'CSS SRI POSTCHECK mismatch: {page}: {path}'
+        assert html.unescape(integrity.group(3)) == expected, f'CSS SRI POSTCHECK mismatch: {page}: {path}'
         page_css_verified += 1
         sri_verified += 1
     assert page_css_verified > 0, f'CSS SRI POSTCHECK no fingerprinted CSS: {page}'
