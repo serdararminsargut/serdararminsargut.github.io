@@ -25,7 +25,9 @@ hugoblox:
   footer:
     style: minimal
   copyright:
-    notice: "© {year} {name}"
+    notice: "© {year} {name}. Tüm hakları saklıdır."
+    license:
+      type: all_rights
   content:
     math:
       enable: false
