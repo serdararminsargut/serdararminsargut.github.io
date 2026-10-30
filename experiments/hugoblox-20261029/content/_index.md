@@ -1,15 +1,17 @@
 ---
-title: "Çocuk Giyim Çekimleri ve Casting Rehberi"
+title: "Çocuk Giyim ve Oyuncu Casting Rehberi"
 type: landing
 draft: true
-description: "E-ticaret çekimlerinden spor giyim kataloglarına, casting dosyalarından ürün fotoğrafı seçimine uzanan bilgilendirici bir içerik denemesi."
+description: "Çocuk giyim e-ticaret çekimleri, spor giyim katalogları ve oyuncu casting dosyaları için portföy düzenleme rehberleri."
 sections:
   - block: markdown
     content:
       text: |
-        # Çocuk giyim çekimleri ve casting sunumu
+        # Çocuk giyim ve oyuncu casting rehberleri
 
-        E-ticaret çekimlerinden spor giyim kataloglarına, casting dosyalarından ürün fotoğrafı seçimine uzanan bilgilendirici bir içerik denemesi.
+        E-ticaret ve spor giyim çekimleri için görsel seçimi, çocuk oyuncu casting dosyası ve portföy düzeni hakkında bilgilendirici rehberler.
+
+        **[Serdar'ın resmî portföyü](https://serdararminsargut.com/)** · **[Türkçe casting kartı](https://serdararminsargut.com/casting-card/tr.html)**
 
         ## İçerik rehberleri
 
@@ -25,10 +27,8 @@ sections:
 
         Fotoğraflar, doğrulanmış çalışmalar ve veli iletişimi.
 
-        **[Resmî portföy ve iletişim](https://serdararminsargut.com/)**
-
-        Bu derleme henüz canlı bir site olarak yayımlanmamıştır. Ancak bu test dalı herkese açık bir GitHub deposundadır; taslak kaynaklar görüntülenebilir.
+        Bu sayfa yalnızca korumalı test önizlemesidir. İçerikler henüz yayın onayı almamıştır. Profesyonel iletişim veli yönetimindeki resmî portföy üzerinden yürütülür.
     design:
       spacing:
-        padding: ['3rem', 0, '3rem', 0]
+        padding: ['2rem', 0, '2rem', 0]
 ---
