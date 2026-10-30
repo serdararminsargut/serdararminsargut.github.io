@@ -1,0 +1,32 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>HugoBlox mobil CSS tanılama V17</title><style>body{font:14px/1.6 system-ui;padding:16px;max-width:900px;margin:auto}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f5fa;border-radius:8px;padding:12px}</style></head><body><h1>V17 CSS — canlı tarayıcı tanılaması</h1><p>Korumalı test ortamı; yalnızca salt-okunur analiz.</p><pre id="result">Bekleniyor…</pre><script>
+(async()=>{
+const out=document.getElementById('result'),lines=['Origin: '+location.origin,'UTC: '+new Date().toISOString()];
+function note(s){lines.push(s);out.textContent=lines.join('\n')}
+try{
+ const url='/rehber/?visual_qa_v17=1',res=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+ const html=await res.text(),doc=new DOMParser().parseFromString(html,'text/html');
+ const styles=[...doc.querySelectorAll('link[rel~="stylesheet"]')].map(l=>l.getAttribute('href')).filter(Boolean);
+ note('HOMEPAGE HTTP='+res.status+' stylesheet count='+styles.length+' html bytes='+html.length);
+ for(const path of styles){
+   try {const r=await fetch(new URL(path,location.origin),{credentials:'same-origin',cache:'no-store'});
+      const css=await r.text(),type=r.headers.get('content-type')||'';
+      note('CSS path='+path+' status='+r.status+' type='+type+' length='+css.length+' starts='+JSON.stringify(css.slice(0,200))+' hasRules='+css.includes('{')+' tailwindDirective='+/@tailwind\s|@import\s+["']tailwindcss/.test(css));
+   } catch(e){note('CSS fetch failure '+path+' '+String(e))}
+ }
+ const frame=document.createElement('iframe');frame.style.cssText='position:absolute;width:390px;height:1000px;left:-2000px;top:0;border:0';
+ await new Promise((resolve,reject)=>{frame.onload=resolve;frame.onerror=()=>reject(Error('frame load'));frame.src=url;document.body.appendChild(frame)});
+ await new Promise(resolve=>setTimeout(resolve,1200));
+ const d=frame.contentDocument,win=frame.contentWindow;
+ const bodycss=win.getComputedStyle(d.body),link=d.querySelector('a'),linkcss=link?win.getComputedStyle(link):null;
+ const svgs=[...d.querySelectorAll('svg')].map(x=>{const a=x.getBoundingClientRect();return {w:Math.round(a.width),h:Math.round(a.height)}}).sort((x,y)=>y.w*y.h-x.w*x.h);
+ const applied=[...d.styleSheets].map(s=>{try{return {href:s.href,ruleCount:s.cssRules.length}}catch(e){return {href:s.href,error:String(e)}}});
+ const font=bodycss.fontFamily,bg=bodycss.backgroundColor,color=bodycss.color;
+ note('COMPUTED font='+font+' color='+color+' background='+bg+' firstLinkColor='+(linkcss?.color||'missing'));
+ note('SVG biggest='+JSON.stringify(svgs.slice(0,5)));
+ note('CSSStyleSheets='+JSON.stringify(applied));
+ const giant=svgs.some(x=>x.w>130||x.h>130),plain=/(Times New Roman|serif)/i.test(font)&&!/(system-ui|sans-serif)/i.test(font);
+ note('VISUAL_GATE='+(giant||plain?'FAIL':'PASS')+' giantSVG='+giant+' browserDefaultFont='+plain);
+ frame.remove();
+}catch(e){note('CHECK ERROR '+String(e))}
+})();
+</script></body></html>
