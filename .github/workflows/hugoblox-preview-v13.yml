@@ -66,6 +66,13 @@ jobs:
           assert not root.joinpath('sitemap.xml').exists()
           print(f'PREVIEW ONLY: verified {len(pages)} HTML files')
           PY
+      - name: Include read-only same-origin SEO probe in PREVIEW only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "test/hugoblox-preview-v13-20261030"
+          cp experiments/hugoblox-20261029/qa/preview_security_probe_v13.html experiments/hugoblox-20261029/public/__qa_security_v13.html
+          grep -Fq 'noindex,nofollow,noarchive' experiments/hugoblox-20261029/public/__qa_security_v13.html
       - name: Validate required Cloudflare deploy credentials are configured
         id: cf
         shell: bash
