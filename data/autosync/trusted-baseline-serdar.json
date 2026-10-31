@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "project": "serdar",
+  "source": "https://serdararminsargut.com/",
+  "approved_for_staging": true,
+  "evidence": "31 Oct 2026: live homepage and Comp Card HTML element attribute extraction verified against GitHub production main source SHA 244c3b1f8d44553a95621bca104de1323ecb6c2d and d1b78a55571b3758ef7e7e229856df9a2ead55c8; 16/16 and 6/6 img src equal and 5/5 data-video Vimeo IDs equal; parent-confirmed 2014, 162 cm, 37 EU. STAGING ONLY, no approval to publish.",
+  "photos": [
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-768-v12-1-20260826.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-siyah-cizgili-takim-portre-320.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-gri-takim-yelek.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-siyah-moda-yakin-plan.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-set-kamera-arkasi.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-siyah-cizgili-takim-portre-640.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-kahverengi-takim-oturan-640.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-bej-takim-tam-boy.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-mavi-spor-katalog.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-bej-katalog-portre.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-siyah-moda-tam-boy.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-beyaz-tisort-lifestyle.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-yesil-bomber-ceket.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-futbol-spor-portre.webp",
+    "https://serdararminsargut.com/assets/photos/serdar-armin-sargut-cocuk-oyuncu-model-portre-1536-v12-1-20260826.webp",
+    "https://serdararminsargut.com/assets/portfolio-qr.png"
+  ],
+  "videos": [
+    "https://vimeo.com/1218716268",
+    "https://vimeo.com/1218440447",
+    "https://vimeo.com/1218441688",
+    "https://vimeo.com/1218544578",
+    "https://vimeo.com/1218544534"
+  ],
+  "baseline_requires_verification": "Staging-only acceptance pending CI, protected Preview, noindex, mobile QA, no production release.",
+  "height_cm": 162,
+  "shoe_eu": "37"
+}

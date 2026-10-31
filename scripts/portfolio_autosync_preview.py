@@ -5,13 +5,64 @@ import argparse,hashlib,html,json,re
 from datetime import datetime,timezone
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urljoin,urlparse
+from urllib.parse import urljoin,urlparse,parse_qs
 from urllib.request import Request,urlopen
 
 SITES={
  "serdar":("https://serdararminsargut.com/","casting-card/tr.html","Serdar Armin Sargut"),
  "duru":("https://durumuallasargut.com/","comp-card/tr/","Duru Mualla Sargut")}
 VIDEO_HOSTS={"vimeo.com","www.vimeo.com","player.vimeo.com","youtube.com","www.youtube.com","www.youtube-nocookie.com","youtube-nocookie.com","youtu.be"}
+
+def canonical_video(url):
+ """Return a real video resource, never a social/profile/channel page."""
+ p=urlparse(url)
+ host=(p.hostname or "").lower()
+ parts=[item for item in p.path.split("/") if item]
+ if host in ("vimeo.com","www.vimeo.com") and len(parts)>=1 and re.fullmatch(r"\d{7,13}",parts[0]):
+  return "https://vimeo.com/"+parts[0]+("?h="+parse_qs(p.query)["h"][0] if parse_qs(p.query).get("h") else "")
+ if host=="player.vimeo.com" and len(parts)>=2 and parts[0]=="video" and re.fullmatch(r"\d{7,13}",parts[1]):
+  return "https://vimeo.com/"+parts[1]+("?h="+parse_qs(p.query)["h"][0] if parse_qs(p.query).get("h") else "")
+ if host in ("youtube.com","www.youtube.com","www.youtube-nocookie.com","youtube-nocookie.com"):
+  vid=None
+  if parts and parts[0]=="watch":vid=parse_qs(p.query).get("v",[None])[0]
+  elif len(parts)>=2 and parts[0] in ("shorts","embed","live"):vid=parts[1]
+  if vid and re.fullmatch(r"[A-Za-z0-9_-]{11}",vid):
+   return "https://www.youtube.com/watch?v="+vid
+ if host=="youtu.be" and parts and re.fullmatch(r"[A-Za-z0-9_-]{11}",parts[0]):
+  return "https://www.youtube.com/watch?v="+parts[0]
+ return None
+
+def compare_healthy_baseline(project,origin,current,baseline_file):
+ """The trusted baseline is a test-branch, human-reviewed source inventory.
+
+ Absence or corrupt baseline is an error, not approval to bootstrap from new data.
+ Previous media removals always require a reviewed baseline update. Additional
+ media are permitted in Preview; production updates remain outside this script.
+ """
+ if not baseline_file.is_file():
+  raise ValueError("TRUSTED_BASELINE_MISSING "+str(baseline_file))
+ try:baseline=json.loads(baseline_file.read_text(encoding="utf-8"))
+ except (OSError,ValueError) as e:raise ValueError("TRUSTED_BASELINE_UNREADABLE") from e
+ if baseline.get("schema_version") != 1 or baseline.get("project") != project or baseline.get("source") != origin:
+  raise ValueError("TRUSTED_BASELINE_INVALID_IDENTITY")
+ if baseline.get("approved_for_staging") is not True:
+  raise ValueError("TRUSTED_BASELINE_NOT_APPROVED")
+ for key in ("photos","videos"):
+  previous=baseline.get(key)
+  if not isinstance(previous,list) or not previous or any(not isinstance(x,str) for x in previous):
+   raise ValueError("TRUSTED_BASELINE_INVALID_"+key)
+  lost=set(previous)-set(current[key])
+  if lost:raise ValueError("MEDIA_REMOVAL_REQUIRES_REVIEW "+key+" removed="+str(len(lost)))
+ # A changed measurement must not be mirrored to even a public noindex Preview
+ # without explicit guardian review. Report the discrepancy in the automation
+ # control-plane, not as a published candidate value.
+ for key in ("height_cm","shoe_eu"):
+  previous=baseline.get(key)
+  if previous is None or (key == "height_cm" and (type(previous) is not int or not 50 <= previous <= 230)) or (key == "shoe_eu" and (not isinstance(previous,str) or not re.fullmatch(r"\d{1,2}(?:[-–]\d{1,2})?", previous))):
+   raise ValueError("TRUSTED_BASELINE_INVALID_"+key)
+  if str(previous) != str(current.get(key)):
+   raise ValueError("MEASUREMENT_REQUIRES_GUARDIAN_REVIEW "+key)
+ return {"baseline_source":"frozen test-branch reference", "protected_photo_count":len(baseline["photos"]),"protected_video_count":len(baseline["videos"]),"measurements_checked":True}
 class Parser(HTMLParser):
  def __init__(self):
   super().__init__(convert_charrefs=True)
@@ -53,8 +104,12 @@ def filtered(links,origin,media):
   full=urljoin(origin,link);p=urlparse(full)
   if p.scheme!="https":continue
   if media=="photo" and p.hostname==host and p.path.startswith("/assets/"):result.append(full)
-  if media=="video" and p.hostname in VIDEO_HOSTS:result.append(full)
- return unique(result,18)
+  if media=="video" and p.hostname==host and re.search(r"\.(?:mp4|webm|mov)$",p.path,re.I):
+   result.append(full)
+  if media=="video" and p.hostname in VIDEO_HOSTS:
+   validated=canonical_video(full)
+   if validated:result.append(validated)
+ return unique(result,200)
 def run(project,root):
  origin,card,name=SITES[project]
  sources={};errors=[]
@@ -74,16 +129,27 @@ def run(project,root):
  urls=filtered(parser.videos,origin,"video")
  photos=filtered(parser.photos,origin,"photo")
  langs=unique(parser.locales)
+ # Treat a successful but truncated HTML template as an incomplete source.
+ for key in ("height_cm","shoe_eu"):
+  if details[key] is None:errors.append("SOURCE_INCOMPLETE "+key)
+ if not urls:errors.append("SOURCE_INCOMPLETE videos")
+ if not photos:errors.append("SOURCE_INCOMPLETE photos")
  observations={"height_cm":details["height_cm"],"shoe_eu":details["shoe_eu"],
   "videos":urls,"photos":photos,"hreflang":langs}
- fingerprint=hashlib.sha256(json.dumps(observations,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+ normalized={**observations,"videos":sorted(urls),"photos":sorted(photos),"hreflang":sorted(langs)}
+ fingerprint=hashlib.sha256(json.dumps(normalized,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
  status="SOURCE_UNAVAILABLE" if not sources else "SOURCE_CONFLICT" if any("SOURCE_CONFLICT" in e for e in errors) else "PARTIAL_SOURCE" if errors else "OBSERVED_PREVIEW_ONLY"
  # Fail closed: missing source is NOT a real removal or update. Do not replace last healthy Preview.
  if status != "OBSERVED_PREVIEW_ONLY":
   raise SystemExit("AUTOSYNC_BLOCKED_"+project.upper()+": source unavailable/partial; preserve previous Preview; details="+", ".join(errors))
+ # Require a human-reviewed baseline before this build can refresh Preview.
+ try: baseline_check=compare_healthy_baseline(project,origin,observations,
+   Path("data")/"autosync"/("trusted-baseline-"+project+".json"))
+ except ValueError as e:
+  raise SystemExit("AUTOSYNC_BLOCKED_"+project.upper()+": "+str(e)) from e
  result={"project":project,"source":origin,"status":status,
   "checked_at_utc":datetime.now(timezone.utc).isoformat(),
-  "observation_sha256":fingerprint,**observations,"errors":errors,
+  "observation_sha256":fingerprint,**observations,"errors":errors,"baseline_check":baseline_check,
   "never_auto_publish":True,"measurements_require_parent_approval":True}
  output=root/"rehber"/"portfoy-guncel";output.mkdir(parents=True,exist_ok=True)
  (output/"source-status.json").write_text(json.dumps(result,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
