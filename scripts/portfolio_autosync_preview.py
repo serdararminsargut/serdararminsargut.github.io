@@ -40,7 +40,7 @@ def unique(items,limit=40):
 def facts(markup):
  markup=html.unescape(markup)
  patterns=[
-  r"<(?:span|dt)[^>]*>\s*Boy\s*</(?:span|dt)>\s*<(?:strong|dd)[^>]*>\s*(\d{2,3})\s*cm",
+  r"<(?:span|dt)[^>]*>\s*Boy\s*</(?:span|dt)>\s*<(?:strong|b|dd)[^>]*>\s*(\d{2,3})\s*cm",
   r'"height"\s*:\s*{\s*"@type"\s*:\s*"QuantitativeValue"\s*,\s*"value"\s*:\s*(\d{2,3})']
  height=next((int(m.group(1)) for p in patterns if (m:=re.search(p,markup,re.I|re.S))),None)
  shoe=re.search(r"<(?:span|dt)[^>]*>\s*Ayakkab[ıi](?: Numaras[ıi])?\s*</(?:span|dt)>\s*<(?:strong|dd)[^>]*>\s*(\d{1,2}(?:[-–]\d{1,2})?)\s*EU",markup,re.I|re.S)
@@ -63,15 +63,21 @@ def run(project,root):
   except Exception as ex:errors.append(key+": "+str(ex)[:120])
  parser=Parser()
  for page in sources.values():parser.feed(page)
- details=facts(sources.get("casting",""))
- if details["height_cm"] is None: details=facts(sources.get("home",""))
+ card_facts=facts(sources.get("casting",""))
+ home_facts=facts(sources.get("home",""))
+ details={}
+ for key in ("height_cm","shoe_eu"):
+  primary,secondary=card_facts[key],home_facts[key]
+  if primary is not None and secondary is not None and str(primary)!=str(secondary):
+   errors.append("SOURCE_CONFLICT "+key+": casting="+str(primary)+" homepage="+str(secondary))
+  details[key]=primary if primary is not None else secondary
  urls=filtered(parser.videos,origin,"video")
  photos=filtered(parser.photos,origin,"photo")
  langs=unique(parser.locales)
  observations={"height_cm":details["height_cm"],"shoe_eu":details["shoe_eu"],
   "videos":urls,"photos":photos,"hreflang":langs}
  fingerprint=hashlib.sha256(json.dumps(observations,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
- status="SOURCE_UNAVAILABLE" if not sources else "PARTIAL_SOURCE" if errors else "OBSERVED_PREVIEW_ONLY"
+ status="SOURCE_UNAVAILABLE" if not sources else "SOURCE_CONFLICT" if any("SOURCE_CONFLICT" in e for e in errors) else "PARTIAL_SOURCE" if errors else "OBSERVED_PREVIEW_ONLY"
  # Fail closed: missing source is NOT a real removal or update. Do not replace last healthy Preview.
  if status != "OBSERVED_PREVIEW_ONLY":
   raise SystemExit("AUTOSYNC_BLOCKED_"+project.upper()+": source unavailable/partial; preserve previous Preview; details="+", ".join(errors))
@@ -93,6 +99,29 @@ def run(project,root):
  '<p>Dil kodları: '+esc(", ".join(langs))+'</p>'
  '<h2>Videolar</h2><ul>'+linkitems(urls)+'</ul><h2>Fotoğraflar</h2><ul>'+linkitems(photos)+'</ul></body></html>')
  (output/"index.html").write_text(content,encoding="utf-8")
+ # Integrate the same validated observation into the HugoBlox landing page.
+ # Only the already isolated /rehber/ Preview is modified; never the real homepage.
+ landing=root/"rehber"/"index.html"
+ if landing.is_file():
+  existing=landing.read_text(encoding="utf-8")
+  if "<meta name=\"robots\" content=\"noindex,nofollow,noarchive\">" not in existing:
+   raise SystemExit("AUTOSYNC_BLOCKED: HugoBlox landing lacks noindex gate")
+  if "<!-- PORTFOLIO_AUTOSYNC_PREVIEW_START -->" in existing:
+   raise SystemExit("AUTOSYNC_BLOCKED: duplicate HugoBlox preview sync panel")
+  items=linkitems(urls[:8])
+  panel=('<!-- PORTFOLIO_AUTOSYNC_PREVIEW_START -->'
+   '<section id="portfolio-live-preview" aria-label="Resmî portföy veri önizlemesi"'
+   ' style="max-width:850px;margin:24px auto;padding:20px;border:1px solid #888;border-radius:12px">'
+   '<h2>Resmî portföyden güncel bilgiler (test)</h2>'
+   '<p>Kaynak sitede gözlenen bilgiler; yeni ölçüler ve içerikler yayımlanmadan önce veli onayı gerektirir.</p>'
+   '<p>Boy: '+esc(details["height_cm"] if details["height_cm"] is not None else "doğrulanamadı")+
+   ' cm · Ayakkabı: '+esc(details["shoe_eu"] or "doğrulanamadı")+'</p>'
+   '<p>Dil bağlantıları: '+esc(", ".join(langs))+'</p>'
+   '<h3>Video bağlantıları</h3><ul>'+items+'</ul>'
+   '<p><a href="/rehber/portfoy-guncel/">Tüm fotoğraf ve video kaynaklarını görüntüle</a></p>'
+   '</section><!-- PORTFOLIO_AUTOSYNC_PREVIEW_END -->')
+  if "</body>" not in existing:raise SystemExit("AUTOSYNC_BLOCKED: HugoBlox landing has no body closing tag")
+  landing.write_text(existing.replace("</body>",panel+"</body>",1),encoding="utf-8")
  print("AUTOSYNC_"+project.upper()+"_"+status+" preview snapshot only; no production changes",flush=True)
  if errors:print("SOURCE CHECK WARNING: "+", ".join(errors),flush=True)
 
