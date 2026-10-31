@@ -72,6 +72,9 @@ def run(project,root):
   "videos":urls,"photos":photos,"hreflang":langs}
  fingerprint=hashlib.sha256(json.dumps(observations,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
  status="SOURCE_UNAVAILABLE" if not sources else "PARTIAL_SOURCE" if errors else "OBSERVED_PREVIEW_ONLY"
+ # Fail closed: missing source is NOT a real removal or update. Do not replace last healthy Preview.
+ if status != "OBSERVED_PREVIEW_ONLY":
+  raise SystemExit("AUTOSYNC_BLOCKED_"+project.upper()+": source unavailable/partial; preserve previous Preview; details="+", ".join(errors))
  result={"project":project,"source":origin,"status":status,
   "checked_at_utc":datetime.now(timezone.utc).isoformat(),
   "observation_sha256":fingerprint,**observations,"errors":errors,
