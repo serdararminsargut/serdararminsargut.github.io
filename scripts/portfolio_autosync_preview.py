@@ -157,7 +157,7 @@ def run(project,root):
  def linkitems(items):return "".join('<li><a rel="noopener noreferrer" href="'+esc(u)+'">'+esc(u)+'</a></li>' for u in items[:12])
  content=('<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow,noarchive">'
  '<meta name="viewport" content="width=device-width,initial-scale=1"><title>Portfolio Auto-Sync Preview</title></head>'
- '<body style="font:16px/1.5 system-ui;max-width:800px;margin:auto;padding:24px">'
+ '<body style="font:16px/1.5 system-ui;max-width:800px;margin:auto;padding:24px;overflow-wrap:anywhere">'
  '<h1>'+esc(name)+' — Önizleme eşitleme</h1><p>Yalnızca test, veri gözlemidir; yayın onayı değildir.</p>'
  '<p>Kaynak: '+esc(origin)+'</p><p>Durum: '+esc(status)+'</p>'
  '<p>Boy (sitede gözlenen): '+esc(details["height_cm"] if details["height_cm"] is not None else "doğrulanamadı")+'</p>'
@@ -177,7 +177,7 @@ def run(project,root):
   items=linkitems(urls[:8])
   panel=('<!-- PORTFOLIO_AUTOSYNC_PREVIEW_START -->'
    '<section id="portfolio-live-preview" aria-label="Resmî portföy veri önizlemesi"'
-   ' style="max-width:850px;margin:24px auto;padding:20px;border:1px solid #888;border-radius:12px">'
+   ' style="max-width:850px;margin:24px auto;padding:20px;border:1px solid #888;border-radius:12px;overflow-wrap:anywhere">'
    '<h2>Resmî portföyden güncel bilgiler (test)</h2>'
    '<p>Kaynak sitede gözlenen bilgiler; yeni ölçüler ve içerikler yayımlanmadan önce veli onayı gerektirir.</p>'
    '<p>Boy: '+esc(details["height_cm"] if details["height_cm"] is not None else "doğrulanamadı")+
