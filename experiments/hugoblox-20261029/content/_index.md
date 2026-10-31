@@ -11,7 +11,7 @@ sections:
 
         E-ticaret ve spor giyim çekimleri için görsel seçimi, çocuk oyuncu casting dosyası ve portföy düzeni hakkında bilgilendirici rehberler.
 
-        **[Serdar'ın resmî portföyü](https://serdararminsargut.com/)** · **[Türkçe casting kartı](https://serdararminsargut.com/casting-card/tr.html)**
+        **[Serdar'ın resmî portföyü](https://serdararminsargut.com/)** · **[Türkçe casting kartı](https://serdararminsargut.com/casting-card/tr.html)** · **[Instagram'da güncel çekimleri gör](https://www.instagram.com/serdararminsargutt/)**
 
         ## İçerik rehberleri
 
