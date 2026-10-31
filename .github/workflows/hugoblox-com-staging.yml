@@ -75,6 +75,11 @@ jobs:
           grep -Fq 'noindex,nofollow,noarchive' dist/__qa_integration_v14.html
           sha256sum --check /tmp/serdar-stage-baseline.sha
           test -s dist/rehber/index.html
+          # Acceptance: the compiled HugoBlox homepage must offer the real official conversion paths.
+          grep -Fq 'https://serdararminsargut.com/' dist/rehber/index.html
+          grep -Fq 'https://serdararminsargut.com/casting-card/tr.html' dist/rehber/index.html
+          grep -Fq 'https://www.instagram.com/serdararminsargutt/' dist/rehber/index.html
+          echo 'HUGOBLOX_SERDAR_CONVERSION_LINKS_PASS: official portfolio, casting card and Instagram'
           test -s dist/rehber/post/index.html
           test "$(find dist/rehber/post -mindepth 2 -maxdepth 2 -name index.html | wc -l)" -eq 3
           grep -Fq 'Disallow: /' dist/robots.txt
