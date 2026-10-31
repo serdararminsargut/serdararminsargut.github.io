@@ -5,10 +5,14 @@ on:
     branches:
       - test/hugoblox-com-integration-20261030
     paths:
+      - 'scripts/portfolio_autosync_preview.py'
+      - 'data/autosync/**'
       - '.github/workflows/hugoblox-com-staging.yml'
       - 'experiments/hugoblox-20261029/**'
       - 'scripts/hugoblox_stage_overlay.py'
       - 'scripts/hugoblox_mobile_layout_probe_v18.html'
+
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -76,6 +80,14 @@ jobs:
           grep -Fq 'Disallow: /' dist/robots.txt
           grep -Fq 'X-Robots-Tag: noindex' dist/_headers
           test ! -e dist/sitemap.xml
+      - name: Refresh serdar live-source snapshot in restricted HugoBlox Preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/portfolio_autosync_preview.py --project serdar --root dist
+          test -s dist/rehber/portfoy-guncel/source-status.json
+          grep -Fq 'noindex,nofollow,noarchive' dist/rehber/portfoy-guncel/index.html
+          echo 'AUTOSYNC PREVIEW SNAPSHOT GENERATED (not a production publication)'
       - name: Validate Cloudflare secret account identifier
         id: cf
         shell: bash
