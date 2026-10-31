@@ -67,14 +67,37 @@ def main(origin, destination):
                                 assert info["h1"] >= 1, "HugoBlox heading missing"
                             if route == "/rehber/":
                                 case["cta"] = {}
+                                heading = page.locator("#serdar-hugo-cta")
+                                assert heading.count() == 1 and heading.is_visible(), "CTA heading missing"
+                                links_list = page.locator("#serdar-hugo-cta + ul")
+                                assert links_list.count() == 1, "CTA link list not adjacent to heading"
+                                layout = links_list.evaluate("""el => ({
+                                    display: getComputedStyle(el).display,
+                                    columns: getComputedStyle(el).gridTemplateColumns,
+                                    width: el.getBoundingClientRect().width
+                                })""")
+                                assert layout["display"] == "grid", "CTA CSS grid not applied"
+                                case["ctaLayout"] = layout
                                 for name, url in CTA.items():
-                                    matches = page.locator('a[href="' + url + '"]')
+                                    matches = page.locator('#serdar-hugo-cta + ul a[href="' + url + '"]')
                                     visible = next((matches.nth(i) for i in range(matches.count())
                                                     if matches.nth(i).is_visible()), None)
                                     assert visible is not None, name + " CTA absent/hidden"
+                                    style = visible.evaluate("""el => {
+                                        const r = el.getBoundingClientRect();
+                                        const s = getComputedStyle(el);
+                                        return {height:r.height,width:r.width,minHeight:s.minHeight,
+                                            background:s.backgroundColor,color:s.color,
+                                            decoration:s.textDecorationLine,display:s.display}
+                                    }""")
+                                    assert style["height"] >= 44, name + " touch target below 44px"
+                                    assert style["display"] == "flex", name + " CTA box style not loaded"
+                                    assert style["decoration"] == "none", name + " CTA still plain link"
+                                    if name == "casting":
+                                        assert style["background"] != "rgb(255, 255, 255)", "Primary CTA background not applied"
                                     visible.scroll_into_view_if_needed(timeout=4000)
                                     visible.click(trial=True, timeout=4000)
-                                    case["cta"][name] = "ACTIONABLE"
+                                    case["cta"][name] = {"result":"ACTIONABLE","style":style}
                                 page.screenshot(path=str(destination / ("serdar-hugoblox-%s.png" % width)),
                                                 full_page=False)
                             assert not js_errors, "JavaScript runtime error(s)"
