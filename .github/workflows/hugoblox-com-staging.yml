@@ -11,6 +11,7 @@ on:
       - 'experiments/hugoblox-20261029/**'
       - 'scripts/hugoblox_stage_overlay.py'
       - 'scripts/hugoblox_prepare_release_candidate.py'
+      - 'scripts/hugoblox_compiled_mobile_qa.py'
       - 'scripts/hugoblox_mobile_layout_probe_v18.html'
 
   workflow_dispatch:
