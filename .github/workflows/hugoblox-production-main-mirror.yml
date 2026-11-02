@@ -1,0 +1,134 @@
+name: Serdar HugoBlox pinned MAIN production build mirror — NO DEPLOY
+on:
+  push:
+    branches:
+      - test/hugoblox-com-integration-20261030
+    paths:
+      - 'scripts/hugoblox_merge_into_real_production.py'
+      - 'scripts/prepare_serdar_production_main_static.py'
+      - 'scripts/test_production_main_mirror.py'
+      - '.github/workflows/hugoblox-production-main-mirror.yml'
+
+# No deployment API access, no Cloudflare secrets, no repository writes.
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: serdar-hugoblox-pinned-main-mirror-only
+  cancel-in-progress: true
+
+jobs:
+  isolated-main-mirror:
+    if: github.ref == 'refs/heads/test/hugoblox-com-integration-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout only the staging verifier source
+        uses: actions/checkout@v4
+        with:
+          ref: test/hugoblox-com-integration-20261030
+          path: staging-src
+          persist-credentials: false
+      - name: Fetch pinned historical main source without touching main
+        uses: actions/checkout@v4
+        with:
+          ref: 'bb4737ed7367b84008c860ec3f722055a56ae518'
+          path: production-src
+          persist-credentials: false
+      - name: Assert repo, branch, main SHA, and original build recipe hash
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'test/hugoblox-com-integration-20261030'
+          test "$GITHUB_REPOSITORY" = 'serdararminsargut/serdararminsargut.github.io'
+          actual=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          test "$actual" = 'bb4737ed7367b84008c860ec3f722055a56ae518' || { echo 'NO-GO: main changed' >&2; exit 1; }
+          actual_blob=$(git hash-object production-src/.github/workflows/deploy-cloudflare-pages.yml)
+          test "$actual_blob" = 'd86882c71b809b6e3f976d1cd509a66cc433fb64' || { echo 'NO-GO: build recipe changed' >&2; exit 1; }
+          echo 'MAIN_REF_AND_PRODUCTION_BUILD_PIN_PASS'
+      - name: Fetch previously validated immutable frozen root evidence READ ONLY
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p frozen-input/zipped frozen-input/baseline
+          gh run download 41501087858 -n 'serdar-hugoblox-full-static-root' --dir frozen-input/zipped
+          gh run download 41501087858 -n 'serdar-hugoblox-production-baseline-readonly' --dir frozen-input/baseline
+          test "$(find frozen-input/zipped -maxdepth 1 -type f | wc -l)" -eq 2
+          test "$(find frozen-input/baseline -maxdepth 1 -type f | wc -l)" -eq 1
+      - name: Wrap downloaded byte-identical evidence in local containers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          for folder,name in [('zipped','frozen.zip'),('baseline','baseline.zip')]:
+              with zipfile.ZipFile(Path('frozen-input')/name,'w',zipfile.ZIP_STORED) as z:
+                  for p in sorted((Path('frozen-input')/folder).iterdir()):
+                      assert p.is_file()
+                      z.write(p,p.name)
+          PY
+      - name: Verify original frozen guide bytes, sitemap, Cloudflare GET reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 staging-src/scripts/verify_frozen_release_handoff.py \
+            --project SERDAR --frozen-zip frozen-input/frozen.zip \
+            --baseline-zip frozen-input/baseline.zip \
+            --main-commit 'bb4737ed7367b84008c860ec3f722055a56ae518' \
+            --output-root "$RUNNER_TEMP/serdar-verified-frozen"
+      - name: Install the same PDF rendering dependencies as production (local only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
+          python3 -m playwright install --with-deps chromium
+      - name: Reconstruct the PINNED Serdar main production copy and PDFs; do not deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 staging-src/scripts/prepare_serdar_production_main_static.py --production-source production-src
+          (cd production-src && python3 scripts/serdar_generate_comp_cards.py dist)
+          for lang in TR EN AR RU; do
+            test -s "production-src/dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
+          done
+          echo 'PINNED_MAIN_SERDAR_PDFS_4_OF_4_PASS'
+      - name: Integrate 12 approved HugoBlox files into REAL main static output, preserve all originals
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=staging-src/scripts python3 staging-src/scripts/hugoblox_merge_into_real_production.py \
+            --project SERDAR --production-root production-src/dist \
+            --frozen-root "$RUNNER_TEMP/serdar-verified-frozen/dist" \
+            --output-root "$RUNNER_TEMP/serdar-production-main-mirror"
+          test -s "$RUNNER_TEMP/serdar-production-main-mirror/rehber/index.html"
+          test -s "$RUNNER_TEMP/serdar-production-main-mirror/rehber/post/index.html"
+          test -s "$RUNNER_TEMP/serdar-production-main-mirror-receipt.json"
+      - name: Save only prepublication NO-DEPLOY signed-off test receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p mirror-proof
+          cp "$RUNNER_TEMP/serdar-production-main-mirror-receipt.json" mirror-proof/serdar-receipt.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          data=json.loads(Path('mirror-proof/serdar-receipt.json').read_text())
+          assert data['project']=='SERDAR'
+          assert data['status']=='PRODUCTION_MAIN_MIRROR_NO_DEPLOY_PASS'
+          assert data['production_published'] is False
+          assert data['new_verified_guide_files']==12
+          assert data['merged_sitemap_urls']==95
+          print('NO_DEPLOY_PRODUCTION_MAIN_MIRROR_GATE_PASS')
+          PY
+      - name: Upload proof only; no archive upload, no deployment
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-hugoblox-real-main-production-mirror-proof
+          path: mirror-proof/
+          retention-days: 14
+          if-no-files-found: error
