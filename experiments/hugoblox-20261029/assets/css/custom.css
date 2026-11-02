@@ -64,11 +64,8 @@
   }
 }
 
-/* Preview-only anchor offset for the sticky HugoBlox navigation.
-   Does not change normal document layout or the production portfolio. */
-html {
-  scroll-padding-top: 6rem;
-}
+/* Preview-only offset for the CTA anchor under the sticky navbar.
+   Scoped to the heading; no global scroll-layout changes. */
 #serdar-hugo-cta {
   scroll-margin-top: 6rem;
 }
