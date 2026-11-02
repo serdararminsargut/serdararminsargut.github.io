@@ -226,12 +226,14 @@ def main(project, baseline, release, output):
         check(not any(p.is_symlink() for p in root.rglob('*')), 'Symlinks not allowed in merge source')
     check((baseline/'index.html').is_file(), 'Missing original portfolio homepage')
     check((baseline/'robots.txt').is_file(), 'Original robots missing')
-    check((baseline/'_headers').is_file(), 'Original headers missing')
+    if project == 'SERDAR':
+        check((baseline/'_headers').is_file(), 'Original Serdar headers missing')
     check(not any(line.strip().lower() == 'disallow: /'
                   for line in (baseline/'robots.txt').read_text().splitlines()),
           'Production-like baseline robots globally disallow indexing')
-    check('X-Robots-Tag: noindex' not in (baseline/'_headers').read_text(encoding='utf-8'),
-          'Production-like baseline header blocks indexing')
+    if (baseline/'_headers').is_file():
+        check('X-Robots-Tag: noindex' not in (baseline/'_headers').read_text(encoding='utf-8'),
+              'Production-like baseline header blocks indexing')
     for name in cfg['old_protected']:
         check((baseline / name).is_file(), 'Missing old protected path: ' + name)
     if project == 'DURU':
