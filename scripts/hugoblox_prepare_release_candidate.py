@@ -129,15 +129,11 @@ def main(stage, out):
         assert s.count(PREVIEW_ROBOTS) == 1, "Staging noindex missing or duplicated: " + name
         assert s.count(PREVIEW_MARKER) == 1, "Staging marker missing: " + name
         s = s.replace(PREVIEW_ROBOTS, "").replace(PREVIEW_MARKER, "")
-        if name == "index.html":
-            assert s.count(PANEL_START) == 1 and s.count(PANEL_END) == 1, (
-                "Preview observation panel marker missing/duplicated"
-            )
-            start = s.index(PANEL_START)
-            end = s.index(PANEL_END, start) + len(PANEL_END)
-            s = s[:start] + s[end:]
-        else:
-            assert PANEL_START not in s, "Unexpected dynamic preview panel: " + name
+        # The diagnostic panel must never exist in a release candidate.
+        # Previously it was removed here; now it is blocked at staging build.
+        assert PANEL_START not in s and PANEL_END not in s, (
+            "Unapproved diagnostic panel included in Serdar release candidate: " + name
+        )
         assert "example.invalid" not in s, "Fake preview origin leaked"
         assert "Duru Mualla Sargut" not in s, "Cross-profile identity leak"
         assert "Dil bağlantıları:" not in s, "Locale diagnostics visible"
