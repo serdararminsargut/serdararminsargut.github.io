@@ -63,3 +63,12 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Preview-only anchor offset for the sticky HugoBlox navigation.
+   Does not change normal document layout or the production portfolio. */
+html {
+  scroll-padding-top: 6rem;
+}
+#serdar-hugo-cta {
+  scroll-margin-top: 6rem;
+}
