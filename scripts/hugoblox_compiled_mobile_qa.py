@@ -9,6 +9,8 @@ ROUTES = (
     "/rehber/",
     "/rehber/post/",
     "/rehber/post/cocuk-oyuncu-casting-sunum-dosyasi/",
+    "/rehber/post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/",
+    "/rehber/post/spor-giyim-ayakkabi-katalog-fotograflari/",
     "/rehber/portfoy-guncel/",
 )
 WIDTHS = (360, 390, 430, 1280)
