@@ -11,6 +11,8 @@ on:
       - 'experiments/hugoblox-20261029/**'
       - 'scripts/hugoblox_stage_overlay.py'
       - 'scripts/hugoblox_prepare_release_candidate.py'
+      - 'scripts/hugoblox_offline_fullmerge_gate.py'
+      - 'scripts/test_hugoblox_offline_fullmerge_gate.py'
       - 'scripts/hugoblox_compiled_mobile_qa.py'
       - 'scripts/hugoblox_mobile_layout_probe_v18.html'
 
@@ -67,6 +69,16 @@ jobs:
             ! -name 'sitemap.xml' ! -name 'sitemap-google.xml' \
             -print0 | sort -z | xargs -0 -r sha256sum > /tmp/serdar-all-routes-before.sha
           test -s /tmp/serdar-all-routes-before.sha
+          # Snapshot the production-style portfolio BEFORE overlay inserts staging noindex.
+          # Runner temp only; never deployed.
+          baseline_dir="$RUNNER_TEMP/serdar-hugoblox-production-baseline"
+          test ! -e "$baseline_dir"
+          cp -a dist "$baseline_dir"
+          test -s "$baseline_dir/sitemap.xml"
+          test -s "$baseline_dir/sitemap-google.xml"
+          test -s "$baseline_dir/robots.txt"
+          test -s "$baseline_dir/_headers"
+          echo 'SERDAR_PREOVERLAY_PRODLIKE_BASELINE_SNAPSHOT_PASS'
       - name: Build HugoBlox isolated drafts to secure output
         working-directory: experiments/hugoblox-20261029
         run: |
@@ -155,6 +167,23 @@ jobs:
           assert m['sitemap_merged_into_production'] is False
           print('SERDAR_OFFLINE_RELEASE_MANIFEST_PASS: no publication or sitemap mutation')
           PY_RELEASE
+          python3 scripts/test_hugoblox_offline_fullmerge_gate.py
+          python3 scripts/hugoblox_offline_fullmerge_gate.py \
+            --project SERDAR \
+            --baseline-root "$RUNNER_TEMP/serdar-hugoblox-production-baseline" \
+            --release-root "$candidate_tmp/serdar-release" \
+            --output-root "$candidate_tmp/serdar-combined"
+          mkdir -p qa-artifacts/full-merge
+          cp "$candidate_tmp/serdar-combined/offline_full_merge_report.json" \
+             qa-artifacts/full-merge/serdar_offline_full_merge_report.json
+      - name: Preserve Serdar offline full-merge report - NO DEPLOY
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-hugoblox-offline-full-merge
+          path: qa-artifacts/full-merge/
+          retention-days: 14
+          if-no-files-found: warn
       - name: Validate Cloudflare secret account identifier
         id: cf
         shell: bash
