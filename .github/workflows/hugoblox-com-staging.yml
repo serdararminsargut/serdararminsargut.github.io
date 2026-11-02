@@ -57,6 +57,14 @@ jobs:
           test -s dist/rehber/korfez-cocuk-model-portfoyu/index.html
           test -s dist/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/index.html
           sha256sum dist/index.html dist/blog/index.html dist/rehber/korfez-cocuk-model-portfoyu/index.html dist/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/index.html > /tmp/serdar-stage-baseline.sha
+          # Snapshot EVERY copied static asset and existing published route before
+          # the HugoBlox overlay; the only intentional global preview changes are
+          # robots, headers and preview sitemap removal.
+          find dist -type f \
+            ! -name 'robots.txt' ! -name '_headers' \
+            ! -name 'sitemap.xml' ! -name 'sitemap-google.xml' \
+            -print0 | sort -z | xargs -0 -r sha256sum > /tmp/serdar-all-routes-before.sha
+          test -s /tmp/serdar-all-routes-before.sha
       - name: Build HugoBlox isolated drafts to secure output
         working-directory: experiments/hugoblox-20261029
         run: |
@@ -74,6 +82,10 @@ jobs:
           grep -Fq 'V18_LAYOUT_GATE=' dist/__qa_mobile_layout_v18.html
           grep -Fq 'noindex,nofollow,noarchive' dist/__qa_integration_v14.html
           sha256sum --check /tmp/serdar-stage-baseline.sha
+          sha256sum --check /tmp/serdar-all-routes-before.sha
+          test -s dist/rehber/korfez-cocuk-model-portfoyu/index.html
+          test -s dist/rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/index.html
+          echo 'SERDAR_HUGOBLOX_EXISTING_ROUTES_SHA_PASS: all original copied routes/assets preserved'
           test -s dist/rehber/index.html
           # Acceptance: the compiled HugoBlox homepage must offer the real official conversion paths.
           grep -Fq 'https://serdararminsargut.com/' dist/rehber/index.html
