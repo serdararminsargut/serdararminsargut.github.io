@@ -5,6 +5,8 @@ on:
       - test/hugoblox-com-integration-20261030
     paths:
       - 'scripts/hugoblox_merge_into_real_production.py'
+      - 'scripts/hugoblox_freeze_verified_main.py'
+      - 'scripts/test_freeze_verified_main.py'
       - 'scripts/hugoblox_local_http_acceptance.py'
       - 'scripts/prepare_serdar_production_main_static.py'
       - 'scripts/test_production_main_mirror.py'
@@ -135,6 +137,26 @@ jobs:
           assert data['merged_sitemap_urls']==95
           print('NO_DEPLOY_PRODUCTION_MAIN_MIRROR_GATE_PASS')
           PY
+      - name: Freeze verified SERDAR MAIN mirror into static archive - NO DEPLOY
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 staging-src/scripts/test_freeze_verified_main.py
+          python3 staging-src/scripts/hugoblox_freeze_verified_main.py \
+            --project SERDAR \
+            --static-root "$RUNNER_TEMP/serdar-production-main-mirror" \
+            --receipt "$RUNNER_TEMP/serdar-production-main-mirror-receipt.json" \
+            --local-http-acceptance "mirror-proof/serdar-local-http-acceptance.json" \
+            --output-dir "mirror-frozen/serdar"
+          test -s "mirror-frozen/serdar/serdar-pinned-main-manifest.json"
+          test -s "mirror-frozen/serdar/serdar-pinned-main-static-root.tar.gz"
+      - name: Upload verified SERDAR MAIN static archive - NOT PUBLISHED
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-hugoblox-real-main-full-static-not-published
+          path: mirror-frozen/serdar/
+          retention-days: 14
+          if-no-files-found: error
       - name: Upload proof only; no archive upload, no deployment
         uses: actions/upload-artifact@v4
         with:
