@@ -9,6 +9,7 @@ import gzip
 import hashlib
 import io
 import json
+from hugoblox_seo_discovery_bridge import CONFIG as SEO_CONFIG
 from pathlib import Path
 import re
 import tarfile
@@ -61,7 +62,8 @@ def read_json(path):
     return obj
 
 
-def freeze(project, source, receipt, http_proof, out_dir, pdf_parity=None):
+def freeze(project, source, receipt, http_proof, out_dir, pdf_parity=None, *,
+           prebridge_root=None, seo_bridge_receipt=None, seo_mobile_qa=None):
     project=project.upper()
     need(project in PROJECTS,'unrecognized project')
     config=PROJECTS[project]
@@ -100,7 +102,73 @@ def freeze(project, source, receipt, http_proof, out_dir, pdf_parity=None):
         allhashes.append(f'{rel}\t{sha}')
         manifest_files[rel]={'sha256':sha,'size_bytes':len(content)}
     tree=digest('\n'.join(allhashes).encode('utf-8'))
-    need(tree==report.get('output_root_sha256'),'receipt and output filetree SHA mismatch')
+    seo_requested=any(x is not None for x in (prebridge_root,seo_bridge_receipt,seo_mobile_qa))
+    seo_evidence=None
+    if seo_requested:
+        need(all(x is not None for x in (prebridge_root,seo_bridge_receipt,seo_mobile_qa)),
+             'SEO evidence requires prebridge root, bridge receipt AND mobile QA')
+        prebridge_root=Path(prebridge_root).resolve()
+        need(prebridge_root.is_dir() and prebridge_root!=source,
+             'SEO prebridge baseline missing or same as candidate')
+        need(not(prebridge_root in source.parents or source in prebridge_root.parents),
+             'SEO source and original mirror must not overlap')
+        old_items=files_under(prebridge_root)
+        need([p for p,_ in old_items]==[p for p,_ in items], 'SEO candidate added or removed files')
+        old_hashes={p:digest(f.read_bytes()) for p,f in old_items}
+        new_hashes={p:v['sha256'] for p,v in manifest_files.items()}
+        base_tree=digest('\n'.join(p+'\t'+old_hashes[p] for p in sorted(old_hashes)).encode('utf-8'))
+        need(base_tree==report.get('output_root_sha256'),
+             'SEO baseline does not match accepted genuine main mirror')
+        changes=[p for p in old_hashes if old_hashes[p]!=new_hashes[p]]
+        need(changes==['index.html'], 'SEO candidate must change ONLY the homepage')
+        cfg=SEO_CONFIG[project]
+        before=(prebridge_root/'index.html').read_text(encoding='utf-8')
+        after=(source/'index.html').read_text(encoding='utf-8')
+        need(before.count(cfg['needle'])==1 and after==before.replace(cfg['needle'],cfg['replacement'],1),
+             'SEO homepage change differs from the approved one-link replacement')
+        bridge=read_json(Path(seo_bridge_receipt))
+        qa=read_json(Path(seo_mobile_qa))
+        need(bridge.get('status')=='SEO_DISCOVERY_BRIDGE_STAGING_ONLY_PASS' and
+             bridge.get('project')==project and
+             bridge.get('production_published') is False and
+             bridge.get('production_publish_authorized') is False,
+             'SEO bridge was not accepted or is authorized for publication')
+        need(bridge.get('changed_original_files')==['index.html'] and
+             bridge.get('original_file_count')==len(items) and
+             bridge.get('new_file_count')==len(items) and
+             bridge.get('preserved_original_files')==len(items)-1,
+             'SEO bridge preservation report disagrees')
+        need(bridge.get('added_link_target')=='/rehber/' and
+             bridge.get('sitemap_urls')==config['urls'],
+             'SEO bridge destination/sitemap mismatch')
+        need(bridge.get('source_homepage_sha256')==old_hashes['index.html'] and
+             bridge.get('preview_homepage_sha256')==new_hashes['index.html'],
+             'SEO bridge homepage hashes mismatch')
+        need(bridge.get('source_filetree_sha256')==
+             digest(json.dumps(old_hashes,sort_keys=True).encode('utf-8')) and
+             bridge.get('candidate_filetree_sha256')==
+             digest(json.dumps(new_hashes,sort_keys=True).encode('utf-8')),
+             'SEO bridge full filetree hashes mismatch')
+        need(qa.get('project')==project and qa.get('status')=='SEO_DISCOVERY_MOBILE_QA_PASS'
+             and qa.get('production_published') is False,'SEO mobile QA not accepted')
+        sizes=qa.get('results')
+        need(isinstance(sizes,list) and len(sizes)==4 and
+             {r.get('width') for r in sizes if isinstance(r,dict)}=={360,390,430,1280},
+             'SEO mobile QA must cover exactly four required widths')
+        need(all(r.get('result')=='PASS' and r.get('destination')=='/rehber/' and
+                 r.get('horizontal_overflow') is False and r.get('link_height',0)>=44 and
+                 r.get('h1')==1 for r in sizes),'SEO mobile QA contains failure')
+        seo_evidence={
+            'variant':'SEO_DISCOVERY_LINK_FINAL_CANDIDATE',
+            'seo_bridge_receipt_sha256':digest(Path(seo_bridge_receipt).read_bytes()),
+            'seo_mobile_qa_sha256':digest(Path(seo_mobile_qa).read_bytes()),
+            'original_main_mirror_filetree_sha256':base_tree,
+            'seo_changed_paths':['index.html'],
+            'seo_link_destination':'/rehber/',
+            'seo_qa_widths':[360,390,430,1280],
+        }
+    else:
+        need(tree==report.get('output_root_sha256'), 'receipt and output filetree SHA mismatch')
     urls=sitemap_urls(source/'sitemap.xml')
     need(len(urls)==config['urls'] and all(u.startswith(config['site']+'/') for u in urls),
          'wrong sitemap origin/count')
@@ -163,6 +231,8 @@ def freeze(project, source, receipt, http_proof, out_dir, pdf_parity=None):
         'tar_gzip_bytes':tarfile_path.stat().st_size,
         'files':manifest_files,
     }
+    if seo_evidence is not None:
+        manifest.update(seo_evidence)
     with tarfile_path.open('rb') as src:
         with tarfile.open(fileobj=src,mode='r:gz') as tar:
             names=tar.getnames()
@@ -186,5 +256,9 @@ if __name__=='__main__':
     p.add_argument('--local-http-acceptance',required=True,type=Path)
     p.add_argument('--pdf-parity',type=Path,default=None)
     p.add_argument('--output-dir',required=True,type=Path)
+    p.add_argument('--prebridge-root',type=Path)
+    p.add_argument('--seo-bridge-receipt',type=Path)
+    p.add_argument('--seo-mobile-qa',type=Path)
     args=p.parse_args()
-    freeze(args.project,args.static_root,args.receipt,args.local_http_acceptance,args.output_dir,args.pdf_parity)
+    freeze(args.project,args.static_root,args.receipt,args.local_http_acceptance,args.output_dir,args.pdf_parity,
+           prebridge_root=args.prebridge_root,seo_bridge_receipt=args.seo_bridge_receipt,seo_mobile_qa=args.seo_mobile_qa)
