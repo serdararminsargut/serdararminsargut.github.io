@@ -33,7 +33,7 @@ def check(project, repo, built):
     need(meta['production_publish_authorized'] is False and meta['production_published'] is False,
          'unexpected publication flag')
     expected=meta['source_sha256']
-    need(len(expected) in (12,15), 'wrong approved source list count')
+    need(len(expected) in (12,16), 'wrong approved source list count')
     for rel, sha in expected.items():
         path=repo/rel
         need(path.is_file() and digest(path)==sha,'source differs from pinned HugoBlox release: '+rel)
@@ -59,6 +59,10 @@ def check(project, repo, built):
     sitemap=ET.parse(built/'sitemap.xml').getroot()
     locs=[x.text for x in sitemap.findall('x:url/x:loc',NS)]
     need(len(locs)==cfg['sitemap'] and len(locs)==len(set(locs)),'sitemap wrong URL count/duplicates')
+    if project=='SERDAR':
+        txt=[x.strip() for x in (built/'sitemap.txt').read_text(encoding='utf-8').splitlines() if x.strip()]
+        need(txt==locs,'text sitemap differs from XML canonical order')
+        need(all((node.findtext('{http://www.sitemaps.org/schemas/sitemap/0.9}lastmod') or '').strip() for node in sitemap.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}url')),'missing sitemap lastmod')
     need(all(u.startswith(cfg['origin']+'/') for u in locs),'sitemap cross-project domain')
     need(len([x for x in locs if x.startswith(cfg['origin']+'/rehber/')])==(7 if project=='SERDAR' else 5),'new+old guides wrong')
     if project=='SERDAR':

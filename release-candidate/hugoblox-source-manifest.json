@@ -12,12 +12,14 @@
     "rehber/media/icon_hu_8b792fc0bcdf6699.png": "d81ff01a052b93f8cba8f906b1dbd84ad4c4b4d752f1d52dba62df38cab546c7",
     "rehber/media/icon_hu_a5d3038cf5dd9ac7.png": "29c9615bc0a12f42a463bb77a2b6d8c4703bfc2a8020198fc62407a7e15873fc",
     "rehber/media/icon_hu_e8f87e32b667d1a7.png": "aefba01428aa6ba9b17f6a76a2f612a84ea061732a06655f30c37881e41dfc05",
-    "rehber/post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/index.html": "38d51c4aceed7b51da98d2a076c36b0c72ac612701e0ed00545382ff052ec98f",
-    "rehber/post/cocuk-oyuncu-casting-sunum-dosyasi/index.html": "8c8bec5a5599385590488a436b721ab4dd0156616c80cbac5dcbda477067da70",
+    "rehber/post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/index.html": "12852343e72d6b23563d2c4c2951d0ad654ac9760f591083703c19a6c6086974",
+    "rehber/post/cocuk-oyuncu-casting-sunum-dosyasi/index.html": "dbd0727ec315421fde279ddeb7efe8e6fc8cd396dd57df2bdb36f0c467e7a2d8",
     "rehber/post/index.html": "cd3531f0c2ca1e5575c6288aa375e8e3014f5b0c5e78e6730d64bf370c61544e",
-    "rehber/post/spor-giyim-ayakkabi-katalog-fotograflari/index.html": "1b64b895373bf13d201356ad2f033fdecc5507f167bf45c6dd1da03067f2a230",
+    "rehber/post/spor-giyim-ayakkabi-katalog-fotograflari/index.html": "7230e6349c447b68146095804ede447b0a4e8d324fa0762d9cc2d9f297254c0b",
     "index.html": "47bc7dd94d0aa512f2a9b51d0f70af05689401170511a34d45923dd281aca371",
-    "sitemap.xml": "bcc6a519cefba1ea617b9a993c9766415ea50420b1fa1eb2c26ad6dc5cfb60c4",
-    "sitemap-google.xml": "4e1803b82e9fd2f3e4128e7070270163f8f2f15ec8272a4d35173b19f90d7b36"
-  }
+    "sitemap.xml": "9d4b2168b44ad37c3f76ce4d14f85491e694b0a0c577d186edb5cb2dbb0e82d6",
+    "sitemap-google.xml": "8881f8af5585f07218dfe1d854b123ffd2ac89434f03c70f0930893ad0391c26",
+    "sitemap.txt": "30d18ad13559bcb9d4d49ebc1c9e6d22844a4f60ad7ecd962a096d5726f2c75e"
+  },
+  "rc_reason": "Repair percent-encoded TOC fragments and mandatory sitemap lastmod + sitemap.txt sync; retained immutable frozen original"
 }
