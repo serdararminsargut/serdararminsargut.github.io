@@ -1,0 +1,61 @@
+name: Serdar HugoBlox source release candidate — NO DEPLOY
+on:
+  push:
+    branches:
+      - test/hugoblox-source-integration-20261103
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: serdar-hugoblox-source-rc-check-only
+  cancel-in-progress: true
+jobs:
+  production-source-proof:
+    if: github.ref == 'refs/heads/test/hugoblox-source-integration-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout only source candidate; never main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Validate exact expected main and project
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'serdararminsargut/serdararminsargut.github.io'
+          test "$GITHUB_REF_NAME" = 'test/hugoblox-source-integration-20261103'
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')" = 'bb4737ed7367b84008c860ec3f722055a56ae518'
+          test "$(git hash-object .github/workflows/deploy-cloudflare-pages.yml)" = 'd86882c71b809b6e3f976d1cd509a66cc433fb64'
+          ! git diff 'bb4737ed7367b84008c860ec3f722055a56ae518' HEAD --name-only | grep -E '^(downloads/|assets/|casting-card/|links/)' 
+      - name: Prepare true production copy, excluding deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_serdar_production_main_static.py --production-source .
+      - name: Generate four existing Comp Card PDFs locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/serdar_generate_comp_cards.py dist
+      - name: Verify production candidate source diff, PDFs, sitemap, new guides
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/hugoblox_source_release_ci.py --project SERDAR --repo . --built dist
+          python3 scripts/hugoblox_source_release_http_qa.py \
+            --project SERDAR --static-root dist --output-json "$RUNNER_TEMP/serdar-source-release-http.json"
+          grep -Fq '"status": "LOCAL_PRODUCTION_MIRROR_HTTP_ACCEPTANCE_PASS"' "$RUNNER_TEMP/serdar-source-release-http.json"
+          cp "$RUNNER_TEMP/serdar-source-release-http.json" serdar-source-release-http-proof.json
+      - name: Preserve local-only evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-hugoblox-source-rc-no-deploy-proof
+          path: serdar-source-release-http-proof.json
+          if-no-files-found: error
+          retention-days: 14
