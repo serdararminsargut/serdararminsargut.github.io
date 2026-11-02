@@ -31,7 +31,7 @@ sections:
 
         Fotoğraflar, doğrulanmış çalışmalar ve veli iletişimi.
 
-        Bu sayfa yalnızca korumalı test önizlemesidir. İçerikler henüz yayın onayı almamıştır. Profesyonel iletişim veli yönetimindeki resmî portföy üzerinden yürütülür.
+        Bu rehberler, Serdar Armin Sargut'un veli yönetimindeki resmî portföyünü destekleyen bilgilendirici içeriklerdir. Casting ve işbirliği iletişimi resmî portföy üzerinden yürütülür.
     design:
       spacing:
         padding: ['2rem', 0, '2rem', 0]
