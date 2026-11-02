@@ -10,6 +10,7 @@ on:
       - '.github/workflows/hugoblox-com-staging.yml'
       - 'experiments/hugoblox-20261029/**'
       - 'scripts/hugoblox_stage_overlay.py'
+      - 'scripts/hugoblox_prepare_release_candidate.py'
       - 'scripts/hugoblox_mobile_layout_probe_v18.html'
 
   workflow_dispatch:
@@ -128,6 +129,31 @@ jobs:
           path: qa-artifacts/
           retention-days: 3
           if-no-files-found: warn
+      - name: Offline Serdar SEO release candidate acceptance - NO DEPLOY
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'test/hugoblox-com-integration-20261030'
+          candidate_tmp="$(mktemp -d)"
+          trap 'rm -rf "$candidate_tmp"' EXIT
+          python3 scripts/hugoblox_prepare_release_candidate.py \
+            --staging-root dist --output-root "$candidate_tmp/serdar-release"
+          python3 - "$candidate_tmp/serdar-release/manifest.json" <<'PY_RELEASE'
+          import json
+          import sys
+          from pathlib import Path
+          m=json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+          assert m['project']=='SERDAR_ONLY'
+          assert m['status']=='OFFLINE_CANDIDATE_NOT_PUBLISHED'
+          assert m['production_publish_authorized'] is False
+          assert m['new_guide_pages']==5 and m['new_articles']==3
+          assert m['existing_regional_pages_preserved_in_source']==2
+          assert m['existing_locale_homepages_preserved_in_source']==8
+          assert m['serdar_26_locale_expansion_included'] is False
+          assert m['diagnostic_routes_included'] is False
+          assert m['sitemap_merged_into_production'] is False
+          print('SERDAR_OFFLINE_RELEASE_MANIFEST_PASS: no publication or sitemap mutation')
+          PY_RELEASE
       - name: Validate Cloudflare secret account identifier
         id: cf
         shell: bash
