@@ -21,16 +21,16 @@ NS='{http://www.sitemaps.org/schemas/sitemap/0.9}'
 CONFIG={
     'SERDAR': {
         'origin':'https://serdararminsargut.com', 'urls':95,
-        'anchor':'<a href="/rehber/">Çocuk giyim ve casting rehberleri</a>',
+        'anchor':'<a href="/rehber/" style="display:inline-flex;align-items:center;min-height:44px">Çocuk giyim ve casting rehberleri</a>',
         'needle':'<a href="/rehber/korfez-cocuk-model-portfoyu/">Körfez portföy rehberi</a></div></footer>',
-        'replacement':'<a href="/rehber/korfez-cocuk-model-portfoyu/">Körfez portföy rehberi</a> · <a href="/rehber/">Çocuk giyim ve casting rehberleri</a></div></footer>',
+        'replacement':'<a href="/rehber/korfez-cocuk-model-portfoyu/">Körfez portföy rehberi</a> · <a href="/rehber/" style="display:inline-flex;align-items:center;min-height:44px">Çocuk giyim ve casting rehberleri</a></div></footer>',
         'protected': ['casting-card/tr.html','downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf','downloads/Serdar-Armin-Sargut-Comp-Card-EN.pdf','downloads/Serdar-Armin-Sargut-Comp-Card-AR.pdf','downloads/Serdar-Armin-Sargut-Comp-Card-RU.pdf'],
     },
     'DURU': {
         'origin':'https://durumuallasargut.com', 'urls':36,
-        'anchor':'<a class="text-link" href="/rehber/">Oyunculuk ve casting rehberleri</a>',
+        'anchor':'<a class="text-link" href="/rehber/" style="display:inline-flex;align-items:center;min-height:44px">Oyunculuk ve casting rehberleri</a>',
         'needle':'<span>DURU MUALLA SARGUT</span>\n      <span>RESMÎ PORTFÖY</span>',
-        'replacement':'<span>DURU MUALLA SARGUT</span>\n      <a class="text-link" href="/rehber/">Oyunculuk ve casting rehberleri</a>\n      <span>RESMÎ PORTFÖY</span>',
+        'replacement':'<span>DURU MUALLA SARGUT</span>\n      <a class="text-link" href="/rehber/" style="display:inline-flex;align-items:center;min-height:44px">Oyunculuk ve casting rehberleri</a>\n      <span>RESMÎ PORTFÖY</span>',
         'protected':['comp-card/tr/index.html','comp-card/ur/index.html','comp-card/ko/index.html'],
     },
 }
