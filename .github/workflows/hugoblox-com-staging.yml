@@ -12,6 +12,7 @@ on:
       - 'scripts/hugoblox_stage_overlay.py'
       - 'scripts/hugoblox_prepare_release_candidate.py'
       - 'scripts/hugoblox_offline_fullmerge_gate.py'
+      - 'scripts/hugoblox_release_evidence.py'
       - 'scripts/test_hugoblox_offline_fullmerge_gate.py'
       - 'scripts/hugoblox_compiled_mobile_qa.py'
       - 'scripts/hugoblox_mobile_layout_probe_v18.html'
@@ -176,6 +177,14 @@ jobs:
           mkdir -p qa-artifacts/full-merge
           cp "$candidate_tmp/serdar-combined/offline_full_merge_report.json" \
              qa-artifacts/full-merge/serdar_offline_full_merge_report.json
+          # Freeze exactly the full merged, QA-accepted site root; NO DEPLOY.
+          python3 -m py_compile scripts/hugoblox_release_evidence.py
+          python3 scripts/hugoblox_release_evidence.py freeze \
+            --project SERDAR \
+            --merged-root "$candidate_tmp/serdar-combined/merged-root" \
+            --report "$candidate_tmp/serdar-combined/offline_full_merge_report.json" \
+            --output-dir qa-artifacts/frozen-root \
+            --staging-commit "$GITHUB_SHA"
       - name: Preserve Serdar offline full-merge report - NO DEPLOY
         if: always()
         uses: actions/upload-artifact@v4
@@ -184,6 +193,13 @@ jobs:
           path: qa-artifacts/full-merge/
           retention-days: 14
           if-no-files-found: warn
+      - name: Preserve immutable Serdar full static candidate - NO DEPLOY
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-hugoblox-full-static-root
+          path: qa-artifacts/frozen-root/
+          retention-days: 14
+          if-no-files-found: error
       - name: Validate Cloudflare secret account identifier
         id: cf
         shell: bash
@@ -198,6 +214,23 @@ jobs:
           [[ "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]
           echo "::add-mask::$account_id"
           echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+      - name: Read-only Cloudflare production deployment baseline - GET ONLY
+        shell: bash
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'test/hugoblox-com-integration-20261030'
+          python3 scripts/hugoblox_release_evidence.py cloudflare \
+            --project SERDAR --output qa-artifacts/production-baseline/serdar.json
+      - name: Preserve Serdar read-only rollback baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-hugoblox-production-baseline-readonly
+          path: qa-artifacts/production-baseline/
+          retention-days: 14
+          if-no-files-found: error
       - name: Deploy only restricted Cloudflare Preview branch
         uses: cloudflare/wrangler-action@v3
         with:
