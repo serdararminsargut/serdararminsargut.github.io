@@ -5,6 +5,9 @@ on:
       - test/hugoblox-com-integration-20261030
     paths:
       - 'scripts/hugoblox_merge_into_real_production.py'
+      - 'scripts/hugoblox_seo_discovery_bridge.py'
+      - 'scripts/test_hugoblox_seo_discovery_bridge.py'
+      - 'scripts/hugoblox_seo_bridge_mobile_qa.py'
       - 'scripts/hugoblox_freeze_verified_main.py'
       - 'scripts/test_freeze_verified_main.py'
       - 'scripts/hugoblox_local_http_acceptance.py'
@@ -157,6 +160,26 @@ jobs:
           path: mirror-frozen/serdar/
           retention-days: 14
           if-no-files-found: error
+      - name: SEO homepage footer discovery bridge — isolated preview copy ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 staging-src/scripts/test_hugoblox_seo_discovery_bridge.py
+          python3 staging-src/scripts/hugoblox_seo_discovery_bridge.py \
+            --project SERDAR \
+            --source-root "$RUNNER_TEMP/serdar-production-main-mirror" \
+            --output-root "$RUNNER_TEMP/serdar-seo-discovery-candidate" \
+            --receipt "mirror-proof/serdar-seo-discovery-bridge.json"
+          grep -Fq '"status": "SEO_DISCOVERY_BRIDGE_STAGING_ONLY_PASS"' "mirror-proof/serdar-seo-discovery-bridge.json"
+      - name: SEO footer link 360 390 430 1280px local Chromium QA — NO DEPLOY
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 staging-src/scripts/hugoblox_seo_bridge_mobile_qa.py \
+            --project SERDAR \
+            --root "$RUNNER_TEMP/serdar-seo-discovery-candidate" \
+            --output-dir "mirror-proof/seo-mobile"
+          grep -Fq '"status": "SEO_DISCOVERY_MOBILE_QA_PASS"' "mirror-proof/seo-mobile/serdar-seo-mobile-qa.json"
       - name: Upload proof only; no archive upload, no deployment
         uses: actions/upload-artifact@v4
         with:
