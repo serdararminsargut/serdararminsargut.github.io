@@ -68,6 +68,16 @@ def main(origin, destination):
                                 assert info["css"] >= 1, "HugoBlox CSS absent"
                                 assert info["h1"] >= 1, "HugoBlox heading missing"
                             if route == "/rehber/":
+                                # Never expose Serdar's changing measurements or
+                                # internal preview diagnostics on the guide landing.
+                                assert page.locator("#portfolio-live-preview").count() == 0, (
+                                    "Unapproved diagnostic panel visible on Serdar landing"
+                                )
+                                landing_text = page.locator("body").inner_text()
+                                for prohibited in ("Resmî portföyden güncel bilgiler (test)",
+                                                   "Dil bağlantıları:", "Kaynak sitede gözlenen bilgiler"):
+                                    assert prohibited not in landing_text, "Landing diagnostic leak: " + prohibited
+                                case["diagnosticLanding"] = "NOT_EXPOSED"
                                 case["cta"] = {}
                                 heading = page.locator("#serdar-hugo-cta")
                                 assert heading.count() == 1 and heading.is_visible(), "CTA heading missing"
@@ -137,6 +147,21 @@ def main(origin, destination):
                                     path=str(destination / ("serdar-hugoblox-footer-%d.png" % width)),
                                     timeout=5000,
                                 )
+                            if route == "/rehber/portfoy-guncel/":
+                                # Diagnostics are isolated, noindex and free of unapproved
+                                # child measurements even in the read-only JSON snapshot.
+                                diag_text = page.locator("body").inner_text()
+                                assert "Boy (sitede gözlenen):" not in diag_text
+                                assert "Ayakkabı:" not in diag_text
+                                snapshot = page.request.get(
+                                    origin + "rehber/portfoy-guncel/source-status.json"
+                                )
+                                assert snapshot.status == 200, "Source status JSON missing"
+                                state = snapshot.json()
+                                assert "height_cm" not in state and "shoe_eu" not in state, (
+                                    "Unapproved child measurements in staging JSON"
+                                )
+                                case["diagnosticMeasurements"] = "REDACTED"
                             assert not js_errors, "JavaScript runtime error(s)"
                             case["status"] = "PASS"
                         except Exception as exc:
