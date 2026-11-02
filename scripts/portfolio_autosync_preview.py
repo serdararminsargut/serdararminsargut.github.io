@@ -136,7 +136,10 @@ def run(project,root):
  if not photos:errors.append("SOURCE_INCOMPLETE photos")
  observations={"height_cm":details["height_cm"],"shoe_eu":details["shoe_eu"],
   "videos":urls,"photos":photos,"hreflang":langs}
- normalized={**observations,"videos":sorted(urls),"photos":sorted(photos),"hreflang":sorted(langs)}
+ # Do not serialize or hash changing unapproved measurements in Preview.
+ public_observations={k:v for k,v in observations.items()
+                      if k not in ("height_cm","shoe_eu")}
+ normalized={**public_observations,"videos":sorted(urls),"photos":sorted(photos),"hreflang":sorted(langs)}
  fingerprint=hashlib.sha256(json.dumps(normalized,sort_keys=True,ensure_ascii=False).encode()).hexdigest()
  status="SOURCE_UNAVAILABLE" if not sources else "SOURCE_CONFLICT" if any("SOURCE_CONFLICT" in e for e in errors) else "PARTIAL_SOURCE" if errors else "OBSERVED_PREVIEW_ONLY"
  # Fail closed: missing source is NOT a real removal or update. Do not replace last healthy Preview.
@@ -149,7 +152,7 @@ def run(project,root):
   raise SystemExit("AUTOSYNC_BLOCKED_"+project.upper()+": "+str(e)) from e
  result={"project":project,"source":origin,"status":status,
   "checked_at_utc":datetime.now(timezone.utc).isoformat(),
-  "observation_sha256":fingerprint,**observations,"errors":errors,"baseline_check":baseline_check,
+  "observation_sha256":fingerprint,**public_observations,"errors":errors,"baseline_check":baseline_check,
   "never_auto_publish":True,"measurements_require_parent_approval":True}
  output=root/"rehber"/"portfoy-guncel";output.mkdir(parents=True,exist_ok=True)
  (output/"source-status.json").write_text(json.dumps(result,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
@@ -160,34 +163,20 @@ def run(project,root):
  '<body style="font:16px/1.5 system-ui;max-width:800px;margin:auto;padding:24px;overflow-wrap:anywhere">'
  '<h1>'+esc(name)+' — Önizleme eşitleme</h1><p>Yalnızca test, veri gözlemidir; yayın onayı değildir.</p>'
  '<p>Kaynak: '+esc(origin)+'</p><p>Durum: '+esc(status)+'</p>'
- '<p>Boy (sitede gözlenen): '+esc(details["height_cm"] if details["height_cm"] is not None else "doğrulanamadı")+'</p>'
- '<p>Ayakkabı: '+esc(details["shoe_eu"] or "doğrulanamadı")+'</p>'
  '<p>Dil kodları: '+esc(", ".join(langs))+'</p>'
  '<h2>Videolar</h2><ul>'+linkitems(urls)+'</ul><h2>Fotoğraflar</h2><ul>'+linkitems(photos)+'</ul></body></html>')
  (output/"index.html").write_text(content,encoding="utf-8")
- # Integrate the same validated observation into the HugoBlox landing page.
- # Only the already isolated /rehber/ Preview is modified; never the real homepage.
+ # Landing stays focused on reviewed casting, portfolio and Instagram CTAs.
+ # The technical source diagnostic route is not linked or injected into the landing.
  landing=root/"rehber"/"index.html"
- if landing.is_file():
-  existing=landing.read_text(encoding="utf-8")
-  if "<meta name=\"robots\" content=\"noindex,nofollow,noarchive\">" not in existing:
-   raise SystemExit("AUTOSYNC_BLOCKED: HugoBlox landing lacks noindex gate")
-  if "<!-- PORTFOLIO_AUTOSYNC_PREVIEW_START -->" in existing:
-   raise SystemExit("AUTOSYNC_BLOCKED: duplicate HugoBlox preview sync panel")
-  items=linkitems(urls[:8])
-  panel=('<!-- PORTFOLIO_AUTOSYNC_PREVIEW_START -->'
-   '<section id="portfolio-live-preview" aria-label="Resmî portföy veri önizlemesi"'
-   ' style="max-width:850px;margin:24px auto;padding:20px;border:1px solid #888;border-radius:12px;overflow-wrap:anywhere">'
-   '<h2>Resmî portföyden güncel bilgiler (test)</h2>'
-   '<p>Kaynak sitede gözlenen bilgiler; yeni ölçüler ve içerikler yayımlanmadan önce veli onayı gerektirir.</p>'
-   '<p>Boy: '+esc(details["height_cm"] if details["height_cm"] is not None else "doğrulanamadı")+
-   ' cm · Ayakkabı: '+esc(details["shoe_eu"] or "doğrulanamadı")+'</p>'
-   '<p>Dil bağlantıları: '+esc(", ".join(langs))+'</p>'
-   '<h3>Video bağlantıları</h3><ul>'+items+'</ul>'
-   '<p><a href="/rehber/portfoy-guncel/">Tüm fotoğraf ve video kaynaklarını görüntüle</a></p>'
-   '</section><!-- PORTFOLIO_AUTOSYNC_PREVIEW_END -->')
-  if "</body>" not in existing:raise SystemExit("AUTOSYNC_BLOCKED: HugoBlox landing has no body closing tag")
-  landing.write_text(existing.replace("</body>",panel+"</body>",1),encoding="utf-8")
+ if not landing.is_file():
+  raise SystemExit("AUTOSYNC_BLOCKED: missing Serdar landing")
+ landing_html=landing.read_text(encoding="utf-8")
+ if '<meta name="robots" content="noindex,nofollow,noarchive">' not in landing_html:
+  raise SystemExit("AUTOSYNC_BLOCKED: staging noindex absent")
+ if any(t in landing_html for t in ('PORTFOLIO_AUTOSYNC_PREVIEW_START',
+            'Resmî portföyden güncel bilgiler (test)', 'Dil bağlantıları:')):
+  raise SystemExit("AUTOSYNC_BLOCKED: private diagnostic block in landing")
  print("AUTOSYNC_"+project.upper()+"_"+status+" preview snapshot only; no production changes",flush=True)
  if errors:print("SOURCE CHECK WARNING: "+", ".join(errors),flush=True)
 
