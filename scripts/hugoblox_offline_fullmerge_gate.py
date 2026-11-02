@@ -175,10 +175,15 @@ def read_head(path, config, expected, merged):
                 computed = base64.b64encode(hashlib.new(alg, actual.read_bytes()).digest()).decode()
                 check(computed == b64, 'Mismatched CSS SRI: ' + href)
             else:
-                # HugoBlox can fingerprint same-origin CSS without an SRI tag.
-                # Verify the embedded SHA-256 filename against actual file bytes.
-                # Unhashed/unverified CSS remains blocked.
-                match = re.search(r'\.([a-f0-9]{64})\.css
+                # HugoBlox sometimes embeds a SHA-256 digest into a same-origin
+                # stylesheet filename instead of adding an SRI attribute.
+                # Require exact byte-to-filename agreement.
+                parts = actual.name.split(".")
+                stamp = parts[-2] if len(parts) >= 3 else ""
+                check(len(stamp) == 64 and all(ch in "0123456789abcdef" for ch in stamp)
+                      and digest(actual) == stamp,
+                      'CSS lacks verified SRI or SHA-256 filename fingerprint: ' + href)
+            css_verified += 1
     check(css_verified > 0, 'No verified HugoBlox CSS at ' + expected)
     for href in p.local_links:
         check(not href.startswith('/post/'), 'Unrewritten /post/ link at ' + expected)
