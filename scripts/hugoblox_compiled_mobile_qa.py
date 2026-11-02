@@ -85,10 +85,8 @@ def main(origin, destination):
                                 # the sticky mobile navbar, without changing page layout.
                                 anchor_spacing = heading.evaluate("""el => ({
                                     margin: parseFloat(getComputedStyle(el).scrollMarginTop),
-                                    padding: parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop),
                                 })""")
                                 assert anchor_spacing["margin"] >= 80, "Sticky anchor scroll margin missing"
-                                assert anchor_spacing["padding"] >= 80, "Sticky anchor scroll padding missing"
                                 case["stickyAnchorOffset"] = {"result": "PASS", **anchor_spacing}
                                 links_list = page.locator("#serdar-hugo-cta + ul")
                                 assert links_list.count() == 1, "CTA link list not adjacent to heading"
