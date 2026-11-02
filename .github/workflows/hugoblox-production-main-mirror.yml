@@ -9,6 +9,7 @@ on:
       - 'scripts/test_hugoblox_seo_discovery_bridge.py'
       - 'scripts/hugoblox_seo_bridge_mobile_qa.py'
       - 'scripts/hugoblox_freeze_verified_main.py'
+      - 'scripts/test_seo_freeze_gate.py'
       - 'scripts/test_freeze_verified_main.py'
       - 'scripts/hugoblox_local_http_acceptance.py'
       - 'scripts/prepare_serdar_production_main_static.py'
@@ -180,6 +181,44 @@ jobs:
             --root "$RUNNER_TEMP/serdar-seo-discovery-candidate" \
             --output-dir "mirror-proof/seo-mobile"
           grep -Fq '"status": "SEO_DISCOVERY_MOBILE_QA_PASS"' "mirror-proof/seo-mobile/serdar-seo-mobile-qa.json"
+      - name: Freeze final SERDAR SEO-linked full static root with strict QA - NO DEPLOY
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 staging-src/scripts/test_seo_freeze_gate.py
+          python3 staging-src/scripts/hugoblox_freeze_verified_main.py \
+            --project SERDAR \
+            --static-root "$RUNNER_TEMP/serdar-seo-discovery-candidate" \
+            --prebridge-root "$RUNNER_TEMP/serdar-production-main-mirror" \
+            --seo-bridge-receipt "mirror-proof/serdar-seo-discovery-bridge.json" \
+            --seo-mobile-qa "mirror-proof/seo-mobile/serdar-seo-mobile-qa.json" \
+            --receipt "$RUNNER_TEMP/serdar-production-main-mirror-receipt.json" \
+            --local-http-acceptance "mirror-proof/serdar-local-http-acceptance.json" \
+            --output-dir "mirror-frozen-seo/serdar"
+          test -s "mirror-frozen-seo/serdar/serdar-pinned-main-manifest.json"
+          test -s "mirror-frozen-seo/serdar/serdar-pinned-main-static-root.tar.gz"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('mirror-frozen-seo/serdar/serdar-pinned-main-manifest.json')
+          data=json.loads(p.read_text(encoding='utf-8'))
+          assert data['project']=='SERDAR'
+          assert data['variant']=='SEO_DISCOVERY_LINK_FINAL_CANDIDATE'
+          assert data['seo_changed_paths']==['index.html']
+          assert data['seo_qa_widths']==[360,390,430,1280]
+          assert data['production_published'] is False
+          assert data['production_publish_authorized'] is False
+          assert data['total_files']==174
+          assert data['sitemap_urls']==95
+          print('SERDAR_FINAL_SEO_LINKED_ARCHIVE_NOT_PUBLISHED_PASS')
+          PY
+      - name: Preserve final SERDAR SEO-linked static root - NOT PUBLISHED
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-hugoblox-real-main-SEO-linked-full-static-NOT-PUBLISHED
+          path: mirror-frozen-seo/serdar/
+          retention-days: 14
+          if-no-files-found: error
       - name: Upload proof only; no archive upload, no deployment
         uses: actions/upload-artifact@v4
         with:
