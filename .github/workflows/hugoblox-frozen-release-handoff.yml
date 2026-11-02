@@ -1,0 +1,122 @@
+name: Serdar HugoBlox frozen release handoff verification — NO DEPLOY
+on:
+  push:
+    branches:
+      - test/hugoblox-com-integration-20261030
+    paths:
+      - scripts/verify_frozen_release_handoff.py
+      - scripts/test_release_handoff.py
+      - .github/workflows/hugoblox-frozen-release-handoff.yml
+
+# Read-only GitHub access only. No Cloudflare token, deployment environment,
+# write permission, main push, release publishing or branch mutation.
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: serdar-hugoblox-frozen-release-handoff
+  cancel-in-progress: true
+
+jobs:
+  local-handoff:
+    if: github.ref == 'refs/heads/test/hugoblox-com-integration-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out staging source only
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify no-deploy project and pinned main Git SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = 'test/hugoblox-com-integration-20261030'
+          test "$GITHUB_REPOSITORY" = 'serdararminsargut/serdararminsargut.github.io'
+          actual=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')
+          test "$actual" = 'bb4737ed7367b84008c860ec3f722055a56ae518' || { echo 'NO-GO: production main changed' >&2; exit 1; }
+          echo 'Pinned Git main ref PASS — no mutation performed'
+      - name: Download ONLY immutable archived evidence from previous successful staging run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p handoff-input/frozen handoff-input/cloudflare
+          gh run download 41501087858 -n 'serdar-hugoblox-full-static-root' --dir handoff-input/frozen
+          gh run download 41501087858 -n 'serdar-hugoblox-production-baseline-readonly' --dir handoff-input/cloudflare
+          test "$(find handoff-input/frozen -maxdepth 1 -type f | wc -l)" -eq 2
+          test "$(find handoff-input/cloudflare -maxdepth 1 -type f | wc -l)" -eq 1
+      - name: Repackage exact evidence bytes locally (no upload or modification to originals)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY_ZIP'
+          from pathlib import Path
+          import zipfile
+          for source,name in [('frozen','frozen.zip'),('cloudflare','baseline.zip')]:
+              directory=Path('handoff-input')/source
+              with zipfile.ZipFile(Path('handoff-input')/name,'w',compression=zipfile.ZIP_STORED) as z:
+                  for f in sorted(directory.iterdir()):
+                      assert f.is_file()
+                      z.write(f,f.name)
+          PY_ZIP
+      - name: Fail-closed unit tests — no network
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts -p 'test_release_handoff.py' -v
+      - name: Reconstruct exact verified production-shaped static root in runner only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_frozen_release_handoff.py \
+            --project SERDAR \
+            --frozen-zip handoff-input/frozen.zip \
+            --baseline-zip handoff-input/baseline.zip \
+            --main-commit 'bb4737ed7367b84008c860ec3f722055a56ae518' \
+            --output-root "$RUNNER_TEMP/serdar-release-handoff"
+          test -f "$RUNNER_TEMP/serdar-release-handoff/HANDOFF_RECEIPT.json"
+          python3 - "$RUNNER_TEMP/serdar-release-handoff/HANDOFF_RECEIPT.json" <<'PY_RECEIPT'
+          from pathlib import Path
+          import json,sys
+          a=json.loads(Path(sys.argv[1]).read_text())
+          assert a['status']=='NO_DEPLOY_HANDOFF_PASS'
+          assert a['production_publish_authorized'] is False
+          assert a['project']=='SERDAR'
+          assert a['static_directory']=='dist'
+          print('HANDOFF RECEIPT PASS (local only)')
+          PY_RECEIPT
+      - name: Local HTTP 200 smoke test for all 5 new routes — NO EXTERNAL TRAFFIC
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 8768 --bind 127.0.0.1 \
+            --directory "$RUNNER_TEMP/serdar-release-handoff/dist" > /tmp/handoff-local-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 20); do
+            if curl -fsS 'http://127.0.0.1:8768/rehber/' > /dev/null; then break; fi
+            sleep 1
+          done
+          for route in /rehber/ /rehber/post/ /rehber/post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/ /rehber/post/spor-giyim-ayakkabi-katalog-fotograflari/ /rehber/post/cocuk-oyuncu-casting-sunum-dosyasi/; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:8768$route")
+            test "$code" = 200 || { echo "NO-GO: $route HTTP $code" >&2; exit 1; }
+          done
+          echo 'SERDAR_HANDOFF_LOCAL_HTTP_5_OF_5_PASS'
+      - name: Preserve ONLY no-deploy receipt, not duplicate portfolio media
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p handoff-proof
+          cp "$RUNNER_TEMP/serdar-release-handoff/HANDOFF_RECEIPT.json" handoff-proof/serdar-receipt.json
+      - name: Upload no-deploy handoff receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-hugoblox-verified-handoff-receipt
+          path: handoff-proof/
+          retention-days: 14
+          if-no-files-found: error
