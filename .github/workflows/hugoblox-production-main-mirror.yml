@@ -5,6 +5,7 @@ on:
       - test/hugoblox-com-integration-20261030
     paths:
       - 'scripts/hugoblox_merge_into_real_production.py'
+      - 'scripts/hugoblox_local_http_acceptance.py'
       - 'scripts/prepare_serdar_production_main_static.py'
       - 'scripts/test_production_main_mirror.py'
       - '.github/workflows/hugoblox-production-main-mirror.yml'
@@ -108,6 +109,15 @@ jobs:
           test -s "$RUNNER_TEMP/serdar-production-main-mirror/rehber/index.html"
           test -s "$RUNNER_TEMP/serdar-production-main-mirror/rehber/post/index.html"
           test -s "$RUNNER_TEMP/serdar-production-main-mirror-receipt.json"
+      - name: HTTP acceptance on real Serdar production-main merged root - loopback only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 staging-src/scripts/hugoblox_local_http_acceptance.py \
+            --project SERDAR \
+            --static-root "$RUNNER_TEMP/serdar-production-main-mirror" \
+            --output-json mirror-proof/serdar-local-http-acceptance.json
+          grep -Fq '"status": "LOCAL_PRODUCTION_MIRROR_HTTP_ACCEPTANCE_PASS"' mirror-proof/serdar-local-http-acceptance.json
       - name: Save only prepublication NO-DEPLOY signed-off test receipt
         shell: bash
         run: |
