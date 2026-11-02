@@ -102,6 +102,41 @@ def main(origin, destination):
                                     case["cta"][name] = {"result":"ACTIONABLE","style":style}
                                 page.screenshot(path=str(destination / ("serdar-hugoblox-%s.png" % width)),
                                                 full_page=False)
+                                # Serdar copyright footer, local compiled HTML only.
+                                # Never claim this is external Cloudflare or Android acceptance.
+                                footer = page.locator("footer").last
+                                assert footer.count() == 1 and footer.is_visible(), (
+                                    "Serdar copyright footer not rendered"
+                                )
+                                footer_state = footer.evaluate("""el => {
+                                    const html = el.outerHTML;
+                                    const text = el.innerText || '';
+                                    return {
+                                        text: text.slice(0, 1800),
+                                        creativeCommonsMarkers:
+                                            /creativecommons\\.org|creative\\s*commons|cc-by|cc-nc|cc-nd|license-cc/i.test(html),
+                                        outboundLinks: Array.from(el.querySelectorAll('a[href]'))
+                                            .map(a => a.getAttribute('href')).slice(0, 15),
+                                    };
+                                }""")
+                                assert "Serdar Armin Sargut" in footer_state["text"], (
+                                    "Serdar identity missing from copyright footer"
+                                )
+                                assert "Tüm hakları saklıdır" in footer_state["text"], (
+                                    "All-rights-reserved notice missing from rendered footer"
+                                )
+                                assert not footer_state["creativeCommonsMarkers"], (
+                                    "Creative Commons icon or link remains in Serdar footer"
+                                )
+                                case["copyrightFooter"] = {
+                                    "result": "PASS",
+                                    **footer_state,
+                                    "scope": "LOCAL_CHROMIUM_ONLY",
+                                }
+                                footer.screenshot(
+                                    path=str(destination / ("serdar-hugoblox-footer-%d.png" % width)),
+                                    timeout=5000,
+                                )
                             assert not js_errors, "JavaScript runtime error(s)"
                             case["status"] = "PASS"
                         except Exception as exc:
