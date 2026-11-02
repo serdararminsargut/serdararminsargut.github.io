@@ -55,8 +55,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p frozen-input/zipped frozen-input/baseline
-          gh run download 41501087858 -n 'serdar-hugoblox-full-static-root' --dir frozen-input/zipped
-          gh run download 41501087858 -n 'serdar-hugoblox-production-baseline-readonly' --dir frozen-input/baseline
+          gh run download 41501087858 -n 'serdar-hugoblox-full-static-root' --repo "$GITHUB_REPOSITORY" --dir frozen-input/zipped
+          gh run download 41501087858 -n 'serdar-hugoblox-production-baseline-readonly' --repo "$GITHUB_REPOSITORY" --dir frozen-input/baseline
           test "$(find frozen-input/zipped -maxdepth 1 -type f | wc -l)" -eq 2
           test "$(find frozen-input/baseline -maxdepth 1 -type f | wc -l)" -eq 1
       - name: Wrap downloaded byte-identical evidence in local containers
