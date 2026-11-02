@@ -4,4 +4,4 @@ description: "Çocuk giyim, katalog çekimi ve casting sunumuna ilişkin eğitim
 draft: true
 ---
 
-Bu sayfalar veli yönetimindeki, henüz yayımlanmamış bir HugoBlox içerik testidir. Başvuru veya iletişim için resmî portföyü kullanın.
+Bu rehberler çocuk giyim, katalog çekimi ve oyuncu casting sunumuna ilişkin genel bilgiler sunar. Profesyonel iletişim için [Serdar'ın resmî portföyünü](https://serdararminsargut.com/) kullanın.
