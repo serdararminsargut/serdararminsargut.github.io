@@ -49,7 +49,7 @@ jobs:
           diff="$(git diff bb4737ed7367b84008c860ec3f722055a56ae518 HEAD --name-only)"
           echo "$diff"
           test "$(echo "$diff" | wc -l)" -eq 4
-          ! echo "$diff" | grep -Ev '^(\.github/workflows/serdar-direct-pdf-preprod-ci\.yml|scripts/serdar_comp_card_direct_final\.py|scripts/prepare_serdar_production_main_static\.py|\.github/workflows/deploy-cloudflare-pages\.yml)
+          ! echo "$diff" | grep -Ev '^(\.github/workflows/serdar-direct-pdf-preprod-ci\.yml|scripts/serdar_comp_card_direct_final\.py|scripts/prepare_serdar_production_main_static\.py|\.github/workflows/deploy-cloudflare-pages\.yml)$'
           ! git diff bb4737ed7367b84008c860ec3f722055a56ae518 HEAD --name-only | grep -E '^(downloads/|assets/|casting-card/)'
       - name: Build precise static mirror using pinned main harmless copy step
         shell: bash
