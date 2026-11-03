@@ -52,6 +52,23 @@ jobs:
             --project SERDAR --static-root dist --output-json "$RUNNER_TEMP/serdar-source-release-http.json"
           grep -Fq '"status": "LOCAL_PRODUCTION_MIRROR_HTTP_ACCEPTANCE_PASS"' "$RUNNER_TEMP/serdar-source-release-http.json"
           cp "$RUNNER_TEMP/serdar-source-release-http.json" serdar-source-release-http-proof.json
+      - name: Prepare four-language PDF layout preview in isolated runner (NO DEPLOY)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object scripts/serdar_comp_card_pdf_layout_preview.py)" = '248035d152aa680c31ba949ee41b965387997353'
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-dejavu-core fonts-noto-core
+          python3 -m pip install --disable-pip-version-check 'pymupdf==1.26.4'
+          python3 scripts/serdar_comp_card_pdf_layout_preview.py \
+            --source-root dist --output-dir "$RUNNER_TEMP/serdar-pdf-layout-preview"
+      - name: Preserve 4 watermarked PDFs outside production dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-comp-card-4lang-watermarked-preview-no-deploy
+          path: ${{ runner.temp }}/serdar-pdf-layout-preview/
+          if-no-files-found: error
+          retention-days: 14
       - name: Preserve local-only evidence
         uses: actions/upload-artifact@v4
         with:
