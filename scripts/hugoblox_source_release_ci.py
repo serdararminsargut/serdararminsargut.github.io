@@ -43,7 +43,8 @@ def check(project, repo, built):
       'scripts/hugoblox_source_release_ci.py','scripts/hugoblox_source_release_http_qa.py'}
     if project=='SERDAR': allowed.update({'scripts/prepare_serdar_production_main_static.py',
                                       'scripts/serdar_comp_card_pdf_layout_preview.py',
-                                      'scripts/serdar_clean_candidate_staging.py'})
+                                      'scripts/serdar_clean_candidate_staging.py',
+                                      'scripts/serdar_pdf_metadata_preprod.py'})
     else: allowed.update({'build.sh','scripts/hugoblox_production_source_overlay.py'})
     need(set(changed)==allowed, 'unexpected source diff paths: '+repr(sorted(set(changed)^allowed)))
     need(built.is_dir() and not built.is_symlink(),'missing built root')

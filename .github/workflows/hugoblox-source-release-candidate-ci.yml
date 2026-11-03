@@ -84,6 +84,21 @@ jobs:
           path: ${{ runner.temp }}/serdar-pdf-clean-staging/
           if-no-files-found: error
           retention-days: 14
+      - name: Generate metadata-cleaned preprod PDFs in isolated runner (NO DEPLOY)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object scripts/serdar_pdf_metadata_preprod.py)" = 'ea91bb95aa1e9983d8baa9d6255a2a3f112dd3ae'
+          python3 scripts/serdar_pdf_metadata_preprod.py \
+            --input-root "$RUNNER_TEMP/serdar-pdf-clean-staging" \
+            --output-root "$RUNNER_TEMP/serdar-pdf-metadata-preprod"
+      - name: Retain metadata-cleaned 4lang PDFs as staging proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-comp-card-4lang-metadata-clean-preprod-NOT-PUBLISHED
+          path: ${{ runner.temp }}/serdar-pdf-metadata-preprod/
+          if-no-files-found: error
+          retention-days: 14
       - name: Preserve local-only evidence
         uses: actions/upload-artifact@v4
         with:
