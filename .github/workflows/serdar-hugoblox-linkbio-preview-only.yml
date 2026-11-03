@@ -1,0 +1,73 @@
+name: Serdar HugoBlox bilingual hub — isolated Preview only
+
+on:
+  push:
+    branches:
+      - test/serdar-hugoblox-linkbio-tr-en-20261103
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: serdar-hugoblox-linkbio-preview-only
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Deploy isolated Serdar TR EN staging preview (NO PRODUCTION)
+    if: github.repository == 'serdararminsargut/serdararminsargut.github.io' && github.ref == 'refs/heads/test/serdar-hugoblox-linkbio-tr-en-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout only the staging branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build static mirror without production deploy or DNS modifications
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = 'refs/heads/test/serdar-hugoblox-linkbio-tr-en-20261103'
+          python3 scripts/prepare_serdar_production_main_static.py --production-source .
+          for file in \
+            dist/rehber/index.html \
+            dist/rehber/en/index.html \
+            dist/rehber/profil/index.html \
+            dist/rehber/en/about/index.html \
+            dist/rehber/iletisim/index.html \
+            dist/rehber/en/contact/index.html \
+            dist/rehber/css/serdar-hub-20261103.css \
+            dist/rehber/js/serdar-contact-20261103.js; do
+            test -s "$file"
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          header = Path('dist/_headers')
+          source = header.read_text(encoding='utf-8')
+          assert source.startswith('/*\n')
+          header.write_text(source.replace('/*\n','/*\n  X-Robots-Tag: noindex, nofollow\n',1),encoding='utf-8')
+          print('STAGING_ONLY: X-Robots-Tag noindex set, production _headers unchanged')
+          PY
+      - name: Normalize Cloudflare account ID
+        id: account
+        shell: bash
+        run: |
+          set -euo pipefail
+          raw="${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
+          account_id="$raw"
+          if [[ "$raw" =~ dash.cloudflare.com/([a-fA-F0-9]{32}) ]]; then
+            account_id="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "$account_id" =~ ^[a-fA-F0-9]{32}$ ]]; then
+            echo 'Cloudflare account id invalid for staging preview' >&2
+            exit 1
+          fi
+          echo "::add-mask::$account_id"
+          echo "account_id=$account_id" >> "$GITHUB_OUTPUT"
+      - name: Deploy to Cloudflare Pages PREVIEW branch ONLY
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ steps.account.outputs.account_id }}
+          command: pages deploy dist --project-name=serdararminsargut --branch=test/serdar-hugoblox-linkbio-tr-en-20261103

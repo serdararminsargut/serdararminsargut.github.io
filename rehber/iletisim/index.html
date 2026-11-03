@@ -27,23 +27,4 @@
  <button class="btn primary" type="submit"><span>E-posta uygulamasında aç</span><span aria-hidden="true">↗</span></button>
  </form><noscript><p class="noscript"><a href="mailto:info@serdararminsargut.com">Doğrudan e-posta: info@serdararminsargut.com</a></p></noscript>
  <p class="small" style="margin-top:24px"><a class="inline-link" href="mailto:info@serdararminsargut.com">Doğrudan e-posta: info@serdararminsargut.com</a> · <a class="inline-link" href="/rehber/">Bağlantılara dön</a></p>
- </section></div></main><script>
-(function(){
- const form=document.getElementById("inquiry");
- form.addEventListener("submit",function(event){
-   event.preventDefault();
-   if(!form.reportValidity())return;
-   const name=form.elements.namedItem("name").value.trim();
-   const reply=form.elements.namedItem("reply").value.trim();
-   const org=form.elements.namedItem("org").value.trim();
-   const details=form.elements.namedItem("details").value.trim();
-   const subject="Serdar Armin Sargut — Casting / İşbirliği";
-   const lines=["Yetkili"+": "+name,
-    "Email: "+reply,
-    "Şirket / Proje"+": "+org,
-    "",details,"","Gönderim veli yönetimindeki profesyonel iletişim adresine yönlendirilmiştir."];
-   const url="mailto:info@serdararminsargut.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(lines.join("\n"));
-   window.location.href=url;
- });
-})();
-</script><footer class="footer"><div class="wrap footer-row"><div><strong>Serdar Armin Sargut</strong><p class="small">Çocuklara ait özel iletişim bilgileri paylaşılmaz. Profesyonel başvurular veli tarafından yönetilir.</p></div><nav class="footer-links" aria-label="Footer"><a href="/rehber/">Bağlantılar</a><a href="/rehber/profil/">Profil</a><a href="/rehber/iletisim/">İletişim</a><a href="https://serdararminsargut.com/">Resmî portföy</a></nav></div></footer></body></html>
+ </section></div></main><script src="/rehber/js/serdar-contact-20261103.js" defer></script><footer class="footer"><div class="wrap footer-row"><div><strong>Serdar Armin Sargut</strong><p class="small">Çocuklara ait özel iletişim bilgileri paylaşılmaz. Profesyonel başvurular veli tarafından yönetilir.</p></div><nav class="footer-links" aria-label="Footer"><a href="/rehber/">Bağlantılar</a><a href="/rehber/profil/">Profil</a><a href="/rehber/iletisim/">İletişim</a><a href="https://serdararminsargut.com/">Resmî portföy</a></nav></div></footer></body></html>

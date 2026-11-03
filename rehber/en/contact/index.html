@@ -27,23 +27,4 @@
  <button class="btn primary" type="submit"><span>Open email draft</span><span aria-hidden="true">↗</span></button>
  </form><noscript><p class="noscript"><a href="mailto:info@serdararminsargut.com">Email directly: info@serdararminsargut.com</a></p></noscript>
  <p class="small" style="margin-top:24px"><a class="inline-link" href="mailto:info@serdararminsargut.com">Email directly: info@serdararminsargut.com</a> · <a class="inline-link" href="/rehber/en/">Back to links</a></p>
- </section></div></main><script>
-(function(){
- const form=document.getElementById("inquiry");
- form.addEventListener("submit",function(event){
-   event.preventDefault();
-   if(!form.reportValidity())return;
-   const name=form.elements.namedItem("name").value.trim();
-   const reply=form.elements.namedItem("reply").value.trim();
-   const org=form.elements.namedItem("org").value.trim();
-   const details=form.elements.namedItem("details").value.trim();
-   const subject="Serdar Armin Sargut — Casting / Collaboration";
-   const lines=["Contact"+": "+name,
-    "Email: "+reply,
-    "Company / Project"+": "+org,
-    "",details,"","This inquiry is addressed to the parent-managed professional channel."];
-   const url="mailto:info@serdararminsargut.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(lines.join("\n"));
-   window.location.href=url;
- });
-})();
-</script><footer class="footer"><div class="wrap footer-row"><div><strong>Serdar Armin Sargut</strong><p class="small">Children's private contact details are not shared. All professional inquiries are handled by a parent or guardian.</p></div><nav class="footer-links" aria-label="Footer"><a href="/rehber/en/">Links</a><a href="/rehber/en/about/">About</a><a href="/rehber/en/contact/">Contact</a><a href="https://serdararminsargut.com/">Official portfolio</a></nav></div></footer></body></html>
+ </section></div></main><script src="/rehber/js/serdar-contact-20261103.js" defer></script><footer class="footer"><div class="wrap footer-row"><div><strong>Serdar Armin Sargut</strong><p class="small">Children's private contact details are not shared. All professional inquiries are handled by a parent or guardian.</p></div><nav class="footer-links" aria-label="Footer"><a href="/rehber/en/">Links</a><a href="/rehber/en/about/">About</a><a href="/rehber/en/contact/">Contact</a><a href="https://serdararminsargut.com/">Official portfolio</a></nav></div></footer></body></html>
