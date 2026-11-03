@@ -69,6 +69,21 @@ jobs:
           path: ${{ runner.temp }}/serdar-pdf-layout-preview/
           if-no-files-found: error
           retention-days: 14
+      - name: Build four clean visual candidates outside dist (STAGING ONLY)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object scripts/serdar_clean_candidate_staging.py)" = '1066f81f6b99dfc9899f7644fc5449e9c197450b'
+          python3 scripts/serdar_clean_candidate_staging.py \
+            --input-dir "$RUNNER_TEMP/serdar-pdf-layout-preview" \
+            --output-dir "$RUNNER_TEMP/serdar-pdf-clean-staging"
+      - name: Preserve four clean candidates as NO-DEPLOY artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-comp-card-4lang-clean-visual-candidates-not-published
+          path: ${{ runner.temp }}/serdar-pdf-clean-staging/
+          if-no-files-found: error
+          retention-days: 14
       - name: Preserve local-only evidence
         uses: actions/upload-artifact@v4
         with:
