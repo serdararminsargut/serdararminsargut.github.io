@@ -43,6 +43,43 @@ jobs:
           python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
           python3 -m playwright install --with-deps chromium
           python3 scripts/serdar_generate_comp_cards.py dist
+      - name: Validate original generated PDFs against exact pinned main build (BASELINE ONLY)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object scripts/serdar_generate_comp_cards.py)" = "$(git rev-parse bb4737ed7367b84008c860ec3f722055a56ae518:scripts/serdar_generate_comp_cards.py)"
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          root=Path('dist/downloads')
+          report=json.loads((root/'serdar-pdf-evidence.json').read_text(encoding='utf-8'))
+          assert report.get('project')=='SERDAR_ONLY'
+          records={r['language']:r for r in report['files']}
+          assert set(records)=={'TR','EN','AR','RU'}
+          for lang in ('TR','EN','AR','RU'):
+              rec=records[lang]
+              expected=f'downloads/Serdar-Armin-Sargut-Comp-Card-{lang}.pdf'
+              assert rec['file']==expected, (lang,'filename mismatch')
+              p=root/f'Serdar-Armin-Sargut-Comp-Card-{lang}.pdf'
+              data=p.read_bytes()
+              assert data.startswith(b'%PDF-')
+              assert len(data)==rec['bytes']
+              assert hashlib.sha256(data).hexdigest()==rec['sha256']
+              assert rec['pages'] in (1,2)
+          print('SERDAR_GENERATED_ORIGINAL_PDF_BASELINE_PASS 4/4, NOT A LIVE-SERVER BYTE BACKUP')
+          PY
+      - name: Preserve generated original four PDF baseline (NO DEPLOY)
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-original-comp-cards-reproducible-baseline-no-deploy
+          path: |
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-EN.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-AR.pdf
+            dist/downloads/Serdar-Armin-Sargut-Comp-Card-RU.pdf
+            dist/downloads/serdar-pdf-evidence.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Verify production candidate source diff, PDFs, sitemap, new guides
         shell: bash
         run: |
