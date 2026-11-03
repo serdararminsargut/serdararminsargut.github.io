@@ -1,0 +1,140 @@
+name: Serdar direct 4-language PDF release candidate — NO DEPLOY
+on:
+  push:
+    branches:
+      - test/serdar-comp-card-direct-release-20261103
+permissions:
+  contents: read
+concurrency:
+  group: serdar-direct-pdf-preprod-only
+  cancel-in-progress: true
+jobs:
+  pdf-preprod:
+    name: Four-language direct PDF + isolated HTTP and browser QA
+    if: github.ref == 'refs/heads/test/serdar-comp-card-direct-release-20261103'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout release-candidate branch only, no credentials
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prove exact pinned main, original production workflow, isolated scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = 'serdararminsargut/serdararminsargut.github.io'
+          test "$GITHUB_REF_NAME" = 'test/serdar-comp-card-direct-release-20261103'
+          test "$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')" = 'bb4737ed7367b84008c860ec3f722055a56ae518'
+          test "$(git hash-object .github/workflows/deploy-cloudflare-pages.yml)" = 'd86882c71b809b6e3f976d1cd509a66cc433fb64'
+          test "$(git hash-object scripts/serdar_comp_card_direct_final.py)" = 'f0cb21ec9c053b3d20d51797e63bf42bb061cac9'
+          test "$(git hash-object scripts/prepare_serdar_production_main_static.py)" = '30741b5369796c38561812e5b61d33e103aab5ac'
+          diff="$(git diff bb4737ed7367b84008c860ec3f722055a56ae518 HEAD --name-only)"
+          echo "$diff"
+          test "$(echo "$diff" | wc -l)" -eq 3
+          ! echo "$diff" | grep -Ev '^(\.github/workflows/serdar-direct-pdf-preprod-ci\.yml|scripts/serdar_comp_card_direct_final\.py|scripts/prepare_serdar_production_main_static\.py)$'
+          ! git diff bb4737ed7367b84008c860ec3f722055a56ae518 HEAD --name-only | grep -E '^(downloads/|assets/|casting-card/|\.github/workflows/deploy-cloudflare-pages.yml)'
+      - name: Build precise static mirror using pinned main harmless copy step
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare_serdar_production_main_static.py --production-source .
+      - name: Build four original A4 PDFs from pinned HTML and photos
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13' 'pymupdf==1.26.4'
+          python3 -m playwright install --with-deps chromium
+          python3 scripts/serdar_generate_comp_cards.py dist
+      - name: Produce final design DIRECTLY in isolated runner; no test-stamp roundtrip
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-dejavu-core fonts-noto-core
+          python3 scripts/serdar_comp_card_direct_final.py \
+            --source-root dist --output-dir "$RUNNER_TEMP/serdar-direct-final"
+      - name: Validate four local HTTP routes, browser buttons, unchanged source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, http.server, json, os, shutil, tempfile, threading
+          from pathlib import Path
+          from urllib.request import urlopen
+          from playwright.sync_api import sync_playwright
+          src=Path('dist')
+          stage=Path(os.environ['RUNNER_TEMP'])/'serdar-direct-final'
+          manifest=json.loads((stage/'SERDAR_DIRECT_PDF_RELEASE_CANDIDATE_MANIFEST.json').read_text())
+          assert manifest['production_approved'] is False and manifest['deployed'] is False
+          rows={x['language']:x for x in manifest['pdfs']}
+          assert set(rows)=={'TR','EN','AR','RU'}
+          def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+          with tempfile.TemporaryDirectory(prefix='serdar-direct-preprod-') as temp:
+              mirror=Path(temp)/'site'
+              shutil.copytree(src,mirror)
+              before={x.relative_to(src).as_posix():sha(x) for x in src.rglob('*') if x.is_file()}
+              changed=[]
+              for lang in ('TR','EN','AR','RU'):
+                  filename=f'Serdar-Armin-Sargut-Comp-Card-{lang}.pdf'
+                  candidate=stage/filename
+                  target=mirror/'downloads'/filename
+                  assert sha(candidate)==rows[lang]['sha256']
+                  assert target.is_file()
+                  shutil.copyfile(candidate,target)
+                  assert sha(target)==sha(candidate)
+                  changed.append('downloads/'+filename)
+              after={x.relative_to(mirror).as_posix():sha(x) for x in mirror.rglob('*') if x.is_file()}
+              assert set(before)==set(after)
+              assert {key for key in before if before[key]!=after[key]}==set(changed)
+              class H(http.server.SimpleHTTPRequestHandler):
+                  def __init__(self,*a,**k): super().__init__(*a,directory=str(mirror),**k)
+                  def log_message(self,*a): pass
+              server=http.server.ThreadingHTTPServer(('127.0.0.1',0),H)
+              thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+              base='http://127.0.0.1:'+str(server.server_port)
+              try:
+                  for lang in ('TR','EN','AR','RU'):
+                      f=f'Serdar-Armin-Sargut-Comp-Card-{lang}.pdf'
+                      with urlopen(base+'/downloads/'+f,timeout=20) as response:
+                          data=response.read()
+                          assert response.status==200
+                          assert 'application/pdf' in response.headers['Content-Type']
+                          assert hashlib.sha256(data).hexdigest()==rows[lang]['sha256']
+                  with sync_playwright() as engine:
+                      browser=engine.chromium.launch(headless=True,args=['--no-sandbox'])
+                      try:
+                          for lang in ('TR','EN','AR','RU'):
+                              context=browser.new_context(accept_downloads=True)
+                              context.route('**/*',lambda route: route.continue_() if route.request.url.startswith(base+'/') else route.abort())
+                              page=context.new_page()
+                              try:
+                                  response=page.goto(base+'/casting-card/'+lang.lower()+'.html',wait_until='domcontentloaded',timeout=30000)
+                                  assert response and response.status==200
+                                  button=page.locator('#comp-card-pdf-download')
+                                  expected='/downloads/Serdar-Armin-Sargut-Comp-Card-'+lang+'.pdf'
+                                  assert button.get_attribute('data-download-url')==expected
+                                  with page.expect_request('**'+expected,timeout=20000) as request:
+                                      button.click(no_wait_after=True,timeout=20000)
+                                  assert request.value.url==base+expected
+                                  print('SERDAR_DIRECT_RELEASE_BUTTON_PASS '+lang,flush=True)
+                              finally: context.close()
+                      finally: browser.close()
+              finally:
+                  server.shutdown();server.server_close()
+          proof={'project':'SERDAR_ONLY','test_only':True,'published':False,'local_http_browser':'PASS_4_OF_4',
+                 'only_changed_files':changed,'unchanged_count':len(before)-4,
+                 'candidate_sha256':{l:rows[l]['sha256'] for l in rows}}
+          (stage/'SERDAR_DIRECT_PDF_RELEASE_ROUTE_QA.json').write_text(json.dumps(proof,indent=2)+'\n')
+          print('SERDAR_DIRECT_RELEASE_CANDIDATE_QA_PASS 4/4, NO DEPLOY',flush=True)
+          PY
+      - name: Preserve candidate PDFs and tests for parent review (NOT PUBLISHED)
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-direct-pdf-4lang-release-candidate-NOT-PUBLISHED
+          path: ${{ runner.temp }}/serdar-direct-final/
+          if-no-files-found: error
+          retention-days: 14
