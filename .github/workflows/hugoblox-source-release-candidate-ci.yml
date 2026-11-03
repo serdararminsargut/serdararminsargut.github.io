@@ -152,6 +152,21 @@ jobs:
           path: ${{ runner.temp }}/SERDAR_4_DIL_ROUTING_SIM_NO_DEPLOY_PROOF.json
           if-no-files-found: error
           retention-days: 14
+      - name: Independently assemble complete 4-PDF release mirror from source (NO DEPLOY)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object scripts/serdar_pdf_source_to_release_mirror.py)" = '99d64b7017a7f9b39592cf3711ee3aba4dfa268b'
+          python3 scripts/serdar_pdf_source_to_release_mirror.py \
+            --source-root dist \
+            --output-root "$RUNNER_TEMP/serdar-source-generated-release-mirror"
+      - name: Preserve source-to-release repeatability proof, not the PDFs (NO DEPLOY)
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-4lang-source-to-release-mirror-proof-no-deploy
+          path: ${{ runner.temp }}/SERDAR_SOURCE_TO_RELEASE_MIRROR_NO_DEPLOY.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Preserve local-only evidence
         uses: actions/upload-artifact@v4
         with:
