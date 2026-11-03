@@ -73,3 +73,18 @@ body.page-wrapper {
   .page-wrapper .page-body [role="article"] h3 { font-size:19px; line-height:1.3; }
 }
 @media(prefers-reduced-motion:reduce){ .page-wrapper .page-body [role="article"] {transition:none;} }
+
+/* Serdar guide photo and CTA final polish — preview-only */
+.page-wrapper .page-body [role="article"] .serdar-guide-cover img.serdar-face-top{
+  object-position: center top;
+}
+.page-wrapper .page-body [role="article"] .pt-2 a,
+.page-wrapper .page-body [role="article"] .pt-2 a span{
+  color:#dbb375;
+}
+.page-wrapper .page-body [role="article"] .pt-2 a:hover,
+.page-wrapper .page-body [role="article"] .pt-2 a:focus-visible{
+  color:#f2ce94;
+  text-decoration:underline;
+  text-underline-offset:4px;
+}
