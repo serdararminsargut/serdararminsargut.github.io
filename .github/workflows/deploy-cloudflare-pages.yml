@@ -127,6 +127,39 @@ jobs:
             test -s "dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
           done
 
+      - name: Finalize validated TR EN AR RU Comp Card PDFs before deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-dejavu-core fonts-noto-core
+          python3 -m pip install --disable-pip-version-check 'pymupdf==1.26.4'
+          python3 scripts/serdar_comp_card_direct_final.py \
+            --source-root dist --output-dir "$RUNNER_TEMP/serdar-finalized-pdfs"
+          python3 - <<'PY'
+          import hashlib, json, os, shutil
+          from pathlib import Path
+          import fitz
+          ready=Path(os.environ['RUNNER_TEMP'])/'serdar-finalized-pdfs'
+          target=Path('dist/downloads')
+          proof=json.loads((ready/'SERDAR_DIRECT_PDF_RELEASE_CANDIDATE_MANIFEST.json').read_text(encoding='utf-8'))
+          assert proof.get('project')=='SERDAR_ONLY' and proof.get('deployed') is False
+          files={x['language']:x for x in proof['pdfs']}
+          assert set(files)=={'TR','EN','AR','RU'}
+          for lang in ('TR','EN','AR','RU'):
+              filename=f'Serdar-Armin-Sargut-Comp-Card-{lang}.pdf'
+              src=ready/filename
+              dest=target/filename
+              assert src.is_file() and dest.is_file() and files[lang]['filename']==filename
+              assert hashlib.sha256(src.read_bytes()).hexdigest()==files[lang]['sha256']
+              with fitz.open(src) as doc:
+                  assert len(doc)==2
+                  assert doc.metadata.get('title')==f'Serdar Armin Sargut | Comp Card | {lang}'
+                  assert any(link.get('uri')=='https://serdararminsargut.com/' for link in doc[1].get_links())
+              shutil.copyfile(src,dest)
+              assert hashlib.sha256(dest.read_bytes()).hexdigest()==files[lang]['sha256']
+          print('SERDAR_FINAL_PDF_INTEGRATION_PASS 4/4')
+          PY
       - name: Normalize Cloudflare account id
         id: cloudflare_account
         shell: bash
