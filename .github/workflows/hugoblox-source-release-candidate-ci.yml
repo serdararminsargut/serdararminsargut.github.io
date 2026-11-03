@@ -160,6 +160,42 @@ jobs:
           python3 scripts/serdar_pdf_source_to_release_mirror.py \
             --source-root dist \
             --output-root "$RUNNER_TEMP/serdar-source-generated-release-mirror"
+      - name: Compare independent PDF visual identity against separately generated four candidates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, hashlib
+          from pathlib import Path
+          import fitz
+          runner=Path(os.environ['RUNNER_TEMP'])
+          mirror=runner/'serdar-source-generated-release-mirror'/'downloads'
+          reference=runner/'serdar-pdf-metadata-preprod'
+          report=runner/'SERDAR_SOURCE_TO_RELEASE_MIRROR_NO_DEPLOY.json'
+          proof=json.loads(report.read_text(encoding='utf-8'))
+          comparison={}
+          for lang in ('TR','EN','AR','RU'):
+            a=mirror/f'Serdar-Armin-Sargut-Comp-Card-{lang}.pdf'
+            b=reference/f'SERDAR_COMP_CARD_{lang}_FINAL_PREPROD_NOT_PUBLISHED.pdf'
+            assert a.is_file() and b.is_file(), lang+' missing'
+            with fitz.open(a) as left, fitz.open(b) as right:
+              assert len(left)==len(right)==2, lang+' pages mismatch'
+              for index in range(2):
+                lp,rp=left[index],right[index]
+                assert lp.rect==rp.rect,lang+' page-size differs'
+                assert lp.get_text()==rp.get_text(),lang+' text differs'
+                lk=lambda p: sorted((int(z['kind']),str(z.get('uri','')),tuple(round(float(x),2) for x in z['from'])) for z in p.get_links())
+                assert lk(lp)==lk(rp),lang+' link differs'
+                p1=lp.get_pixmap(matrix=fitz.Matrix(1.5,1.5),alpha=False)
+                p2=rp.get_pixmap(matrix=fitz.Matrix(1.5,1.5),alpha=False)
+                assert p1.samples==p2.samples,lang+' visual pixels differ'
+              assert left.metadata.get('title')==right.metadata.get('title'),lang+' title mismatch'
+            comparison[lang]={'visual_text_links':'PASS','byte_identical':hashlib.sha256(a.read_bytes()).digest()==hashlib.sha256(b.read_bytes()).digest()}
+          proof['independent_pdf_build_comparison']=comparison
+          proof['independent_visual_text_uri_validation']='PASS_4_OF_4'
+          report.write_text(json.dumps(proof,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('SERDAR_SOURCE_REBUILD_VISUAL_REPEATABILITY_PASS 4/4; BYTES MAY DIFFER; NO DEPLOY')
+          PY
       - name: Preserve source-to-release repeatability proof, not the PDFs (NO DEPLOY)
         uses: actions/upload-artifact@v4
         with:
