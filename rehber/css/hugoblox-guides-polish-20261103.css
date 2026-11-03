@@ -88,3 +88,17 @@ body.page-wrapper {
   text-decoration:underline;
   text-underline-offset:4px;
 }
+
+/* Final guide card separator and footer spacing: no attribution changes */
+.page-wrapper .page-body [role="article"] .pt-3 > .pt-2{
+  border-top:0!important;
+  padding-top:0!important;
+}
+.page-wrapper .page-body [role="article"] .pt-3 > .flex {
+  margin-bottom:7px;
+}
+.page-wrapper .page-footer footer {
+  margin-top:22px;
+  padding-top:18px;
+  padding-bottom:22px;
+}
