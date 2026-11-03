@@ -99,6 +99,22 @@ jobs:
           path: ${{ runner.temp }}/serdar-pdf-metadata-preprod/
           if-no-files-found: error
           retention-days: 14
+      - name: Simulate all four live PDF routes and real browser clicks in a temp mirror ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object scripts/serdar_preprod_pdf_route_sim.py)" = 'b698992717e459411cd6594004c3662689e13a83'
+          python3 scripts/serdar_preprod_pdf_route_sim.py \
+            --source-root dist \
+            --candidate-root "$RUNNER_TEMP/serdar-pdf-metadata-preprod" \
+            --overlay-root "$RUNNER_TEMP/serdar-routing-mirror"
+      - name: Preserve four-language local HTTP/browser proof only (NO DEPLOY)
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-4lang-preprod-download-routing-proof-no-deploy
+          path: ${{ runner.temp }}/SERDAR_4_DIL_ROUTING_SIM_NO_DEPLOY_PROOF.json
+          if-no-files-found: error
+          retention-days: 14
       - name: Preserve local-only evidence
         uses: actions/upload-artifact@v4
         with:
