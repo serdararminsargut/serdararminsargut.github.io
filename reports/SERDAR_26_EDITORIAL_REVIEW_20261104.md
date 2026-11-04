@@ -26,4 +26,4 @@ Bu kayıt test dalı editoryal kabulüdür; yayın yetkisi değildir. Android Ch
 
 ## Yeniden test
 
-Geçici PDF sıkıştırma dosyasına `.pdf` uzantısı eklendi; aynı izole test dalında yeniden doğrulama 4 Kasım 2026 tarihinde başlatıldı.
+PDF sıkıştırma geçici dosyası `.pdf` uzantısıyla düzeltildi. Preview doğrulaması, Serdar Pages projesinin sabit `test-serdar-26-candidate` dal alias'ında 4 Kasım 2026 tarihinde yeniden çalıştırılmaktadır.
