@@ -176,11 +176,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base='${{ steps.preview.outputs.deployment-url }}'
-          test -n "$base"
+          dynamic_base='${{ steps.preview.outputs.deployment-url }}'
+          base='https://test-serdar-26-candidate.serdararminsargut.pages.dev'
+          test -n "$dynamic_base"
+          # The stable Pages branch alias is the preview acceptance target.
+          # Hash URLs can remain behind an Access/edge propagation layer after deploy.
           for code in tr en ru ar az de fr es kk uz ky tk it pt-br uk pl bg el sr-latn sq fa ur hi zh-hans ja ko; do
             passed=0
-            for attempt in $(seq 1 12); do
+            for attempt in $(seq 1 36); do
               if curl -fsSL --connect-timeout 8 --max-time 24 \
                 -D /tmp/headers -o /tmp/body "$base/casting-card/$code.html" \
                 && grep -Eiq '^x-robots-tag:[[:space:]]*noindex, nofollow, noarchive' /tmp/headers \
@@ -199,4 +202,4 @@ jobs:
             grep -Eiq '^content-type:[[:space:]]*application/pdf([;[:space:]]|$)' /tmp/pdf-headers
             head -c 4 "$pdf" | grep -Fq '%PDF'
           done
-          echo "SERDAR_26_NOINDEX_PREVIEW_PASS $base"
+          echo "SERDAR_26_NOINDEX_PREVIEW_PASS alias=$base deployment=$dynamic_base"
