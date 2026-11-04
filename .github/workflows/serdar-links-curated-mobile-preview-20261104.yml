@@ -2,7 +2,7 @@ name: Serdar Links four-language mobile preview QA (test only)
 on:
   push:
     branches: ['test/serdar-links-linktree-linkedin-20261104']
-    paths: ['links/**', '.github/workflows/serdar-links-curated-mobile-preview-20261104.yml']
+    paths: ['links/**', 'assets/js/links.20260922-prod.js', '.github/workflows/serdar-links-curated-mobile-preview-20261104.yml']
   workflow_dispatch:
 permissions:
   contents: read
