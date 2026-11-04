@@ -27,3 +27,5 @@ Bu kayıt test dalı editoryal kabulüdür; yayın yetkisi değildir. Android Ch
 ## Yeniden test
 
 PDF sıkıştırma geçici dosyası `.pdf` uzantısıyla düzeltildi. Preview doğrulaması, Serdar Pages projesinin sabit `test-serdar-26-candidate` dal alias'ında 4 Kasım 2026 tarihinde yeniden çalıştırılmaktadır.
+
+Test süresi sınırı 12 dakikadan 30 dakikaya çıkarıldı; yalnız test-preview doğrulaması yeniden başlatıldı.
