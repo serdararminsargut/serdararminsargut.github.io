@@ -290,7 +290,7 @@
     const path = window.location.pathname.replace(/\/+$/, "");
     if (path === "/links/en") return "en";
     if (path === "/links/ar") return "ar";
-    if (path === "/links/ru/") return "ru";
+    if (path === "/links/ru") return "ru";
     return "tr";
   }
 
