@@ -86,7 +86,7 @@ jobs:
           command -v gs
           for root in serdar-26-candidate serdar-26-release-sources; do
             for input in "$root"/pdfs/*.pdf; do
-              output="${input}.optimized"
+              output="${input}.optimized.pdf"
               gs -q -sDEVICE=pdfwrite -dCompatibilityLevel=1.5 -dPDFSETTINGS=/ebook \
                 -dNOPAUSE -dQUIET -dBATCH -sOutputFile="$output" "$input"
               mv "$output" "$input"
