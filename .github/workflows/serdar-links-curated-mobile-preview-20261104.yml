@@ -1,0 +1,87 @@
+name: Serdar Links four-language mobile preview QA (test only)
+on:
+  push:
+    branches: ['test/serdar-links-linktree-linkedin-20261104']
+    paths: ['links/**', '.github/workflows/serdar-links-curated-mobile-preview-20261104.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  qa:
+    if: github.ref_name == 'test/serdar-links-linktree-linkedin-20261104'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install isolated Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/serdar-links-qa-work" "$GITHUB_WORKSPACE/serdar-links-evidence"
+          cd "$RUNNER_TEMP/serdar-links-qa-work"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund --save-exact playwright@1.64.1
+          npx playwright install --with-deps chromium
+      - name: Test 4 locales x 4 viewport widths (no deployment)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/serdar-links-qa-work"
+          python3 -m http.server 8774 --bind 127.0.0.1 --directory "$GITHUB_WORKSPACE" >/tmp/serdar-links-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 15); do
+            curl -fsS http://127.0.0.1:8774/links/ -o /dev/null && break
+            sleep 1
+          done
+          cat > qa.cjs <<'JS'
+          const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
+          const routes=[['tr','/links/'],['en','/links/en/'],['ar','/links/ar/'],['ru','/links/ru/']];
+          const urls=['https://lnkd.in/p/dka6c8RG','https://vimeo.com/1218441688',
+          'https://www.behance.net/gallery/256852873/Serdar-Armin-Sargut-Acting-Modeling-Portfolio-2026',
+          'https://www.tiktok.com/@serdararminsargutt','https://serdararminsargut.substack.com/p/from-television-sets-to-kidswear',
+          'https://serdararminsargut.wordpress.com/','https://serdararminsargutportfolio.blogspot.com/',
+          'https://linktr.ee/serdararminsargutmodel'];
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const out=path.join(process.env.GITHUB_WORKSPACE,'serdar-links-evidence');
+            const evidence=[];
+            for(const [lang,route] of routes)for(const width of [360,390,430,1280]){
+              const page=await browser.newPage({viewport:{width,height:900},deviceScaleFactor:1});
+              await page.goto('http://127.0.0.1:8774'+route,{waitUntil:'load',timeout:25000});
+              const result=await page.evaluate(()=>{
+                const root=document.documentElement,cards=[...document.querySelectorAll('.cta-list > a.cta')];
+                const rects=cards.map(c=>c.getBoundingClientRect());
+                return {lang:root.lang,dir:root.dir,scrollWidth:root.scrollWidth,
+                  cards:cards.length,h1:document.querySelectorAll('h1').length,
+                  heroLoaded:(document.querySelector('img.profile-photo')?.naturalWidth??0)>0,
+                  canonical:document.querySelector('link[rel=canonical]')?.getAttribute('href')??'',
+                  hreflang:document.querySelectorAll('link[rel=alternate][hreflang]').length,
+                  hrefs:cards.map(x=>x.getAttribute('href')),
+                  overflow:rects.some(x=>x.left < -1||x.right>root.clientWidth+1||x.width<100),
+                  overlap:rects.some((r,i)=>rects.slice(i+1).some(t=>Math.min(r.right,t.right)>Math.max(r.left,t.left)+2&&Math.min(r.bottom,t.bottom)>Math.max(r.top,t.top)+2))};
+              });
+              const ok=result.lang===lang&&result.dir===(lang==='ar'?'rtl':'ltr')
+                &&result.cards===16&&result.h1===1&&result.heroLoaded&&result.hreflang===5
+                &&result.canonical==='https://serdararminsargut.com'+route
+                &&result.scrollWidth<=width+1&&!result.overflow&&!result.overlap
+                &&urls.every(u=>result.hrefs.includes(u));
+              console.log('SERDAR_LINKS_'+lang+'_'+width+': '+(ok?'PASS':'FAIL')+' '+JSON.stringify(result));
+              if(width===390)await page.screenshot({path:path.join(out,'links-'+lang+'-390.png'),fullPage:true});
+              evidence.push({lang,width,pass:ok,...result});await page.close();
+            }
+            fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(evidence,null,2));
+            await browser.close();
+            if(evidence.some(x=>!x.pass))process.exit(1);
+            console.log('SERDAR_LINKS_4_LANG_16_VIEWPORT_PASS');
+          })().catch(e=>{console.error(e);process.exit(1)});
+          JS
+          node qa.cjs
+      - name: Archive test screenshots and metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-links-mobile-qa
+          path: serdar-links-evidence/
+          retention-days: 14
+          if-no-files-found: warn
