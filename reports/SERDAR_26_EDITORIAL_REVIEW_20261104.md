@@ -23,3 +23,7 @@ AZ, DE, KK, UZ, KY, TK, PT-BR, UK, PL, FA, UR, HI, ZH-Hans ve KO: anlam, çocuk 
 ## Kalan yayın kapısı
 
 Bu kayıt test dalı editoryal kabulüdür; yayın yetkisi değildir. Android Chrome + gizli sekme + WebView kanıtı ve veli tarafından açık yayın talimatı olmadan production **NO-GO** durumundadır.
+
+## Yeniden test
+
+Bu kayıt, aynı test dalındaki yeniden doğrulama iş akışını başlatmak için 4 Kasım 2026 tarihinde güncellenmiştir.
