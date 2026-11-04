@@ -65,6 +65,7 @@ jobs:
 
           for item in \
             .nojekyll \
+            .well-known \
             _headers \
             _redirects \
             404.html \
@@ -115,6 +116,19 @@ jobs:
               cp -R "$item" dist/
             fi
           done
+
+      - name: Fail closed if security.txt is missing from production bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f dist/.well-known/security.txt
+          test -s dist/.well-known/security.txt
+          grep -Fxq 'Contact: mailto:info@serdararminsargut.com' dist/.well-known/security.txt
+          grep -Fxq 'Expires: 2027-05-01T00:00:00Z' dist/.well-known/security.txt
+          grep -Fxq 'Canonical: https://serdararminsargut.com/.well-known/security.txt' dist/.well-known/security.txt
+          grep -Fxq '/.well-known/security.txt' dist/_headers
+          grep -Fxq '  Content-Type: text/plain; charset=UTF-8' dist/_headers
+          echo 'SERDAR_PRODUCTION_BUNDLE_DISCLOSURE_PRESENT: verified in build output only'
 
       - name: Build and verify four Serdar Comp Card PDFs (A4, local-only)
         shell: bash
