@@ -1,0 +1,63 @@
+name: Serdar Pages local HTTP acceptance — NO DEPLOY
+on:
+  push:
+    branches: [test/security-disclosure-20261104]
+    paths:
+      - '.github/workflows/serdar-local-pages-http-acceptance.yml'
+      - '_headers'
+      - '.well-known/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  local-http-acceptance:
+    if: github.repository == 'serdararminsargut/serdararminsargut.github.io' && github.ref == 'refs/heads/test/security-disclosure-20261104'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout approved isolated test branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install supported Wrangler
+        run: npm install --no-save --no-audit --no-fund wrangler@4
+      - name: Start localhost Pages emulator, never contact production
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler pages dev . --ip 127.0.0.1 --port 8791 --log-level warn > /tmp/serdar-local-pages.log 2>&1 &
+          echo $! > /tmp/serdar-pages.pid
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8791/ -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -40 /tmp/serdar-local-pages.log
+          exit 1
+      - name: Verify actual HTTP body and response headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from urllib.request import urlopen
+          base='http://127.0.0.1:8791'
+          with urlopen(base+'/.well-known/security.txt', timeout=6) as r:
+              assert r.status==200, r.status
+              assert 'text/plain' in r.headers.get('Content-Type','').lower(), dict(r.headers)
+              body=r.read().decode('utf-8')
+              assert 'Contact: mailto:info@serdararminsargut.com' in body
+              assert 'Expires: 2027-05-01T00:00:00Z' in body
+              assert 'Canonical: https://serdararminsargut.com/.well-known/security.txt' in body
+          with urlopen(base+'/', timeout=6) as r:
+              assert r.status==200
+              hdr=r.headers
+              assert hdr.get('Strict-Transport-Security')=='max-age=2592000',dict(hdr)
+              assert hdr.get('X-Frame-Options','').upper()=='SAMEORIGIN',dict(hdr)
+              assert 'default-src' in hdr.get('Content-Security-Policy',''),dict(hdr)
+              assert 'noindex' not in hdr.get('X-Robots-Tag','').lower()
+          print('SERDAR_LOCAL_PAGES_HTTP_200_SECURITY_TXT_AND_HEADERS_PASS')
+          PY
+      - name: Print local emulator diagnostics only on failure
+        if: failure()
+        run: tail -70 /tmp/serdar-local-pages.log || true
