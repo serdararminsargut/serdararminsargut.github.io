@@ -26,4 +26,17 @@ jobs:
             echo "$code"
             echo "::endgroup::"
           done
+          for url in \
+            https://5266f6a8.serdararminsargut.pages.dev/.well-known/security.txt \
+            https://ac00ded1.duru-mualla-sargut-site.pages.dev/.well-known/security.txt
+          do
+            location="$(curl -fsSI --connect-timeout 6 --max-time 12 "$url" | grep -i '^location:' | head -1 | tr -d '\r' | cut -d' ' -f2-)"
+            python3 - "$location" <<'PY'
+          import sys
+          from urllib.parse import urlsplit
+          uri=urlsplit(sys.argv[1])
+          print('PREVIEW_REDIRECT_HOST='+str(uri.hostname or 'NO_LOCATION'))
+          print('PREVIEW_REDIRECT_PATH_PREFIX='+uri.path.split('/')[1] if '/' in uri.path else '')
+          PY
+          done
           echo 'DIAGNOSTIC_ONLY: no Cloudflare account credentials, no changes, no HTTP PASS assertion.'
