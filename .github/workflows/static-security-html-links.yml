@@ -104,3 +104,36 @@ jobs:
             raise SystemExit('HTML/link quality failures:\n'+'\n'.join(errors[:200]))
           print(f'Validated {len(htmls)} HTML files and their local links.')
           PY
+
+      - name: RFC 9116 and progressive HSTS validation — SECURITY BRANCH ONLY
+        if: github.ref_name == 'test/security-disclosure-20261104' || github.head_ref == 'test/security-disclosure-20261104'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          p=Path('.well-known/security.txt')
+          assert p.is_file() and not p.is_symlink(), "Missing real RFC 9116 file"
+          txt=p.read_text(encoding='utf-8')
+          d={}
+          for line in txt.splitlines():
+              if not line or line.startswith('#'):
+                  continue
+              assert ':' in line, "RFC 9116 malformed field"
+              k,v=line.split(':',1)
+              d.setdefault(k.strip(),[]).append(v.strip())
+          assert d.get('Contact')==['mailto:info@serdararminsargut.com']
+          assert d.get('Canonical')==['https://serdararminsargut.com/.well-known/security.txt']
+          expiry=datetime.fromisoformat(d['Expires'][0].replace('Z','+00:00'))
+          assert expiry.tzinfo is not None and expiry > datetime.now(timezone.utc)
+          assert 'phone' not in txt.lower(), "Minors' phone must never appear"
+          h=Path('_headers').read_text(encoding='utf-8')
+          assert h.startswith('/*\n'), "Missing Cloudflare Pages root rule"
+          assert h.count('Strict-Transport-Security: max-age=2592000')==1, "Only gradual 30-day HSTS allowed"
+          assert 'includeSubDomains' not in h and 'preload' not in h, "Irreversible HSTS cannot be opted into automatically"
+          assert h.count('Content-Security-Policy:')==1 and h.count('X-Frame-Options: SAMEORIGIN')==1, "Protect existing headers"
+          assert h.count('/.well-known/security.txt\n  Content-Type: text/plain; charset=UTF-8')==1
+          assert 'X-Robots-Tag: noindex' not in h, "Production-shape must not be noindexed"
+          print('SERDAR_SECURITY_RELEASE_ARTIFACT_GATE_PASS: RFC 9116 and staged 30-day HSTS; NO DEPLOY')
+          PY

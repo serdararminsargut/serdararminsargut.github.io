@@ -1,5 +1,5 @@
 /*
-  Strict-Transport-Security: max-age=86400
+  Strict-Transport-Security: max-age=2592000
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
@@ -50,3 +50,6 @@
 /downloads/Serdar-Armin-Sargut-Comp-Card-RU.pdf
   Content-Disposition: attachment; filename="Serdar-Armin-Sargut-Comp-Card-RU.pdf"
   Content-Type: application/pdf
+
+/.well-known/security.txt
+  Content-Type: text/plain; charset=UTF-8

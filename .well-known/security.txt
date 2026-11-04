@@ -1,0 +1,5 @@
+# Responsible vulnerability disclosure contact for the parent-managed portfolio
+Contact: mailto:info@serdararminsargut.com
+Expires: 2027-05-01T00:00:00Z
+Canonical: https://serdararminsargut.com/.well-known/security.txt
+Preferred-Languages: tr, en
