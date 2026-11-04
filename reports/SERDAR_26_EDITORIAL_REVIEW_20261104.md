@@ -26,4 +26,4 @@ Bu kayıt test dalı editoryal kabulüdür; yayın yetkisi değildir. Android Ch
 
 ## Yeniden test
 
-Bu kayıt, aynı test dalındaki yeniden doğrulama iş akışını başlatmak için 4 Kasım 2026 tarihinde güncellenmiştir.
+Geçici PDF sıkıştırma dosyasına `.pdf` uzantısı eklendi; aynı izole test dalında yeniden doğrulama 4 Kasım 2026 tarihinde başlatıldı.
