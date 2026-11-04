@@ -83,6 +83,52 @@ jobs:
               assert 'noindex' not in hdr.get('X-Robots-Tag','').lower()
           print('SERDAR_LOCAL_PAGES_HTTP_200_SECURITY_TXT_AND_HEADERS_PASS')
           PY
+      - name: Rehearse real noindex Preview HTTP rules locally — NO DEPLOY
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, subprocess, textwrap
+          source=Path('.github/workflows/serdar-security-preview-20261104.yml').read_text(encoding='utf-8')
+          name='Protect candidate preview from indexing'
+          match=re.search(r'(?ms)^      - name: '+re.escape(name)+r'\n        shell: bash\n        run: \|\n(.*?)(?=^      - name: |\Z)', source)
+          assert match is not None, 'preview protection stage missing'
+          code=textwrap.dedent(match.group(1))
+          assert 'pages deploy' not in code and 'wrangler' not in code, 'deploy in local stage forbidden'
+          subprocess.run(['bash','-e','-o','pipefail','-c',code],check=True)
+          headers=Path('dist/_headers').read_text(encoding='utf-8')
+          assert headers.count('X-Robots-Tag: noindex, nofollow, noarchive')==1
+          assert Path('dist/robots.txt').read_text(encoding='utf-8')=='User-agent: *\nDisallow: /\n'
+          PY
+          npx wrangler pages dev dist --ip 127.0.0.1 --port 8794 --log-level warn > /tmp/serdar-preview-local-pages.log 2>&1 &
+          echo $! > /tmp/serdar-preview-pages.pid
+          ready=0
+          for i in $(seq 1 40); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8794/ -o /dev/null; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then tail -60 /tmp/serdar-preview-local-pages.log; exit 1; fi
+          python3 - <<'PY'
+          from urllib.request import urlopen
+          base='http://127.0.0.1:8794'
+          with urlopen(base+'/',timeout=7) as r:
+              assert r.status==200
+              assert 'noindex' in r.headers.get('X-Robots-Tag','').lower(), dict(r.headers)
+              assert r.headers.get('Strict-Transport-Security')=='max-age=2592000'
+              assert 'default-src' in r.headers.get('Content-Security-Policy','')
+          with urlopen(base+'/.well-known/security.txt',timeout=7) as r:
+              assert r.status==200
+              assert 'text/plain' in r.headers.get('Content-Type','').lower(),dict(r.headers)
+              assert 'noindex' in r.headers.get('X-Robots-Tag','').lower(),dict(r.headers)
+              body=r.read().decode('utf-8')
+              assert 'Contact: mailto:info@serdararminsargut.com' in body
+              assert 'Canonical: https://serdararminsargut.com/.well-known/security.txt' in body
+          with urlopen(base+'/robots.txt',timeout=7) as r:
+              assert r.status==200
+              assert r.read().decode('utf-8')=='User-agent: *\nDisallow: /\n'
+          print('SERDAR_PREVIEW_LOCAL_REAL_HTTP_NOINDEX_SECURITY_TXT_PASS_NO_DEPLOY')
+          PY
       - name: Print local emulator diagnostics only on failure
         if: failure()
         run: tail -70 /tmp/serdar-local-pages.log || true
