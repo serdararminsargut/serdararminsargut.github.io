@@ -254,3 +254,34 @@ jobs:
             [[ "$code" == "200" ]]
           done
           echo 'Production link hub live verification PASS'
+
+      - name: Verify live security.txt after production deployment (HTTP 200 and text/plain)
+        shell: bash
+        run: |
+          set -euo pipefail
+          url='https://serdararminsargut.com/.well-known/security.txt'
+          ok=0
+          for attempt in $(seq 1 12); do
+            headers="$(mktemp)"
+            body="$(mktemp)"
+            code=$(curl -sS --max-redirs 0 --connect-timeout 10 --max-time 25 \
+              -D "$headers" -o "$body" -w '%{http_code}' "$url" || true)
+            ctype=$(awk 'BEGIN{IGNORECASE=1} /^content-type:/ {gsub("\r",""); v=$0} END{sub(/^[^:]*:[[:space:]]*/,"",v); print tolower(v)}' "$headers")
+            if [[ "$code" == '200' ]] && [[ "$ctype" == text/plain* ]] \
+              && grep -Fxq 'Contact: mailto:info@serdararminsargut.com' "$body" \
+              && grep -Fxq 'Expires: 2027-05-01T00:00:00Z' "$body" \
+              && grep -Fxq 'Canonical: https://serdararminsargut.com/.well-known/security.txt' "$body" \
+              && grep -Fxq 'Preferred-Languages: tr, en' "$body"; then
+              ok=1
+              rm -f "$headers" "$body"
+              break
+            fi
+            printf 'Live security.txt attempt %s: HTTP=%s, Content-Type=%s\n' "$attempt" "$code" "$ctype"
+            rm -f "$headers" "$body"
+            sleep 5
+          done
+          [[ "$ok" == 1 ]] || {
+            echo 'SERDAR_LIVE_DISCLOSURE_FAIL: live security.txt did not satisfy 200/text/plain/content checks' >&2
+            exit 1
+          }
+          echo 'SERDAR_LIVE_DISCLOSURE_VERIFIED: HTTP 200, text/plain and RFC 9116 fields'
