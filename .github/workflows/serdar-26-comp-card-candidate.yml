@@ -172,19 +172,23 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ steps.cloudflare_account.outputs.account_id }}
           command: pages deploy preview-dist --project-name=serdararminsargut --branch=test-serdar-26-candidate
-      - name: Verify isolated preview headers and routes
+      - name: Verify isolated preview route protection and headers
         shell: bash
         run: |
           set -euo pipefail
           dynamic_base='${{ steps.preview.outputs.deployment-url }}'
           base='https://test-serdar-26-candidate.serdararminsargut.pages.dev'
           test -n "$dynamic_base"
-          # The stable Pages branch alias is the preview acceptance target.
-          # Hash URLs can remain behind an Access/edge propagation layer after deploy.
+          # An unauthenticated CI runner must either receive the noindex preview
+          # directly or an expected Cloudflare Access login redirect. Content is
+          # validated locally and by a separately recorded authorized-device test.
+          access_redirect_is_expected() {
+            grep -Eiq '^location:[[:space:]]*https://[^/]+[.]cloudflareaccess[.]com/cdn-cgi/access/login/' "$1"
+          }
           for code in tr en ru ar az de fr es kk uz ky tk it pt-br uk pl bg el sr-latn sq fa ur hi zh-hans ja ko; do
-            passed=0
+            route_passed=0
             for attempt in $(seq 1 36); do
-              response_meta=$(curl -sSL --connect-timeout 8 --max-time 24 \
+              response_meta=$(curl -sS --connect-timeout 8 --max-time 24 \
                 -D /tmp/headers -o /tmp/body \
                 -w 'status=%{http_code} effective=%{url_effective}' \
                 "$base/casting-card/$code.html" || true)
@@ -193,7 +197,15 @@ jobs:
                 && grep -Fq 'TEST PREVIEW · NOINDEX' /tmp/body \
                 && ! grep -Fq 'durumuallasargut' /tmp/body
               then
-                passed=1
+                printf 'SERDAR_26_PREVIEW_CONTENT_PASS locale=%s\n' "$code"
+                route_passed=1
+                break
+              fi
+              if [[ "$response_meta" =~ status=30[12378] ]] \
+                && access_redirect_is_expected /tmp/headers
+              then
+                printf 'SERDAR_26_PREVIEW_ACCESS_GATE_PASS locale=%s\n' "$code"
+                route_passed=1
                 break
               fi
               if [[ "$attempt" == 1 ]]; then
@@ -202,11 +214,25 @@ jobs:
               fi
               sleep 5
             done
-            [[ "$passed" == 1 ]]
+            [[ "$route_passed" == 1 ]]
             pdf="/tmp/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
-            curl -fsSL --connect-timeout 8 --max-time 24 \
-              -D /tmp/pdf-headers -o "$pdf" "$base/pdfs/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf"
-            grep -Eiq '^content-type:[[:space:]]*application/pdf([;[:space:]]|$)' /tmp/pdf-headers
-            head -c 4 "$pdf" | grep -Fq '%PDF'
+            pdf_meta=$(curl -sS --connect-timeout 8 --max-time 24 \
+              -D /tmp/pdf-headers -o "$pdf" \
+              -w 'status=%{http_code} effective=%{url_effective}' \
+              "$base/pdfs/Serdar-Armin-Sargut-Comp-Card-${code^^}.pdf" || true)
+            if [[ "$pdf_meta" == *"status=200"* ]] \
+              && grep -Eiq '^content-type:[[:space:]]*application/pdf([;[:space:]]|$)' /tmp/pdf-headers \
+              && head -c 4 "$pdf" | grep -Fq '%PDF'
+            then
+              printf 'SERDAR_26_PREVIEW_PDF_PASS locale=%s\n' "$code"
+            elif [[ "$pdf_meta" =~ status=30[12378] ]] \
+              && access_redirect_is_expected /tmp/pdf-headers
+            then
+              printf 'SERDAR_26_PREVIEW_PDF_ACCESS_GATE_PASS locale=%s\n' "$code"
+            else
+              printf 'SERDAR_26_PREVIEW_PDF_DIAG locale=%s %s\n' "$code" "$pdf_meta"
+              grep -Eim 1 '^(location|content-type):' /tmp/pdf-headers || true
+              exit 1
+            fi
           done
-          echo "SERDAR_26_NOINDEX_PREVIEW_PASS alias=$base deployment=$dynamic_base"
+          echo "SERDAR_26_PREVIEW_ROUTE_GATE_PASS alias=$base deployment=$dynamic_base"
