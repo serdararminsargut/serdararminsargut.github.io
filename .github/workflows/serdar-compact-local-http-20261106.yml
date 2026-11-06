@@ -1,0 +1,71 @@
+name: Serdar local 404 and redirects acceptance
+on:
+  push:
+    branches: ['test/serdar-compact-local-qa-20261106']
+    paths: ['.github/workflows/serdar-compact-local-http-20261106.yml']
+permissions:
+  contents: read
+jobs:
+  local-only-http:
+    if: github.repository == 'serdararminsargut/serdararminsargut.github.io' && github.ref == 'refs/heads/test/serdar-compact-local-qa-20261106'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Start local Pages emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --yes wrangler@4 pages dev . --ip 127.0.0.1 --port 8791 --log-level warn >/tmp/serdar-pages-qa.log 2>&1 &
+          echo $! >/tmp/serdar-pages-qa.pid
+          for i in $(seq 1 50); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8791/ -o /dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -60 /tmp/serdar-pages-qa.log
+          exit 1
+      - name: Verify local response status and redirects
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from urllib.request import build_opener, HTTPRedirectHandler
+          from urllib.error import HTTPError
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl): return None
+          op=build_opener(NoRedirect())
+          cases=[
+              ('/',200,None),
+              ('/links/',200,None),
+              ('/casting-card/tr',200,None),
+              ('/serdar-nonexistent-qa-20261106-4e91/',404,None),
+              ('/casting-card/',301,'/casting-card/tr'),
+              ('/card.html',301,'/casting-card/en')
+          ]
+          results=[]
+          for path,expected,loc in cases:
+              try:
+                  r=op.open('http://127.0.0.1:8791'+path,timeout=15);status=r.status;headers=r.headers;body=r.read()
+              except HTTPError as e:
+                  status=e.code;headers=e.headers;body=e.read()
+              actual=headers.get('Location','')
+              ok=status==expected and (loc is None or actual.endswith(loc))
+              if expected==404: ok=ok and b'Sayfa bulunamad' in body
+              results.append({'path':path,'status':status,'expected':expected,'location':actual,'passed':ok})
+              print(path,status,'PASS' if ok else 'FAIL',flush=True)
+          Path('http-test-results.json').write_text(json.dumps(results,indent=2)+'\n')
+          assert all(r['passed'] for r in results)
+          print('LOCAL_ONLY_NO_DEPLOY_404_REDIRECTS_PASS',len(results))
+          PY
+      - name: Save local HTTP results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-compact-local-http-results
+          path: http-test-results.json
+          retention-days: 7
+          if-no-files-found: warn
