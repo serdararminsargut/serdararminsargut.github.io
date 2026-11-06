@@ -1,0 +1,80 @@
+name: Serdar live browser acceptance read-only
+on:
+  push:
+    branches: ['test/serdar-compact-local-qa-20261106']
+    paths: ['.github/workflows/serdar-live-browser-check-20261106.yml']
+permissions:
+  contents: read
+jobs:
+  browser-read-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Chromium
+        run: |
+          python -m pip install 'playwright==1.63.0'
+          python -m playwright install --with-deps chromium
+      - name: Inspect public pages in separate browser contexts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p browser-results
+          python - <<'PY'
+          from playwright.sync_api import sync_playwright
+          from pathlib import Path
+          import json
+          origin='https://serdararminsargut.com'
+          rows=[]
+          with sync_playwright() as pw:
+              normal=pw.chromium.launch_persistent_context('/tmp/serdar-browser-normal-profile',headless=True,args=['--no-sandbox'],viewport={'width':390,'height':844})
+              browser=pw.chromium.launch(args=['--no-sandbox'])
+              clean=browser.new_context(viewport={'width':390,'height':844})
+              for label,context in [('normal-fresh-profile',normal),('private-clean-context',clean)]:
+                  context.route('**/*',lambda r:r.continue_() if r.request.url.startswith(origin+'/') else r.abort())
+                  page=context.new_page()
+                  for code in ('tr','ar','hi','ur'):
+                      for width in (390,1280):
+                          page.set_viewport_size({'width':width,'height':844 if width==390 else 900})
+                          errors=[]
+                          try:
+                              resp=page.goto(origin+'/casting-card/'+code,wait_until='load',timeout=45000)
+                              page.wait_for_timeout(1200)
+                              state=page.evaluate("""() => ({
+                                width: document.documentElement.clientWidth,
+                                scroll: document.documentElement.scrollWidth,
+                                lang: document.documentElement.lang.toLowerCase(),
+                                title: document.title,
+                                h1: document.querySelectorAll('h1').length,
+                                email: [...document.querySelectorAll('a')].some(a=>a.getAttribute('href')==='mailto:info@serdararminsargut.com'),
+                                pdf: [...document.querySelectorAll('a')].some(a=>(a.getAttribute('href')||'').toLowerCase().includes('comp-card-') && (a.getAttribute('href')||'').toLowerCase().endsWith('.pdf')),
+                                images: [...document.querySelectorAll('.headshot, .look img, .qr-panel img')].map(i=>({complete:i.complete,width:i.naturalWidth}))
+                              })""")
+                              if not resp or resp.status!=200:errors.append('HTTP')
+                              if not page.url.startswith(origin+'/casting-card/'):errors.append('FINAL_URL')
+                              if state['lang']!=code or not state['title'] or state['h1']!=1:errors.append('META')
+                              if state['scroll']>state['width']+1:errors.append('OVERFLOW')
+                              if not state['email']:errors.append('EMAIL_LINK')
+                              if not state['pdf']:errors.append('PDF_LINK')
+                              if len(state['images'])!=6 or not all(i['complete'] and i['width']>0 for i in state['images']):errors.append('IMAGES')
+                              if label=='private-clean-context' and code in ('tr','ar') and width==390:
+                                  page.screenshot(path='browser-results/'+code+'-390.png',full_page=True)
+                          except Exception as e:errors.append('EXCEPTION_'+type(e).__name__)
+                          row={'session':label,'lang':code,'width':width,'errors':errors}
+                          rows.append(row);print('BROWSER',json.dumps(row),flush=True)
+                  page.close();context.close()
+              browser.close()
+          Path('browser-results/results.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
+          print('BROWSER_RESULTS',sum(not x['errors'] for x in rows),'/',len(rows),flush=True)
+          assert len(rows)==16 and all(not x['errors'] for x in rows)
+          PY
+      - name: Save result only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-live-browser-results
+          path: browser-results/results.json
+          retention-days: 7
+          if-no-files-found: warn
