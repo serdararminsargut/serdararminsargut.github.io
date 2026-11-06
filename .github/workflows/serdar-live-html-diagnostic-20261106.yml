@@ -1,0 +1,50 @@
+name: Serdar live HTML comparison diagnostic
+on:
+  push:
+    branches: ['test/serdar-compact-local-qa-20261106']
+    paths: ['.github/workflows/serdar-live-html-diagnostic-20261106.yml']
+permissions:
+  contents: read
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 71000a98436e20d4367c89cce8e31a0a43d854c6
+          persist-credentials: false
+      - name: Compare three read-only live HTML samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p html-diagnostic
+          python3 - <<'PY'
+          import difflib,hashlib,json
+          from pathlib import Path
+          from urllib.request import Request,urlopen
+          base='https://serdararminsargut.com/casting-card/'
+          result={}
+          for code in ('tr','ur','hi'):
+              src=Path('casting-card/'+code+'.html').read_text(encoding='utf8')
+              req=Request(base+code,headers={'User-Agent':'Mozilla/5.0 Serdar-Release-ReadOnly/1.0','Accept-Encoding':'identity'})
+              with urlopen(req,timeout=25) as res:
+                  data=res.read();headers=dict(res.headers)
+              live=data.decode('utf8')
+              Path('html-diagnostic/'+code+'.live.html').write_text(live,encoding='utf8')
+              Path('html-diagnostic/'+code+'.source.html').write_text(src,encoding='utf8')
+              matcher=difflib.SequenceMatcher(None,src,live,autojunk=True)
+              edits=[]
+              for tag,a,b,c,d in matcher.get_opcodes():
+                  if tag!='equal':
+                      edits.append({'op':tag,'source_start':a,'source_end':b,'live_start':c,'live_end':d,'source_excerpt':src[a:b][:240],'live_excerpt':live[c:d][:240]})
+              result[code]={'source_chars':len(src),'live_chars':len(live),'edit_count':len(edits),'edits':edits[:30],'content_encoding':headers.get('Content-Encoding',''),'server':headers.get('Server','')}
+              print('HTML_DIFF',code,json.dumps(result[code],ensure_ascii=False),flush=True)
+          Path('html-diagnostic/summary.json').write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: serdar-live-html-diagnostic
+          path: html-diagnostic/
+          retention-days: 7
