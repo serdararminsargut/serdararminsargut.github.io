@@ -1,0 +1,84 @@
+name: Serdar compact candidate local visual QA
+on:
+  push:
+    branches: ['test/serdar-compact-local-qa-20261106']
+    paths: ['.github/workflows/serdar-compact-local-qa-20261106.yml']
+permissions:
+  contents: read
+jobs:
+  mobile-local-only:
+    if: github.repository == 'serdararminsargut/serdararminsargut.github.io' && github.ref == 'refs/heads/test/serdar-compact-local-qa-20261106'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test browser
+        run: |
+          python -m pip install 'playwright==1.63.0'
+          python -m playwright install --with-deps chromium
+      - name: Check 26 cards at four widths on localhost
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p visual-evidence
+          python -m http.server 8767 --bind 127.0.0.1 >/tmp/serdar-local-qa.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+          codes='tr en ru ar az de fr es kk uz ky tk it pt-br uk pl bg el sr-latn sq fa ur hi zh-hans ja ko'.split()
+          widths=(360,390,430,1280)
+          results=[]
+          with sync_playwright() as p:
+              browser=p.chromium.launch(args=['--no-sandbox'])
+              context=browser.new_context(viewport={'width':390,'height':844},device_scale_factor=1)
+              context.route('**/*',lambda r: r.continue_() if r.request.url.startswith('http://127.0.0.1:8767/') else r.abort())
+              page=context.new_page()
+              for code in codes:
+                  page.set_viewport_size({'width':390,'height':844})
+                  response=page.goto('http://127.0.0.1:8767/casting-card/'+code+'.html',wait_until='load',timeout=30000)
+                  page.evaluate('() => document.fonts.ready')
+                  for width in widths:
+                      page.set_viewport_size({'width':width,'height':844 if width<1000 else 900})
+                      page.wait_for_timeout(120)
+                      state=page.evaluate("""() => ({
+                        lang: document.documentElement.lang.toLowerCase(),
+                        width: document.documentElement.clientWidth,
+                        scroll: document.documentElement.scrollWidth,
+                        title: !!document.title,
+                        h1: document.querySelectorAll('h1').length,
+                        images: [...document.querySelectorAll('.headshot, .look img, .qr-panel img')].map(i=>({complete:i.complete,width:i.naturalWidth})),
+                        mail: [...document.querySelectorAll('a')].some(a=>a.getAttribute('href')==='mailto:info@serdararminsargut.com')
+                      })""")
+                      failures=[]
+                      if not response or response.status != 200: failures.append('HTTP')
+                      if state['lang'] != code: failures.append('LANG')
+                      if state['scroll'] > state['width']+1: failures.append('HORIZONTAL_OVERFLOW')
+                      if not state['title'] or state['h1'] != 1: failures.append('TITLE_H1')
+                      if len(state['images'])!=6 or not all(i['complete'] and i['width']>0 for i in state['images']): failures.append('IMAGES')
+                      if not state['mail']: failures.append('MAIL')
+                      results.append({'lang':code,'viewport':width,'result':'FAIL' if failures else 'PASS','failures':failures,'width':state['width'],'scroll':state['scroll']})
+                      if code in ('tr','ar','hi') and width in (360,390,430,1280):
+                          page.screenshot(path='visual-evidence/'+code+'-'+str(width)+'.png',full_page=True)
+                      print(code,width,','.join(failures) if failures else 'PASS',flush=True)
+              context.close()
+              browser.close()
+          Path('visual-evidence/results.json').write_text(json.dumps(results,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          print('LOCAL_ONLY_RESULTS',sum(x['result']=='PASS' for x in results),'/',len(results),flush=True)
+          assert len(results)==104 and all(x['result']=='PASS' for x in results), 'One or more checks failed'
+          PY
+      - name: Save test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-compact-local-visual-evidence
+          path: visual-evidence/
+          retention-days: 7
+          if-no-files-found: warn
