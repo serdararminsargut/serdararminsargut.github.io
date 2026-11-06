@@ -1,0 +1,50 @@
+name: Serdar immutable preview read-only probe
+on:
+  push:
+    branches: ['test/serdar-compact-local-qa-20261106']
+    paths: ['.github/workflows/serdar-compact-preview-probe-20261106.yml']
+permissions:
+  contents: read
+jobs:
+  preview-probe:
+    if: github.repository == 'serdararminsargut/serdararminsargut.github.io' && github.ref == 'refs/heads/test/serdar-compact-local-qa-20261106'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Inspect anonymous response without following redirects
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from urllib.error import HTTPError, URLError
+          from urllib.parse import urlparse
+          from urllib.request import build_opener, HTTPRedirectHandler, Request
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl): return None
+          opener=build_opener(NoRedirect())
+          base='https://1d397180.serdararminsargut.pages.dev'
+          cases=['/casting-card/tr','/downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf','/links/']
+          out=[]
+          for path in cases:
+              try:
+                  response=opener.open(Request(base+path,headers={'User-Agent':'Serdar-QA-Preview/1.0'}),timeout=20)
+                  status=response.status; headers=response.headers; body=response.read(4096)
+              except HTTPError as e:
+                  status=e.code;headers=e.headers;body=e.read(4096)
+              except URLError as e:
+                  out.append({'path':path,'status':'NETWORK_ERROR','reason':type(e.reason).__name__});continue
+              loc=headers.get('Location','')
+              row={'path':path,'status':status,'content_type':headers.get('Content-Type','').split(';')[0],'redirect_host':urlparse(loc).hostname or '', 'preview_content':status==200 and (body.startswith(b'%PDF-') if path.endswith('.pdf') else b'Serdar' in body)}
+              out.append(row)
+              print(json.dumps(row),flush=True)
+          Path('preview-probe.json').write_text(json.dumps(out,indent=2)+'\n')
+          assert len(out)==3
+          PY
+      - name: Retain read-only preview result
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-immutable-preview-probe
+          path: preview-probe.json
+          retention-days: 7
