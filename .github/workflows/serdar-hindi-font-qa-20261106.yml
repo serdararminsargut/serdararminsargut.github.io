@@ -1,0 +1,102 @@
+name: Serdar Hindi local font and text extraction QA
+on:
+  push:
+    branches: ['test/serdar-compact-local-qa-20261106']
+    paths: ['.github/workflows/serdar-hindi-font-qa-20261106.yml']
+permissions:
+  contents: read
+jobs:
+  local-font-qa:
+    if: github.repository == 'serdararminsargut/serdararminsargut.github.io' && github.ref == 'refs/heads/test/serdar-compact-local-qa-20261106'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install fonts and browser
+        run: |
+          python -m pip install 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13' 'pymupdf>=1.26,<2'
+          python -m playwright install chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends poppler-utils qpdf zbar-tools fonts-freefont-ttf fonts-noto-core
+          fc-cache -f
+      - name: Generate font variants locally only
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p font-evidence
+          python -m http.server 8767 --bind 127.0.0.1 >/tmp/font-qa-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          python - <<'PY'
+          from io import BytesIO
+          from pathlib import Path
+          from urllib.parse import unquote,urlsplit
+          from PIL import Image
+          from playwright.sync_api import sync_playwright
+          import json
+          root=Path('.').resolve();cache={};base='http://127.0.0.1:8767/'
+          def route_handler(route):
+              u=route.request.url
+              if not u.startswith(base):route.abort();return
+              path=unquote(urlsplit(u).path).lstrip('/')
+              if path.startswith('assets/photos/') and path.lower().endswith(('.webp','.jpeg','.jpg','.png')):
+                  f=(root/path).resolve()
+                  assert f.is_relative_to(root) and f.is_file()
+                  if f not in cache:
+                      with Image.open(f) as src:
+                          img=src.convert('RGB');img.thumbnail((1400,1400),Image.Resampling.LANCZOS)
+                          out=BytesIO();img.save(out,'JPEG',quality=82,subsampling=0,optimize=True);cache[f]=out.getvalue()
+                  route.fulfill(status=200,body=cache[f],content_type='image/jpeg')
+              else:route.continue_()
+          with sync_playwright() as pw:
+              browser=pw.chromium.launch(args=['--no-sandbox'])
+              for code,font in [('baseline',''),('noto-sans','Noto Sans Devanagari'),('noto-serif','Noto Serif Devanagari')]:
+                  page=browser.new_page(viewport={'width':1280,'height':900});page.route('**/*',route_handler)
+                  response=page.goto(base+'casting-card/hi.html',wait_until='load',timeout=30000)
+                  assert response and response.status==200
+                  if font:page.add_style_tag(content='@media print { body { font-family: "'+font+'", sans-serif !important; } }')
+                  assert page.evaluate("document.fonts.ready.then(()=>[...document.images].every(i=>i.complete && i.naturalWidth>0))")
+                  facts=page.locator('.fact strong').all_text_contents()
+                  header=page.locator('.info .eyebrow').inner_text()
+                  (Path('font-evidence')/'expected.json').write_text(json.dumps({'facts':facts,'header':header},ensure_ascii=False,indent=2)+'\n',encoding='utf8')
+                  page.pdf(path='font-evidence/'+code+'.pdf',format='A4',prefer_css_page_size=True,print_background=True,display_header_footer=False)
+                  page.close()
+              browser.close()
+          PY
+          for name in baseline noto-sans noto-serif; do
+            qpdf --object-streams=generate --stream-data=compress "font-evidence/$name.pdf" "font-evidence/$name-q.pdf"
+            pdftotext "font-evidence/$name-q.pdf" "font-evidence/$name.txt"
+            pdftoppm -f 1 -l 1 -scale-to 1800 -png -singlefile "font-evidence/$name-q.pdf" "font-evidence/$name"
+            decoded=$(zbarimg --quiet --raw "font-evidence/$name.png" 2>/dev/null || true)
+            test "$decoded" = 'https://serdararminsargut.com/'
+          done
+          python - <<'PY'
+          from pathlib import Path
+          from pypdf import PdfReader
+          import fitz,json,unicodedata
+          p=Path('font-evidence');expected=json.loads((p/'expected.json').read_text(encoding='utf8'))
+          def n(s):return ''.join(c for c in unicodedata.normalize('NFC',s) if not c.isspace() and c not in '\u200e\u200f\u202a\u202b\u202c\u200c').casefold()
+          checks={}
+          for name in ('baseline','noto-sans','noto-serif'):
+              f=p/(name+'-q.pdf');reader=PdfReader(str(f));d=fitz.open(f)
+              texts={'poppler':(p/(name+'.txt')).read_text(encoding='utf8'),'pypdf':reader.pages[0].extract_text() or '', 'pymupdf':''.join(x.get_text() for x in d)}
+              entry={'bytes':f.stat().st_size,'pages':len(reader.pages),'annotations':len(reader.pages[0].get('/Annots',[])),'qr':'PASS','engines':{}}
+              for engine,txt in texts.items():
+                  s=n(txt);entry['engines'][engine]={'facts_exact':[n(x) in s for x in expected['facts']],'header_exact':n(expected['header']) in s}
+              checks[name]=entry
+              print('FONT_RESULT',name,json.dumps(entry,ensure_ascii=False),flush=True)
+          (p/'results.json').write_text(json.dumps(checks,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
+          print('LOCAL_ONLY_NO_DEPLOY',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: serdar-hindi-font-qa
+          path: font-evidence/
+          retention-days: 7
+          if-no-files-found: warn
