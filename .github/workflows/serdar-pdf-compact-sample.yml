@@ -1,0 +1,62 @@
+name: Serdar PDF compact layout sample (test only)
+on:
+  push:
+    branches: ['test/serdar-pdf-spacing-20261106']
+    paths: ['.github/workflows/serdar-pdf-compact-sample.yml']
+permissions:
+  contents: read
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test tools
+        run: |
+          python -m pip install 'playwright==1.63.0' 'pypdf>=5,<7'
+          python -m playwright install --with-deps chromium
+      - name: Generate four isolated PDF samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p pdf-samples
+          python -m http.server 8767 --bind 127.0.0.1 > /tmp/serdar-pdf-test-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          python - <<'PY'
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+          from pypdf import PdfReader
+          out=Path('pdf-samples')
+          with sync_playwright() as p:
+            browser=p.chromium.launch(args=['--no-sandbox'])
+            for code in ('tr','en','ar','fa'):
+              page=browser.new_page(viewport={'width':1280,'height':900})
+              page.route('**/*',lambda r:r.continue_() if r.request.url.startswith('http://127.0.0.1:8767/') else r.abort())
+              page.goto('http://127.0.0.1:8767/casting-card/'+code+'.html',wait_until='load')
+              page.evaluate("document.fonts.ready")
+              page.emulate_media(media='print')
+              page.add_style_tag(content='@media print{.photo-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}.look{break-inside:avoid}.bottom{break-inside:avoid}}')
+              file=out/(code+'.pdf')
+              page.pdf(path=str(file),format='A4',prefer_css_page_size=True,print_background=True,display_header_footer=False)
+              reader=PdfReader(str(file))
+              print('SAMPLE',code,'PAGES',len(reader.pages))
+              assert 1<=len(reader.pages)<=2
+              page.close()
+            browser.close()
+          PY
+          for lang in tr en ar fa; do
+            pdftoppm -f 1 -l 1 -scale-to 1400 -png -singlefile "pdf-samples/$lang.pdf" "pdf-samples/$lang-page1"
+            pages=$(pdfinfo "pdf-samples/$lang.pdf" | awk '/^Pages:/ {print $2}')
+            if [ "$pages" -gt 1 ]; then
+              pdftoppm -f 2 -l 2 -scale-to 1400 -png -singlefile "pdf-samples/$lang.pdf" "pdf-samples/$lang-page2"
+            fi
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: serdar-pdf-compact-samples
+          path: pdf-samples/
+          retention-days: 3
