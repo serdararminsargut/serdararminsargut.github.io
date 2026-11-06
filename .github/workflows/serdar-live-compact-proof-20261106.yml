@@ -43,6 +43,16 @@ jobs:
                   if tag=='h1':self.h1+=1
                   if tag=='link' and d.get('rel')=='canonical':self.canonical.append(d.get('href'))
                   if tag=='link' and d.get('rel')=='alternate' and d.get('hreflang'):self.alts[d['hreflang'].lower()]=d.get('href')
+          def decode_cf(hexstr):
+              raw=bytes.fromhex(hexstr)
+              return ''.join(chr(x ^ raw[0]) for x in raw[1:])
+          def normalize_cloudflare(data):
+              s=data.decode('utf-8')
+              s=re.sub(r'<a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="([0-9a-f]+)">\[email&#160;protected\]</a>',lambda m:decode_cf(m.group(1)),s)
+              s=re.sub(r'href="/cdn-cgi/l/email-protection#([0-9a-f]+)"',lambda m:'href="mailto:'+decode_cf(m.group(1))+'"',s)
+              s=re.sub(r'<span class="__cf_email__" data-cfemail="([0-9a-f]+)">\[email&#160;protected\]</span>',lambda m:decode_cf(m.group(1)),s)
+              s=re.sub(r'<!-- Cloudflare Pages Analytics -->.*?<!-- Cloudflare Pages Analytics -->','',s,flags=re.S)
+              return s.encode('utf-8')
           def get(path):
               req=urllib.request.Request(base+path,headers={'User-Agent':'Mozilla/5.0 Serdar-Release-ReadOnly/1.0','Accept-Encoding':'identity'})
               with urllib.request.urlopen(req,timeout=25) as res:
@@ -55,9 +65,9 @@ jobs:
                   parser=Head();parser.feed(data.decode('utf-8'))
                   expected=base+'/casting-card/'+code
                   src=(root/'casting-card'/(code+'.html')).read_bytes()
-                  entry['html']={'status':status,'final_url':url,'content_type':ctype,'sha256':hashlib.sha256(data).hexdigest(),'matches_source':data==src,'lang':parser.lang,'canonical':parser.canonical,'hreflang_count':len(parser.alts)}
+                  entry['html']={'status':status,'final_url':url,'content_type':ctype,'sha256':hashlib.sha256(data).hexdigest(),'matches_source_raw':data==src,'matches_source_after_cf_normalization':normalize_cloudflare(data)==src,'lang':parser.lang,'canonical':parser.canonical,'hreflang_count':len(parser.alts)}
                   if status!=200 or urllib.parse.urlparse(url).hostname!='serdararminsargut.com' or 'text/html' not in ctype.lower():entry['errors'].append('HTML_HTTP')
-                  if data!=src:entry['errors'].append('HTML_SOURCE_MISMATCH')
+                  if normalize_cloudflare(data)!=src:entry['errors'].append('HTML_SOURCE_MISMATCH_AFTER_EDGE_NORMALIZATION')
                   if parser.lang!=code or parser.title!=1 or parser.h1!=1 or parser.canonical!=[expected]:entry['errors'].append('HTML_META')
                   if set(parser.alts)!=(set(codes)|{'x-default'}) or any(parser.alts.get(c)!=base+'/casting-card/'+c for c in codes) or parser.alts.get('x-default')!=base+'/casting-card/tr':entry['errors'].append('HREFLANG')
               except Exception as e:entry['errors'].append('HTML_EXCEPTION_'+type(e).__name__)
@@ -68,7 +78,7 @@ jobs:
                   actual=hashlib.sha256(data).hexdigest()
                   expected=expected_built.get(code) or hashlib.sha256((root/path.lstrip('/')).read_bytes()).hexdigest()
                   info=subprocess.run(['pdfinfo',str(f)],capture_output=True,text=True,timeout=25)
-                  pages=re.search(r'^Pages:\\s+(\\d+)',info.stdout,re.M)
+                  pages=re.search(r'^Pages:\s+(\d+)',info.stdout,re.M)
                   render=subprocess.run(['pdftoppm','-f','1','-l','1','-scale-to','1600','-png','-singlefile',str(f),str(out/code)],capture_output=True,timeout=30)
                   qr=subprocess.run(['zbarimg','--quiet','--raw',str(out/(code+'.png'))],capture_output=True,text=True,timeout=20) if render.returncode==0 else None
                   qrval=qr.stdout.strip() if qr else ''
