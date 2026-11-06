@@ -16,7 +16,7 @@ jobs:
           python-version: '3.12'
       - name: Install test tools
         run: |
-          python -m pip install 'playwright==1.63.0' 'pypdf>=5,<7'
+          python -m pip install 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
           python -m playwright install chromium
           sudo apt-get install -y --no-install-recommends poppler-utils ghostscript zbar-tools fonts-freefont-ttf fonts-wqy-zenhei
           fc-cache -f
@@ -59,6 +59,33 @@ jobs:
             decoded=$(zbarimg --quiet --raw "pdf-samples/$lang-page1.png" 2>/dev/null || true)
             case "$decoded" in https://serdararminsargut.com*|http://serdararminsargut.com*) ;; *) echo "QR_FAIL $lang"; exit 1;; esac
             echo "QR_PASS $lang"
+          done
+      - name: Verify production PDF generator on isolated compact source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/serdar-compact-dist
+          cp -a casting-card assets /tmp/serdar-compact-dist/
+          python - <<'PY'
+          from pathlib import Path
+          root=Path('/tmp/serdar-compact-dist/casting-card')
+          css='<style>@media print{.photo-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}.look{break-inside:avoid}.bottom{break-inside:avoid}}</style>'
+          for code in ('tr','en','ar','ru'):
+            p=root/(code+'.html')
+            src=p.read_text(encoding='utf-8')
+            assert '</head>' in src
+            p.write_text(src.replace('</head>',css+'</head>',1),encoding='utf-8')
+          PY
+          python scripts/serdar_generate_comp_cards.py /tmp/serdar-compact-dist
+          for lang in TR EN AR RU; do
+            f="/tmp/serdar-compact-dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
+            pages=$(pdfinfo "$f" | awk '/^Pages:/ {print $2}')
+            test "$pages" = 1
+            pdftoppm -f 1 -l 1 -scale-to 1800 -png -singlefile "$f" "pdf-samples/production-$lang"
+            decoded=$(zbarimg --quiet --raw "pdf-samples/production-$lang.png" 2>/dev/null || true)
+            case "$decoded" in https://serdararminsargut.com*|http://serdararminsargut.com*) ;; *) echo "PRODUCTION_QR_FAIL $lang"; exit 1;; esac
+            cp "$f" "pdf-samples/production-$lang.pdf"
+            echo "PRODUCTION_GENERATOR_PASS $lang"
           done
       - uses: actions/upload-artifact@v4
         if: always()
