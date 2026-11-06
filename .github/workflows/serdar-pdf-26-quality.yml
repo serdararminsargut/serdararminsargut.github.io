@@ -18,7 +18,7 @@ jobs:
         run: |
           python -m pip install 'playwright==1.63.0' 'pypdf>=5,<7'
           python -m playwright install chromium
-          sudo apt-get install -y --no-install-recommends poppler-utils ghostscript zbar-tools fonts-noto-core fonts-noto-cjk
+          sudo apt-get install -y --no-install-recommends poppler-utils ghostscript zbar-tools fonts-freefont-ttf fonts-wqy-zenhei
           fc-cache -f
       - name: Create and inspect samples without deploying
         shell: bash
