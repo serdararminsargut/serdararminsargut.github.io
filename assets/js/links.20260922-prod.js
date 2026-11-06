@@ -196,7 +196,7 @@
   } else if (trafficSource === "instagram") {
     moveToTop(["showreel", "portfolio"]);
   } else if (["pinterest", "tiktok", "youtube"].includes(trafficSource)) {
-    moveToTop(["instagram", "showreel", "portfolio"]);
+    moveToTop(["instagram", "whatsapp", "showreel", "portfolio"]);
   } else if (trafficSource === "google") {
     moveToTop(["portfolio", "showreel"]);
   } else if (trafficSource.includes("casting") || trafficSource.includes("agency")) {
