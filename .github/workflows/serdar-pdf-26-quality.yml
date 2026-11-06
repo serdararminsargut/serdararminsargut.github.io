@@ -17,9 +17,8 @@ jobs:
       - name: Install test tools
         run: |
           python -m pip install 'playwright==1.63.0' 'pypdf>=5,<7'
-          python -m playwright install --with-deps chromium
-          sudo apt-get update -qq
-          sudo apt-get install -y poppler-utils ghostscript zbar-tools fonts-noto-cjk fonts-noto-core
+          python -m playwright install chromium
+          sudo apt-get install -y poppler-utils ghostscript zbar-tools
       - name: Create and inspect samples without deploying
         shell: bash
         run: |
