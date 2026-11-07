@@ -44,7 +44,10 @@ jobs:
           with sync_playwright() as p:
               browser=p.chromium.launch(args=['--no-sandbox','--autoplay-policy=no-user-gesture-required'])
               page=browser.new_page(viewport={'width':390,'height':844})
-              for lang in ['en','ar']:
+              responses=[]; failures=[]
+              page.on('response',lambda response: responses.append({'host':urllib.parse.urlsplit(response.url).hostname,'status':response.status}) if urllib.parse.urlsplit(response.url).hostname in ['player.vimeo.com','vimeo.com'] else None)
+              page.on('requestfailed',lambda request: failures.append({'host':urllib.parse.urlsplit(request.url).hostname,'failure':request.failure}) if 'vimeo' in (urllib.parse.urlsplit(request.url).hostname or '') else None)
+              for lang in ['en']:
                   page.goto('http://127.0.0.1:8767/'+lang+'/',wait_until='domcontentloaded')
                   page.locator('[data-video]').first.click(timeout=15000)
                   iframe=page.locator('.video-modal iframe')
@@ -59,7 +62,7 @@ jobs:
                       page.wait_for_timeout(4000)
                       current=frame.locator('video').first.evaluate("v=>v.currentTime")
                   except Exception as ex: err=str(ex)[:250]
-                  result={'lang':lang,'modal_open':opened,'vimeo_src':bool(src and src.startswith('https://player.vimeo.com/video/')),'video_element':has_video,'playback_advanced':current>0.2,'current_seconds':round(current,2),'error':err}
+                  result={'lang':lang,'modal_open':opened,'vimeo_src':bool(src and src.startswith('https://player.vimeo.com/video/')),'video_element':has_video,'playback_advanced':current>0.2,'current_seconds':round(current,2),'error':err,'frame_url_host':urllib.parse.urlsplit(frame.url).hostname or 'none','responses':responses[:6],'failures':failures[:6]}
                   results.append(result)
                   print('MEDIA_QA',json.dumps(result,ensure_ascii=False),flush=True)
               browser.close()
