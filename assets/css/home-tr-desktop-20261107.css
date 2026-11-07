@@ -1,0 +1,64 @@
+/* Turkish home: keep the desktop portrait and copy in separate columns. */
+@media (min-width: 1000px) {
+  body.portfolio-home .hero {
+    min-height: 620px;
+    height: min(92svh, 850px);
+    display: grid;
+    grid-template-columns: 55% 45%;
+    align-items: stretch;
+    background: #090909;
+  }
+  body.portfolio-home .hero-media {
+    position: relative;
+    inset: auto;
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+  body.portfolio-home .hero-media img {
+    object-fit: cover;
+    object-position: center 23%;
+  }
+  body.portfolio-home .hero-media:after {
+    background: linear-gradient(90deg, #090909 0%, transparent 20%),
+      linear-gradient(0deg, #090909 0%, transparent 25%);
+  }
+  body.portfolio-home .hero-content {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    width: auto;
+    margin: 0;
+    padding: 48px 24px 48px max(24px, calc((100vw - 1180px) / 2));
+  }
+  body.portfolio-home .hero h1 {
+    max-width: 100%;
+    font-size: clamp(3.4rem, 5.2vw, 5rem);
+    line-height: .98;
+  }
+}
+
+/* Restore the actual casting-card link in the compact Turkish mobile menu. */
+@media (max-width: 820px) {
+  body.portfolio-home nav .wrap > a[data-comp-card-link="nav"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 36px;
+    padding: 7px 5px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: .72rem;
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
+  }
+}
+@media (max-width: 360px) {
+  body.portfolio-home nav .wrap > a[data-comp-card-link="nav"] {
+    font-size: .68rem;
+    padding: 6px 3px;
+  }
+}
