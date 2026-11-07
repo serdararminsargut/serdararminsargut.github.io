@@ -17,6 +17,8 @@ jobs:
         with:
           ref: 435196fc8b234322c74d69420be71aa23b82bb79
           persist-credentials: false
+      - name: Install isolated PDF page-count parser
+        run: python3 -m pip install --quiet --disable-pip-version-check 'pypdf>=5,<7'
       - name: GET 26 public PDFs and compare SHA-256 to pinned manifest (no writes)
         shell: bash
         run: |
@@ -51,21 +53,23 @@ jobs:
                       data = response.read()
                   actual = hashlib.sha256(data).hexdigest()
                   reasons = []
+        pages = len(PdfReader(BytesIO(data)).pages)
                   if status != 200: reasons.append(f"HTTP={status}")
                   if urlparse(final).hostname != "serdararminsargut.com": reasons.append("REDIRECT_HOST")
                   if "application/pdf" not in content_type: reasons.append(f"CONTENT_TYPE={content_type}")
                   if not data.startswith(b"%PDF-"): reasons.append("PDF_SIGNATURE")
                   if actual != expected: reasons.append(f"SHA_MISMATCH expected={expected} actual={actual}")
-                  return relpath, len(data), reasons
+        if pages != 1: reasons.append(f"PDF_PAGE_COUNT={pages}")
+                  return relpath, len(data), pages, reasons
               except Exception as exc:
-                  return relpath, 0, [type(exc).__name__ + ": " + str(exc)[:160]]
+                  return relpath, 0, None, [type(exc).__name__ + ": " + str(exc)[:160]]
           
           with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
               results = list(pool.map(inspect, rows))
           failures = 0
-          for relpath, size, reasons in results:
+          for relpath, size, pages, reasons in results:
               status = "PASS" if not reasons else "FAIL"
-              print(f"{status} {relpath} bytes={size}", flush=True)
+              print(f"{status} {relpath} bytes={size} pages={pages}", flush=True)
               for reason in reasons:
                   print(f"  REASON {reason}", flush=True)
               if reasons: failures += 1
