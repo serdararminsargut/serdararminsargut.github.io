@@ -1,0 +1,114 @@
+name: Serdar home SEO local acceptance
+on:
+  push:
+    branches: ['test/serdar-mobile-nav-qa-20261107']
+    paths: ['.github/workflows/serdar-mobile-nav-qa-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  local-acceptance:
+    if: github.repository == 'serdararminsargut/serdararminsargut.github.io' && github.ref == 'refs/heads/test/serdar-mobile-nav-qa-20261107'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install local test dependencies
+        run: |
+          python -m pip install 'playwright==1.63.0' 'lxml>=5,<7'
+          python -m playwright install --with-deps chromium
+      - name: Run source and responsive checks offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p seo-qa-evidence
+          git show 71000a98436e20d4367c89cce8e31a0a43d854c6:index.html > seo-qa-evidence/baseline.html
+          python -m http.server 8767 --bind 127.0.0.1 >/tmp/serdar-home-seo-qa.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          python - <<'PY'
+          from pathlib import Path
+          from lxml import html
+          from playwright.sync_api import sync_playwright
+          import json
+          a=html.parse('seo-qa-evidence/baseline.html');b=html.parse('index.html')
+          def q(d,x):return d.xpath(x)
+          source_checks={}
+          for name,x in [('lang','string(/html/@lang)'),('canonical','//link[@rel="canonical"]/@href'),('hreflang','//link[@rel="alternate"]/@href'),('anchors','//a/@href'),('images','//img/@src'),('image_alt','//img/@alt'),('robots','//meta[@name="robots"]/@content'),('sections','//section/@id')]:
+              source_checks[name]=q(a,x)==q(b,x)
+          source_checks['h1']=[x.text_content() for x in q(a,'//h1')]==[x.text_content() for x in q(b,'//h1')]
+          title=q(b,'string(//title)')
+          source_checks['titles']=title==q(b,'string(//meta[@property="og:title"]/@content)')==q(b,'string(//meta[@name="twitter:title"]/@content)') and 'Oyuncu' in title and 'Model' in title
+          desc=q(b,'string(//meta[@name="description"]/@content)')
+          source_checks['descriptions']=desc==q(b,'string(//meta[@property="og:description"]/@content)')==q(b,'string(//meta[@name="twitter:description"]/@content)')
+          for text in q(b,'//script[@type="application/ld+json"]/text()'):json.loads(text)
+          source_checks['structured_data_parses']=True
+          assert all(source_checks.values()),source_checks
+          rows=[]
+          with sync_playwright() as pw:
+              browser=pw.chromium.launch(args=['--no-sandbox'])
+              page=browser.new_page(viewport={'width':390,'height':844})
+              page.route('**/*',lambda r:r.continue_() if r.request.url.startswith('http://127.0.0.1:8767/') else r.abort())
+              for width in (360,390,430,768,820,1000,1024,1280,1440):
+                  page.set_viewport_size({'width':width,'height':844 if width<1000 else (700 if width==1000 else 900)})
+                  response=page.goto('http://127.0.0.1:8767/',wait_until='load',timeout=30000)
+                  page.evaluate('() => document.fonts.ready')
+                  page.wait_for_timeout(300)
+                  result=page.evaluate("""() => {
+                    const d=document.documentElement;
+                    const image=document.querySelector('.hero-media img');
+                    const title=document.querySelector('h1');
+                    const para=document.querySelector('.hero-content > p');
+                    const actions=document.querySelector('.hero-content .actions');
+                    const a=title.getBoundingClientRect(),b=para.getBoundingClientRect(),c=actions.getBoundingClientRect(),m=document.querySelector('.hero-media').getBoundingClientRect(), box=document.querySelector('.hero-content').getBoundingClientRect();
+                    return {width:d.clientWidth,scroll:d.scrollWidth,hero_loaded:!!image && image.complete && image.naturalWidth>0,
+                      title_visible:a.width>0 && a.height>0,para_visible:b.width>0 && b.height>0,actions_visible:c.width>0 && c.height>0,
+                      no_overlap:a.bottom<=b.top+1 && b.bottom<=c.top+1,
+                      desktop_split: innerWidth < 1000 || box.right <= m.left + 1,
+                      hero_fit: innerWidth < 1000 || (box.top >= document.querySelector('.hero').getBoundingClientRect().top - 1 && box.bottom <= document.querySelector('.hero').getBoundingClientRect().bottom + 1),
+                      instagram:!!document.querySelector('a[href="https://www.instagram.com/serdararminsargutt/"]'),
+                      casting:!!document.querySelector('a[href="/casting-card/tr.html"]')};
+                  }""")
+                  fails=[]
+                  if not response or response.status!=200:fails.append('HTTP')
+                  if result['scroll']>result['width']+1:fails.append('OVERFLOW')
+                  for key in ('hero_loaded','title_visible','para_visible','actions_visible','no_overlap','desktop_split','hero_fit','instagram','casting'):
+                      if not result[key]:fails.append(key)
+                  page.screenshot(path='seo-qa-evidence/home-'+str(width)+'.png',full_page=True)
+                  if width<=820:
+                      nav=page.locator('nav a[data-comp-card-link="nav"]')
+                      if not nav.is_visible():
+                          fails.append('MOBILE_CASTING_HIDDEN')
+                      else:
+                          try:
+                              with page.expect_navigation(wait_until='load', timeout=20000) as event:
+                                  nav.click(timeout=10000)
+                              dest=event.value
+                              if not dest or dest.status!=200 or not page.url.endswith('/casting-card/tr.html'):
+                                  fails.append('MOBILE_CASTING_TARGET')
+                          except Exception as error:
+                              fails.append('MOBILE_CASTING_CLICK')
+                              print('CLICK_ERROR',width,str(error)[:300],flush=True)
+                  rows.append({'viewport':width,'result':'FAIL' if fails else 'PASS','issues':fails,'state':result})
+                  print('HOME_QA',width,'PASS' if not fails else ','.join(fails),flush=True)
+              browser.close()
+          out={'source_checks':source_checks,'viewports':rows,'source_commit':'2da56ee4beeece96ee4bb12347390ec73f9e7eca','baseline_commit':'71000a98436e20d4367c89cce8e31a0a43d854c6'}
+          Path('seo-qa-evidence/results.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
+          assert len(rows)==9 and all(x['result']=='PASS' for x in rows),rows
+          print('SERDAR_HOME_SEO_LOCAL_PASS 9/9; NO PRODUCTION DEPLOY',flush=True)
+          PY
+      - name: Save QA result and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-home-seo-local-qa
+          path: |
+            seo-qa-evidence/results.json
+            seo-qa-evidence/*.png
+          retention-days: 7
+          if-no-files-found: warn
