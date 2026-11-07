@@ -54,8 +54,8 @@ jobs:
               browser=pw.chromium.launch(args=['--no-sandbox'])
               page=browser.new_page(viewport={'width':390,'height':844})
               page.route('**/*',lambda r:r.continue_() if r.request.url.startswith('http://127.0.0.1:8767/') else r.abort())
-              for width in (360,390,430,1280):
-                  page.set_viewport_size({'width':width,'height':844 if width<1000 else 900})
+              for width in (360,390,430,1000,1024,1280,1440):
+                  page.set_viewport_size({'width':width,'height':844 if width<1000 else (700 if width==1000 else 900)})
                   response=page.goto('http://127.0.0.1:8767/',wait_until='load',timeout=30000)
                   page.evaluate('() => document.fonts.ready')
                   page.wait_for_timeout(300)
@@ -70,13 +70,14 @@ jobs:
                       title_visible:a.width>0 && a.height>0,para_visible:b.width>0 && b.height>0,actions_visible:c.width>0 && c.height>0,
                       no_overlap:a.bottom<=b.top+1 && b.bottom<=c.top+1,
                       desktop_split: innerWidth < 1000 || box.right <= m.left + 1,
+                      hero_fit: innerWidth < 1000 || (box.top >= document.querySelector('.hero').getBoundingClientRect().top - 1 && box.bottom <= document.querySelector('.hero').getBoundingClientRect().bottom + 1),
                       instagram:!!document.querySelector('a[href="https://www.instagram.com/serdararminsargutt/"]'),
                       casting:!!document.querySelector('a[href="/casting-card/tr.html"]')};
                   }""")
                   fails=[]
                   if not response or response.status!=200:fails.append('HTTP')
                   if result['scroll']>result['width']+1:fails.append('OVERFLOW')
-                  for key in ('hero_loaded','title_visible','para_visible','actions_visible','no_overlap','desktop_split','instagram','casting'):
+                  for key in ('hero_loaded','title_visible','para_visible','actions_visible','no_overlap','desktop_split','hero_fit','instagram','casting'):
                       if not result[key]:fails.append(key)
                   rows.append({'viewport':width,'result':'FAIL' if fails else 'PASS','issues':fails,'state':result})
                   page.screenshot(path='seo-qa-evidence/home-'+str(width)+'.png',full_page=True)
@@ -84,8 +85,8 @@ jobs:
               browser.close()
           out={'source_checks':source_checks,'viewports':rows,'source_commit':'cd5670ddee2621db818393905a865f6debd2a8c7','baseline_commit':'71000a98436e20d4367c89cce8e31a0a43d854c6'}
           Path('seo-qa-evidence/results.json').write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf8')
-          assert len(rows)==4 and all(x['result']=='PASS' for x in rows),rows
-          print('SERDAR_HOME_SEO_LOCAL_PASS 4/4; NO PRODUCTION DEPLOY',flush=True)
+          assert len(rows)==7 and all(x['result']=='PASS' for x in rows),rows
+          print('SERDAR_HOME_SEO_LOCAL_PASS 7/7; NO PRODUCTION DEPLOY',flush=True)
           PY
       - name: Save QA result and screenshots
         if: always()
