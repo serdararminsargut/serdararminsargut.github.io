@@ -1,4 +1,4 @@
-name: Serdar live PDF SHA256 manifest audit - ISOLATED READ ONLY
+name: Serdar live PDF SHA256 and page-count audit - ISOLATED READ ONLY
 on:
   push:
     branches:
@@ -17,17 +17,19 @@ jobs:
         with:
           ref: 435196fc8b234322c74d69420be71aa23b82bb79
           persist-credentials: false
-      - name: Install isolated PDF page-count parser
+      - name: Install PDF page-count parser (isolated runner)
         run: python3 -m pip install --quiet --disable-pip-version-check 'pypdf>=5,<7'
-      - name: GET 26 public PDFs and compare SHA-256 to pinned manifest (no writes)
+      - name: GET public PDFs and verify manifest hashes + one-page format (no writes)
         shell: bash
         run: |
           python3 - <<'PY'
           import concurrent.futures
           import hashlib
+          from io import BytesIO
           from pathlib import Path
           from urllib.parse import urlparse
           from urllib.request import Request, urlopen
+          from pypdf import PdfReader
           
           BASE = "https://serdararminsargut.com/"
           manifest = Path("scripts/serdar-comp-card-sha256-20261107.txt")
@@ -52,14 +54,14 @@ jobs:
                       content_type = response.headers.get("Content-Type", "").lower()
                       data = response.read()
                   actual = hashlib.sha256(data).hexdigest()
+                  pages = len(PdfReader(BytesIO(data), strict=False).pages)
                   reasons = []
-        pages = len(PdfReader(BytesIO(data)).pages)
                   if status != 200: reasons.append(f"HTTP={status}")
                   if urlparse(final).hostname != "serdararminsargut.com": reasons.append("REDIRECT_HOST")
                   if "application/pdf" not in content_type: reasons.append(f"CONTENT_TYPE={content_type}")
                   if not data.startswith(b"%PDF-"): reasons.append("PDF_SIGNATURE")
                   if actual != expected: reasons.append(f"SHA_MISMATCH expected={expected} actual={actual}")
-        if pages != 1: reasons.append(f"PDF_PAGE_COUNT={pages}")
+                  if pages != 1: reasons.append(f"PAGE_COUNT={pages} (expected one)")
                   return relpath, len(data), pages, reasons
               except Exception as exc:
                   return relpath, 0, None, [type(exc).__name__ + ": " + str(exc)[:160]]
@@ -73,6 +75,6 @@ jobs:
               for reason in reasons:
                   print(f"  REASON {reason}", flush=True)
               if reasons: failures += 1
-          print(f"SERDAR_LIVE_PDF_MANIFEST_PASS {26-failures}/26; failures={failures}", flush=True)
+          print(f"SERDAR_LIVE_PDF_MANIFEST_AND_PAGES_PASS {26-failures}/26; failures={failures}", flush=True)
           if failures: raise SystemExit(1)
           PY
