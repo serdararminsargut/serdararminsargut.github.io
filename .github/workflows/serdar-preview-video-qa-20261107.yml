@@ -56,13 +56,15 @@ jobs:
                   frame=iframe.element_handle().content_frame()
                   has_video=False; current=0; err=None
                   try:
-                      frame.locator('video').first.wait_for(state='attached',timeout=15000)
+                      frame.locator('video').first.wait_for(state='attached',timeout=6000)
                       has_video=True
                       frame.locator('video').first.evaluate("(v)=>v.play().catch(()=>{})")
                       page.wait_for_timeout(4000)
                       current=frame.locator('video').first.evaluate("v=>v.currentTime")
                   except Exception as ex: err=str(ex)[:250]
-                  result={'lang':lang,'modal_open':opened,'vimeo_src':bool(src and src.startswith('https://player.vimeo.com/video/')),'video_element':has_video,'playback_advanced':current>0.2,'current_seconds':round(current,2),'error':err,'frame_url_host':urllib.parse.urlsplit(frame.url).hostname or 'none','responses':responses[:6],'failures':failures[:6]}
+                  try: frame_text=frame.locator('body').inner_text(timeout=3000)[:350]
+                  except Exception: frame_text='unavailable'
+                  result={'lang':lang,'modal_open':opened,'vimeo_src':bool(src and src.startswith('https://player.vimeo.com/video/')),'video_element':has_video,'playback_advanced':current>0.2,'current_seconds':round(current,2),'error':err,'frame_message':frame_text,'frame_url_host':urllib.parse.urlsplit(frame.url).hostname or 'none','responses':responses[:6],'failures':failures[:6]}
                   results.append(result)
                   print('MEDIA_QA',json.dumps(result,ensure_ascii=False),flush=True)
               browser.close()
