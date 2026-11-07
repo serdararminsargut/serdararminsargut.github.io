@@ -1,0 +1,93 @@
+name: Serdar Hugo and 26 cards integration QA
+on:
+  push:
+    branches: ['test/serdar-hugo-26-qa-20261107']
+    paths: ['.github/workflows/serdar-hugo-26-qa-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install local browser
+        run: |
+          python -m pip install 'playwright==1.63.0' 'lxml>=5,<7'
+          python -m playwright install --with-deps chromium
+      - name: Verify isolated Hugo integration and 26 cards
+        run: |
+          python - <<'PY'
+          import json,threading,http.server,urllib.parse
+          from pathlib import Path
+          from lxml import html,etree
+          from playwright.sync_api import sync_playwright
+          root='https://serdararminsargut.com'
+          guides=['/rehber/','/rehber/post/','/rehber/post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/','/rehber/post/cocuk-oyuncu-casting-sunum-dosyasi/','/rehber/post/spor-giyim-ayakkabi-katalog-fotograflari/']
+          h=html.parse('rehber/index.html')
+          links=h.xpath('//nav[@class="hugo-language-list"]/a/@href')
+          assert len(links)==26 and len(set(links))==26,links
+          for link in links:
+              assert link.startswith('/casting-card/') and Path(link.lstrip('/')+'.html').is_file(),link
+          sitemap=etree.parse('sitemap.xml').xpath('//*[local-name()="loc"]/text()')
+          assert len(sitemap)==117 and len(set(sitemap))==117
+          for path in guides:
+              assert root+path in sitemap
+              page=html.parse(path.lstrip('/')+'index.html')
+              assert page.xpath('string(/html/@lang)').startswith('tr')
+              assert page.xpath('string(//link[@rel="canonical"]/@href)')==root+path
+              assert page.xpath('count(//h1)')==1
+          class Handler(http.server.SimpleHTTPRequestHandler):
+              def do_GET(self):
+                  path=urllib.parse.urlsplit(self.path).path
+                  if path.startswith('/casting-card/') and not path.endswith('.html'): self.path=path+'.html'
+                  return super().do_GET()
+          line=next(x.strip() for x in Path('_headers').read_text().splitlines() if x.strip().startswith('Content-Security-Policy:'))
+          csp=line.split(':',1)[1].strip()
+          class CSPHandler(Handler):
+              def end_headers(self):
+                  self.send_header('Content-Security-Policy',csp)
+                  super().end_headers()
+          server=http.server.ThreadingHTTPServer(('127.0.0.1',8769),CSPHandler)
+          threading.Thread(target=server.serve_forever,daemon=True).start()
+          Path('hugo-qa').mkdir(exist_ok=True)
+          rows=[]
+          with sync_playwright() as p:
+              browser=p.chromium.launch(args=['--no-sandbox'])
+              page=browser.new_page(viewport={'width':390,'height':844})
+              page.route('**/*',lambda r:r.continue_() if r.request.url.startswith('http://127.0.0.1:8769/') else r.abort())
+              for width in [360,390,430,1280]:
+                  page.set_viewport_size({'width':width,'height':844})
+                  for path in guides:
+                      response=page.goto('http://127.0.0.1:8769'+path,wait_until='load',timeout=30000)
+                      assert response and response.status==200,(width,path,'status')
+                      assert page.locator('h1').count()==1 and page.locator('h1').is_visible(),(width,path,'h1')
+                      dims=page.evaluate("({client:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth})")
+                      assert dims['scroll']<=dims['client']+1,(width,path,'overflow',dims)
+                      if path=='/rehber/':
+                          for a in page.locator('.hugo-language-list a').all():
+                              assert a.is_visible() and a.bounding_box()['height']>=44,(width,'language target')
+                          page.screenshot(path='hugo-qa/hugo-'+str(width)+'.png',full_page=True)
+                      rows.append({'width':width,'path':path,'pass':True})
+                      print('HUGO_QA',width,path,'PASS',flush=True)
+              browser.close()
+          assert len(rows)==20
+          Path('hugo-qa/results.json').write_text(json.dumps({'pages':rows,'casting_links':len(links),'sitemap_urls':len(sitemap)},ensure_ascii=False,indent=2),encoding='utf8')
+          print('HUGO_LOCAL_PASS 20/20; CASTING_LINKS 26/26')
+          PY
+          sha256sum --check scripts/serdar-comp-card-sha256-20261107.txt
+          echo 'HUGO_PDFS_PRESERVED 26/26'
+      - name: Save QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-hugo-local-qa
+          path: hugo-qa/
+          retention-days: 14
+          if-no-files-found: warn
