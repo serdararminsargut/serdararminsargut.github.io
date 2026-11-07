@@ -38,3 +38,27 @@
     line-height: .98;
   }
 }
+
+/* Restore the actual casting-card link in the compact Turkish mobile menu. */
+@media (max-width: 820px) {
+  body.portfolio-home nav .wrap > a[data-comp-card-link="nav"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 36px;
+    padding: 7px 5px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: .72rem;
+    line-height: 1.1;
+    text-align: center;
+    white-space: normal;
+  }
+}
+@media (max-width: 360px) {
+  body.portfolio-home nav .wrap > a[data-comp-card-link="nav"] {
+    font-size: .68rem;
+    padding: 6px 3px;
+  }
+}
