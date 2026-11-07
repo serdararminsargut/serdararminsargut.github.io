@@ -1,0 +1,79 @@
+name: Hugo guide mobile visual acceptance
+on:
+  push:
+    branches: ['test/serdar-hugo-visual-final-qa-20261107']
+    paths: ['.github/workflows/serdar-hugo-visual-final-qa-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser
+        run: |
+          python -m pip install 'playwright==1.63.0'
+          python -m playwright install --with-deps chromium
+      - name: Inspect actual card layout under production policy
+        run: |
+          python - <<'PY'
+          import http.server,threading,json
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+          line=next(x.strip() for x in Path('_headers').read_text().splitlines() if x.strip().startswith('Content-Security-Policy:'))
+          class Handler(http.server.SimpleHTTPRequestHandler):
+              def end_headers(self):
+                  self.send_header('Content-Security-Policy',line.split(':',1)[1].strip())
+                  super().end_headers()
+          server=http.server.ThreadingHTTPServer(('127.0.0.1',8767),Handler)
+          threading.Thread(target=server.serve_forever,daemon=True).start()
+          Path('visual-proof').mkdir(exist_ok=True);rows=[]
+          with sync_playwright() as p:
+              browser=p.chromium.launch(args=['--no-sandbox'])
+              page=browser.new_page(viewport={'width':390,'height':844})
+              page.route('**/*',lambda r:r.continue_() if r.request.url.startswith('http://127.0.0.1:8767/') else r.abort())
+              for width in [360,390,430,1280]:
+                  page.set_viewport_size({'width':width,'height':844})
+                  res=page.goto('http://127.0.0.1:8767/rehber/post/',wait_until='load',timeout=30000)
+                  assert res and res.status==200
+                  page.locator('img.guide-card-image').last.scroll_into_view_if_needed()
+                  page.wait_for_timeout(300)
+                  result=page.evaluate("""() => {
+                    const root=document.documentElement, title=document.querySelector('h1').getBoundingClientRect();
+                    const cards=[...document.querySelectorAll('img.guide-card-image')];
+                    return {width:root.clientWidth,scroll:root.scrollWidth,title_left:title.left,title_right:title.right,
+                      cards:cards.map(i=>({loaded:i.complete && i.naturalWidth>0,alt:i.alt,box:i.getBoundingClientRect().toJSON()})),
+                      placeholders:document.querySelectorAll('svg[class*="text-white/40"]').length};
+                  }""")
+                  assert result['scroll']<=result['width']+1,(width,'overflow')
+                  assert result['title_left']>=12 and result['title_right']<=width-12,(width,'padding',result)
+                  assert len(result['cards'])==3 and all(i['loaded'] and i['alt'] for i in result['cards']),(width,'cards')
+                  assert result['placeholders']==0,(width,'placeholder')
+                  assert page.get_by_text('Devamını oku').count()==3
+                  page.evaluate('window.scrollTo(0,0)')
+                  page.wait_for_timeout(100)
+                  page.screenshot(path='visual-proof/guide-'+str(width)+'.png',full_page=True)
+                  rows.append({'width':width,'result':'PASS','details':result})
+                  print('GUIDE_VISUAL',width,'PASS',flush=True)
+              browser.close()
+          Path('visual-proof/results.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding='utf8')
+          assert len(rows)==4
+          print('GUIDE_VISUAL_PASS 4/4')
+          PY
+          sha256sum --check scripts/serdar-comp-card-sha256-20261107.txt
+          echo 'PDF_PRESERVATION_PASS 26/26'
+      - name: Save visual QA
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hugo-guide-visual-proof
+          path: visual-proof/
+          retention-days: 14
+          if-no-files-found: warn
