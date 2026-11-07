@@ -1,0 +1,54 @@
+name: Verify Serdar AI summary release
+on:
+  push:
+    branches: ['test/serdar-geo-current-qa-20261107']
+    paths: ['.github/workflows/serdar-geo-live-proof-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify live summary and 26 protected PDFs
+        run: |
+          python3 - <<'PY'
+          import urllib.request,hashlib,concurrent.futures,json
+          from pathlib import Path
+          base='https://serdararminsargut.com/'
+          def get(path):
+              req=urllib.request.Request(base+path,headers={'User-Agent':'Mozilla/5.0 SerdarReadOnlyReleaseCheck/1.0','Cache-Control':'no-cache'})
+              with urllib.request.urlopen(req,timeout=35) as r: return r.status,r.headers.get('Content-Type',''),r.read()
+          outcomes={}
+          for path in ['llms.txt','llms-full.txt']:
+              status,typ,data=get(path)
+              local=Path(path).read_bytes()
+              outcomes[path]={'status':status,'content_type':typ,'same_as_candidate':data==local}
+              assert status==200 and data==local,(path,status,'content mismatch')
+          full=Path('llms-full.txt').read_text()
+          assert '- Boy: 158 cm.' not in full and '- الطول: 158 سم.' not in full
+          manifest=Path('scripts/serdar-comp-card-sha256-20261107.txt').read_text().splitlines()
+          def verify(line):
+              expected,path=line.split(maxsplit=1)
+              try:
+                  status,typ,data=get(path)
+                  return {'path':path,'status':status,'match':hashlib.sha256(data).hexdigest()==expected,'pdf':typ.lower().startswith('application/pdf')}
+              except Exception as e: return {'path':path,'error':str(e)[:150]}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool: results=list(pool.map(verify,manifest))
+          print('LIVE_LLM_SUMMARIES_PASS 2/2',flush=True)
+          for row in results: print('LIVE_GEO_PDF',json.dumps(row),flush=True)
+          assert len(results)==26 and all(x.get('status')==200 and x.get('match') and x.get('pdf') for x in results)
+          print('LIVE_GEO_PDFS_PASS 26/26',flush=True)
+          Path('geo-live-proof.json').write_text(json.dumps({'summaries':outcomes,'pdfs':results},indent=2),encoding='utf8')
+          PY
+      - name: Save proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo-live-proof
+          path: geo-live-proof.json
+          retention-days: 14
+          if-no-files-found: warn
