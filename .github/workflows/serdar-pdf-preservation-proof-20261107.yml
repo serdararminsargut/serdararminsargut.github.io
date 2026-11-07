@@ -1,0 +1,43 @@
+name: Serdar unchanged PDF live hashes
+on:
+  push:
+    branches: ['test/serdar-seo-live-proof-20261107']
+    paths: ['.github/workflows/serdar-pdf-preservation-proof-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compare live PDFs with previous approved hashes
+        run: |
+          python3 - <<'PY'
+          import urllib.request,json,hashlib,concurrent.futures
+          from pathlib import Path
+          entries=json.loads('''[{"lang":"az","file":"Serdar-Armin-Sargut-Comp-Card-AZ.pdf","expected":"e6a803417e5622849223d41c5b0bbb4909f6716ec30b63dd95b096412a620c6d"},{"lang":"de","file":"Serdar-Armin-Sargut-Comp-Card-DE.pdf","expected":"83da0d35f6a590bebffa472aff3612618e2ce573ff0534306a3baa2fa8345b15"},{"lang":"fr","file":"Serdar-Armin-Sargut-Comp-Card-FR.pdf","expected":"8bb6a6de72f6dbaaf22b92ad756280542c83aa84eb160f75fcb9fcf0316ecee4"},{"lang":"es","file":"Serdar-Armin-Sargut-Comp-Card-ES.pdf","expected":"0a719a197b36b3d389ec8974c3ebb3a2f241a1711c16a91282110729efd704ab"},{"lang":"kk","file":"Serdar-Armin-Sargut-Comp-Card-KK.pdf","expected":"81da2316ecca6f41f5ba197415d2e94e1b260f8766cdf5f18b3435ad05f25208"},{"lang":"uz","file":"Serdar-Armin-Sargut-Comp-Card-UZ.pdf","expected":"28b6e2245f30c9bf2130ecabadeba26980c8c34c67ff5f0bc72abcf6f5adb0e0"},{"lang":"ky","file":"Serdar-Armin-Sargut-Comp-Card-KY.pdf","expected":"9386304a631ddf9f44ca51220a333774f1088796300f5eed57d0b982af3b1199"},{"lang":"tk","file":"Serdar-Armin-Sargut-Comp-Card-TK.pdf","expected":"6e998cf08d1b77b384fa7c3de94ba5e45d0bf6fa45fcf7b8833294718704ada3"},{"lang":"it","file":"Serdar-Armin-Sargut-Comp-Card-IT.pdf","expected":"460255b31c5a198f80905a161cea91c466d54fb81b4230de75231fe29c6174f2"},{"lang":"pt-br","file":"Serdar-Armin-Sargut-Comp-Card-PT-BR.pdf","expected":"33fe2ede0f55c8eb37288d7198b40bb70100497ea4162b6d5b96ccab9edfaa37"},{"lang":"uk","file":"Serdar-Armin-Sargut-Comp-Card-UK.pdf","expected":"2ae6a005bd3484373d738916f641a383a749ccaa94759ea94646956268c6e288"},{"lang":"pl","file":"Serdar-Armin-Sargut-Comp-Card-PL.pdf","expected":"51a7b3239e373cbf4d29002dd654726719e49f2f701d4520ed6209374be3d82b"},{"lang":"bg","file":"Serdar-Armin-Sargut-Comp-Card-BG.pdf","expected":"8621444847dc487884f3c98458b05a41e6541ef7b13658c5f664f3b619021018"},{"lang":"el","file":"Serdar-Armin-Sargut-Comp-Card-EL.pdf","expected":"b140ad2c8a0caf1ec363021a2e21236031be04179d7a396e46a838ad9710e913"},{"lang":"sr-latn","file":"Serdar-Armin-Sargut-Comp-Card-SR-LATN.pdf","expected":"144788f3afe401b010cc35a2a4ff82361da67e37c6762ae0da454a1d72df15e7"},{"lang":"sq","file":"Serdar-Armin-Sargut-Comp-Card-SQ.pdf","expected":"8f3efb6c495e53abd90e3c78d49ea27de874b779d501052c253476593095a2d4"},{"lang":"fa","file":"Serdar-Armin-Sargut-Comp-Card-FA.pdf","expected":"85ad811120c451503c94af793386b1e2b6af425d1019862fd4c8d232d1f97c36"},{"lang":"ur","file":"Serdar-Armin-Sargut-Comp-Card-UR.pdf","expected":"cccf5667f671382da56f57581f2e26be4d877b654d1b91d3350c5a65a26e4ca2"},{"lang":"hi","file":"Serdar-Armin-Sargut-Comp-Card-HI.pdf","expected":"6d908b6e0394340d3eec29278938799539803a76244f126648b9c6692069243a"},{"lang":"zh-hans","file":"Serdar-Armin-Sargut-Comp-Card-ZH-HANS.pdf","expected":"7c20766442a9ecf057e168cb7aa3e7f950861745fce23fecc454f32d8486ca83"},{"lang":"ja","file":"Serdar-Armin-Sargut-Comp-Card-JA.pdf","expected":"9abbb9fb7def7aac1c2f45ac2200678cf5b7973c06b01ce9d7d31e573a93c78c"},{"lang":"ko","file":"Serdar-Armin-Sargut-Comp-Card-KO.pdf","expected":"b12d9178f31cdf7b8ec21fa3fc139ddb40c23a21a218499525f1fa1ff54fad76"}]''')
+          def check(row):
+              req=urllib.request.Request('https://serdararminsargut.com/downloads/'+row['file'],headers={'User-Agent':'Mozilla/5.0 ReleaseProof/1.0'})
+              try:
+                  with urllib.request.urlopen(req,timeout=35) as r: data=r.read(); status=r.status
+                  actual=hashlib.sha256(data).hexdigest()
+                  local=hashlib.sha256(Path('downloads',row['file']).read_bytes()).hexdigest()
+                  return {'lang':row['lang'],'status':status,'matches_previous':actual==row['expected'],'matches_git':actual==local}
+              except Exception as e: return {'lang':row['lang'],'error':str(e)[:160]}
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+              rows=list(pool.map(check,entries))
+          for row in rows: print('PRESERVED_PDF',json.dumps(row),flush=True)
+          Path('pdf-preservation-results.json').write_text(json.dumps(rows,indent=2),encoding='utf8')
+          assert len(rows)==22 and all(x.get('status')==200 and x.get('matches_previous') and x.get('matches_git') for x in rows)
+          print('PRESERVED_PDF_PASS 22/22',flush=True)
+          PY
+      - name: Save proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-pdf-preservation-proof
+          path: pdf-preservation-results.json
+          retention-days: 14
