@@ -1,0 +1,72 @@
+name: Serdar localized CSP behavior check
+on:
+  push:
+    branches: ['test/serdar-canonical-nav-qa-20261107']
+    paths: ['.github/workflows/serdar-csp-local-qa-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  csp-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser
+        run: |
+          python -m pip install 'playwright==1.63.0'
+          python -m playwright install --with-deps chromium
+      - name: Compare local gallery behavior with configured policy
+        run: |
+          python - <<'PY'
+          import http.server,threading,json
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+          line=next(x.strip() for x in Path('_headers').read_text().splitlines() if x.strip().startswith('Content-Security-Policy:'))
+          csp=line.split(':',1)[1].strip()
+          class Handler(http.server.SimpleHTTPRequestHandler):
+              def end_headers(self):
+                  if self.path.startswith('/csp/'): self.send_header('Content-Security-Policy',csp)
+                  super().end_headers()
+              def do_GET(self):
+                  if self.path.startswith('/csp/'): self.path=self.path[4:]
+                  return super().do_GET()
+          # Apply policy to localized pages through a query instead of altering files.
+          class PolicyHandler(http.server.SimpleHTTPRequestHandler):
+              def end_headers(self):
+                  if self.path.endswith('/') and self.path.split('/')[1] in ['en','ar','ru','az','kk','uz','ky']:
+                      self.send_header('Content-Security-Policy',csp)
+                  super().end_headers()
+          server=http.server.ThreadingHTTPServer(('127.0.0.1',8767),PolicyHandler)
+          threading.Thread(target=server.serve_forever,daemon=True).start()
+          rows=[]
+          with sync_playwright() as p:
+              browser=p.chromium.launch(args=['--no-sandbox'])
+              page=browser.new_page(viewport={'width':390,'height':844})
+              page.route('**/*',lambda r:r.continue_() if r.request.url.startswith('http://127.0.0.1:8767/') else r.abort())
+              page.add_init_script("""window.__violations=[];document.addEventListener('securitypolicyviolation',e=>window.__violations.push({directive:e.violatedDirective,blocked:e.blockedURI}));""")
+              for lang in ['en','ar','ru','az','kk','uz','ky']:
+                  page.goto('http://127.0.0.1:8767/'+lang+'/',wait_until='load')
+                  gallery=page.locator('[data-lightbox]:not([data-instagram-tile="true"])').first
+                  if gallery.count():
+                      gallery.click(timeout=10000)
+                  opened=page.locator('.lightbox').evaluate("el=>el.classList.contains('open')") if page.locator('.lightbox').count() else None
+                  violations=page.evaluate("window.__violations")
+                  row={'lang':lang,'gallery_button_present':gallery.count()>0,'lightbox_opened':opened,'inline_script_blocked':any(x['directive'].startswith('script-src') and x['blocked']=='inline' for x in violations)}
+                  rows.append(row)
+                  print('CSP_QA',json.dumps(row),flush=True)
+              browser.close()
+          Path('csp-results.json').write_text(json.dumps(rows,indent=2),encoding='utf8')
+          assert len(rows)==7
+          PY
+      - name: Save findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: csp-results
+          path: csp-results.json
+          retention-days: 7
