@@ -50,7 +50,7 @@ jobs:
                     const cards=[...document.querySelectorAll('img.guide-card-image')];
                     return {width:root.clientWidth,scroll:root.scrollWidth,title_left:title.left,title_right:title.right,
                       cards:cards.map(i=>({loaded:i.complete && i.naturalWidth>0,alt:i.alt,box:i.getBoundingClientRect().toJSON()})),
-                      placeholders:document.querySelectorAll('svg.text-white\\/40').length};
+                      placeholders:document.querySelectorAll('svg[class*="text-white/40"]').length};
                   }""")
                   assert result['scroll']<=result['width']+1,(width,'overflow')
                   assert result['title_left']>=12 and result['title_right']<=width-12,(width,'padding',result)
