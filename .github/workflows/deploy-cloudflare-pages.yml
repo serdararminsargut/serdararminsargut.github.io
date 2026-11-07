@@ -130,16 +130,14 @@ jobs:
           grep -Fxq '  Content-Type: text/plain; charset=UTF-8' dist/_headers
           echo 'SERDAR_PRODUCTION_BUNDLE_DISCLOSURE_PRESENT: verified in build output only'
 
-      - name: Build and verify four Serdar Comp Card PDFs (A4, local-only)
+      - name: Verify all 26 approved Comp Card PDFs (local-only)
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0' 'pypdf>=5,<7' 'Pillow>=10,<13'
-          python3 -m playwright install --with-deps chromium
-          python3 scripts/serdar_generate_comp_cards.py dist
-          for lang in TR EN AR RU; do
-            test -s "dist/downloads/Serdar-Armin-Sargut-Comp-Card-$lang.pdf"
-          done
+          manifest='scripts/serdar-comp-card-sha256-20261107.txt'
+          test "$(wc -l < "$manifest")" -eq 26
+          (cd dist && sha256sum --check "../$manifest")
+          echo 'SERDAR_COMP_CARD_PDF_PRESERVATION_PASS 26/26'
 
       - name: Normalize Cloudflare account id
         id: cloudflare_account
