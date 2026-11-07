@@ -1,0 +1,103 @@
+name: Serdar Hugo live release proof
+on:
+  push:
+    branches: ['test/serdar-hugo-live-proof-20261107']
+    paths: ['.github/workflows/serdar-hugo-live-proof-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser dependencies
+        run: |
+          python -m pip install 'playwright==1.63.0' 'lxml>=5,<7'
+          python -m playwright install --with-deps chromium
+      - name: Verify live guide and 26 card assets read only
+        run: |
+          python - <<'PY'
+          import hashlib,urllib.request,concurrent.futures,json
+          from pathlib import Path
+          from lxml import html,etree
+          from playwright.sync_api import sync_playwright
+          base='https://serdararminsargut.com'
+          guides=['/rehber/','/rehber/post/','/rehber/post/cocuk-giyim-e-ticaret-cekimlerinde-portfoy-secimi/','/rehber/post/cocuk-oyuncu-casting-sunum-dosyasi/','/rehber/post/spor-giyim-ayakkabi-katalog-fotograflari/']
+          def get(path):
+              req=urllib.request.Request(base+path,headers={'User-Agent':'Mozilla/5.0 ReleaseProof/1.0','Cache-Control':'no-cache'})
+              with urllib.request.urlopen(req,timeout=35) as r:return r.status,r.headers.get('Content-Type',''),r.geturl(),r.read()
+          result={'guide':[],'cards':[],'pdfs':[],'browser':[],'errors':[]}
+          try:
+              for path in guides:
+                  status,typ,url,data=get(path)
+                  doc=html.fromstring(data)
+                  canonical=doc.xpath('string(//link[@rel="canonical"]/@href)')
+                  assert status==200 and url==base+path and canonical==url and doc.xpath('count(//h1)')==1,(path,status,url,canonical)
+                  assert 'noindex' not in doc.xpath('string(//meta[@name="robots"]/@content)').lower()
+                  result['guide'].append({'path':path,'status':status,'canonical':canonical})
+                  if path=='/rehber/':
+                      links=doc.xpath('//nav[@class="hugo-language-list"]/a/@href')
+                      assert len(links)==26 and len(set(links))==26
+              status,typ,url,sdata=get('/sitemap.xml')
+              locs=etree.fromstring(sdata).xpath('//*[local-name()="loc"]/text()')
+              assert status==200 and all(base+p in locs for p in guides)
+              result['sitemap_count']=len(locs)
+              status,typ,url,home=get('/')
+              assert status==200 and html.fromstring(home).xpath('//a[@href="/rehber/"]')
+              def card(path):
+                  try:
+                      status,typ,url,data=get(path)
+                      d=html.fromstring(data)
+                      return {'path':path,'status':status,'canonical':d.xpath('string(//link[@rel="canonical"]/@href)'),'expected':base+path}
+                  except Exception as e:return {'path':path,'error':str(e)[:200]}
+              with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:result['cards']=list(pool.map(card,links))
+              assert len(result['cards'])==26 and all(x.get('status')==200 and x.get('canonical')==x.get('expected') for x in result['cards']),result['cards']
+              manifest=Path('scripts/serdar-comp-card-sha256-20261107.txt').read_text().splitlines()
+              def pdf(line):
+                  expected,path=line.split(maxsplit=1)
+                  try:
+                      status,typ,url,data=get('/'+path)
+                      return {'path':path,'status':status,'match':hashlib.sha256(data).hexdigest()==expected,'pdf':typ.lower().startswith('application/pdf')}
+                  except Exception as e:return {'path':path,'error':str(e)[:200]}
+              with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:result['pdfs']=list(pool.map(pdf,manifest))
+              assert len(result['pdfs'])==26 and all(x.get('status')==200 and x.get('match') and x.get('pdf') for x in result['pdfs']),result['pdfs']
+              with sync_playwright() as p:
+                  browser=p.chromium.launch(args=['--no-sandbox'])
+                  for width in [360,390,430,1280]:
+                      context=browser.new_context(viewport={'width':width,'height':844})
+                      context.route('**/*',lambda r:r.continue_() if r.request.url.startswith(base+'/') else r.abort())
+                      page=context.new_page()
+                      response=page.goto(base+'/',wait_until='load',timeout=45000)
+                      assert response and response.status==200
+                      with page.expect_navigation(wait_until='load',timeout=30000) as nav:page.locator('a[href="/rehber/"]').click()
+                      assert nav.value.status==200 and page.url==base+'/rehber/'
+                      assert page.locator('.hugo-language-list a').count()==26
+                      assert page.evaluate('document.documentElement.scrollWidth<=document.documentElement.clientWidth+1')
+                      for path in guides:
+                          response=page.goto(base+path,wait_until='load',timeout=45000)
+                          assert response and response.status==200 and page.locator('h1').is_visible()
+                      result['browser'].append({'width':width,'status':'PASS'})
+                      print('LIVE_HUGO_BROWSER',width,'PASS',flush=True)
+                      context.close()
+                  browser.close()
+              print('LIVE_HUGO_GUIDES_PASS 5/5; CARDS 26/26; PDFS 26/26',flush=True)
+          except Exception as e:
+              result['errors'].append(str(e)[:1500])
+              print('LIVE_HUGO_ERROR',str(e)[:1500],flush=True)
+          Path('hugo-live-proof.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf8')
+          assert not result['errors'] and len(result['browser'])==4
+          PY
+      - name: Save proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-hugo-live-proof
+          path: hugo-live-proof.json
+          retention-days: 14
+          if-no-files-found: warn
