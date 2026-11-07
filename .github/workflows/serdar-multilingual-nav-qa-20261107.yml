@@ -1,0 +1,74 @@
+name: Serdar localized casting navigation QA
+on:
+  push:
+    branches: ['test/serdar-multilingual-nav-qa-20261107']
+    paths: ['.github/workflows/serdar-multilingual-nav-qa-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  local-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser dependencies
+        run: |
+          python -m pip install 'playwright==1.63.0' 'lxml>=5,<7'
+          python -m playwright install --with-deps chromium
+      - name: Verify source and navigation locally
+        run: |
+          python -m http.server 8767 --bind 127.0.0.1 >/tmp/local.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+          langs=['en','ar','ru','az','kk','uz','ky']
+          baseline='2da56ee4beeece96ee4bb12347390ec73f9e7eca'
+          for lang in langs:
+              old=subprocess.check_output(['git','show',baseline+':'+lang+'/index.html']).decode()
+              new=Path(lang+'/index.html').read_text()
+              addition='\n<a data-comp-card-link="nav" href="/casting-card/'+lang+'.html" hreflang="'+lang+'">Comp Card</a>'
+              assert new.count(addition)==1 and new.replace(addition,'')==old,lang
+          rows=[]
+          with sync_playwright() as p:
+              browser=p.chromium.launch(args=['--no-sandbox'])
+              page=browser.new_page(viewport={'width':390,'height':844})
+              page.route('**/*',lambda r:r.continue_() if r.request.url.startswith('http://127.0.0.1:8767/') else r.abort())
+              for lang in langs:
+                  for width in (360,390,430,1280):
+                      page.set_viewport_size({'width':width,'height':844})
+                      response=page.goto('http://127.0.0.1:8767/'+lang+'/',wait_until='load')
+                      assert response and response.status==200,(lang,width,'home status')
+                      a=page.locator('nav a[data-comp-card-link="nav"]')
+                      assert a.count()==1 and a.is_visible(),(lang,width,'hidden')
+                      assert a.get_attribute('href')=='/casting-card/'+lang+'.html',(lang,width,'href')
+                      assert a.get_attribute('hreflang')==lang,(lang,width,'hreflang')
+                      with page.expect_navigation(wait_until='load',timeout=20000) as event:
+                          a.click(timeout=10000)
+                      dest=event.value
+                      assert dest and dest.status==200 and page.url.endswith('/casting-card/'+lang+'.html'),(lang,width,'card status')
+                      actual=page.locator('html').get_attribute('lang')
+                      assert actual and actual.lower().split('-')[0]==lang,(lang,width,'card lang',actual)
+                      rows.append({'lang':lang,'viewport':width,'result':'PASS'})
+                      print('NAV_QA',lang,width,'PASS',flush=True)
+              browser.close()
+          Path('localized-nav-results.json').write_text(json.dumps(rows,ensure_ascii=False,indent=2),encoding='utf8')
+          assert len(rows)==28
+          print('LOCAL_NAV_PASS 28/28',flush=True)
+          PY
+      - name: Save results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localized-nav-results
+          path: localized-nav-results.json
+          retention-days: 7
+          if-no-files-found: warn
