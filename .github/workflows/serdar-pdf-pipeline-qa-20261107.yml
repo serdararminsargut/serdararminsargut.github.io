@@ -1,0 +1,98 @@
+name: Serdar PDF deployment dry run
+on:
+  push:
+    branches: ['test/serdar-pdf-pipeline-qa-20261107']
+    paths: ['.github/workflows/serdar-pdf-pipeline-qa-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare static site bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          mkdir -p dist
+
+          for item in \
+            .nojekyll \
+            .well-known \
+            _headers \
+            _redirects \
+            404.html \
+            ai.txt \
+            ar \
+            assets \
+            az \
+            blog \
+            card.html \
+            casting-card \
+            de \
+            downloads \
+            en \
+            fa \
+            favicon.svg \
+            favicon.ico \
+            favicon-96x96.png \
+            fr \
+            index.html \
+            indexnow-key.txt \
+            72f0dad836e29ffcc2d9dd42a794dbf0.txt \
+            erkek-cocuk-model \
+            spor-giyim-cocuk-modeli \
+            cocuk-giyim-modeli \
+            e-ticaret-cocuk-modeli \
+            it \
+            kk \
+            ky \
+            llms.txt \
+            llms-full.txt \
+            links \
+            postcard.html \
+            projeler \
+            rehber \
+            robots.txt \
+            ru \
+            sitemap.xml \
+            sitemap-google.xml \
+            sitemap.txt \
+            tk \
+            uz \
+            zh-cn \
+            yandex_*.html
+          do
+            if compgen -G "$item" > /dev/null; then
+              cp -R $item dist/
+            elif [ -e "$item" ]; then
+              cp -R "$item" dist/
+            fi
+          done
+
+      - name: Verify all 26 approved Comp Card PDFs (local-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest='scripts/serdar-comp-card-sha256-20261107.txt'
+          test "$(wc -l < "$manifest")" -eq 26
+          (cd dist && sha256sum --check "../$manifest")
+          echo 'SERDAR_COMP_CARD_PDF_PRESERVATION_PASS 26/26'
+
+      - name: Verify fail-closed behavior without deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp dist/downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf /tmp/serdar-test-original.pdf
+          printf X >> dist/downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf
+          if (cd dist && sha256sum --check ../scripts/serdar-comp-card-sha256-20261107.txt >/dev/null 2>&1); then
+            echo 'CORRUPTION_NOT_DETECTED'
+            exit 1
+          fi
+          mv /tmp/serdar-test-original.pdf dist/downloads/Serdar-Armin-Sargut-Comp-Card-TR.pdf
+          (cd dist && sha256sum --check ../scripts/serdar-comp-card-sha256-20261107.txt >/dev/null)
+          echo 'CORRUPTION_DETECTED_AND_RESTORED PASS'
+          echo 'NO DEPLOYMENT: local bundle only'
