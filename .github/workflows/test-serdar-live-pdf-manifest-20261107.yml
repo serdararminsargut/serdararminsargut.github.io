@@ -1,0 +1,74 @@
+name: Serdar live PDF SHA256 manifest audit - ISOLATED READ ONLY
+on:
+  push:
+    branches:
+      - 'test/serdar-live-pdf-manifest-audit-20261107-v1'
+    paths:
+      - '.github/workflows/test-serdar-live-pdf-manifest-20261107.yml'
+permissions:
+  contents: read
+jobs:
+  verify-live-pdf-hashes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout pinned manifest source (no deploy)
+        uses: actions/checkout@v4
+        with:
+          ref: 435196fc8b234322c74d69420be71aa23b82bb79
+          persist-credentials: false
+      - name: GET 26 public PDFs and compare SHA-256 to pinned manifest (no writes)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import concurrent.futures
+          import hashlib
+          from pathlib import Path
+          from urllib.parse import urlparse
+          from urllib.request import Request, urlopen
+          
+          BASE = "https://serdararminsargut.com/"
+          manifest = Path("scripts/serdar-comp-card-sha256-20261107.txt")
+          rows = []
+          for line in manifest.read_text(encoding="utf-8").splitlines():
+              if not line.strip():
+                  continue
+              digest, relpath = line.split(None, 1)
+              relpath = relpath.strip()
+              assert len(digest) == 64 and relpath.startswith("downloads/") and relpath.endswith(".pdf"), f"Bad manifest entry: {relpath}"
+              rows.append((digest, relpath))
+          assert len(rows) == 26 and len({p for _, p in rows}) == 26, "Manifest must list 26 unique PDFs"
+          
+          def inspect(item):
+              expected, relpath = item
+              url = BASE + relpath
+              req = Request(url, headers={"User-Agent": "Mozilla/5.0 Serdar-PDF-Integrity-ReadOnly/20261107", "Accept": "application/pdf"})
+              try:
+                  with urlopen(req, timeout=30) as response:
+                      status = response.status
+                      final = response.geturl()
+                      content_type = response.headers.get("Content-Type", "").lower()
+                      data = response.read()
+                  actual = hashlib.sha256(data).hexdigest()
+                  reasons = []
+                  if status != 200: reasons.append(f"HTTP={status}")
+                  if urlparse(final).hostname != "serdararminsargut.com": reasons.append("REDIRECT_HOST")
+                  if "application/pdf" not in content_type: reasons.append(f"CONTENT_TYPE={content_type}")
+                  if not data.startswith(b"%PDF-"): reasons.append("PDF_SIGNATURE")
+                  if actual != expected: reasons.append(f"SHA_MISMATCH expected={expected} actual={actual}")
+                  return relpath, len(data), reasons
+              except Exception as exc:
+                  return relpath, 0, [type(exc).__name__ + ": " + str(exc)[:160]]
+          
+          with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+              results = list(pool.map(inspect, rows))
+          failures = 0
+          for relpath, size, reasons in results:
+              status = "PASS" if not reasons else "FAIL"
+              print(f"{status} {relpath} bytes={size}", flush=True)
+              for reason in reasons:
+                  print(f"  REASON {reason}", flush=True)
+              if reasons: failures += 1
+          print(f"SERDAR_LIVE_PDF_MANIFEST_PASS {26-failures}/26; failures={failures}", flush=True)
+          if failures: raise SystemExit(1)
+          PY
