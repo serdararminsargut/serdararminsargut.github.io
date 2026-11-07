@@ -1,0 +1,40 @@
+name: Serdar AI summary consistency check
+on:
+  push:
+    branches: ['test/serdar-geo-current-qa-20261107']
+    paths: ['.github/workflows/serdar-geo-current-qa-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  consistency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check measurement references and protected files
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,subprocess
+          home=Path('index.html').read_text()
+          card=Path('casting-card/tr.html').read_text()
+          full=Path('llms-full.txt').read_text()
+          brief=Path('llms.txt').read_text()
+          assert '162 cm' in home and '162 cm' in card
+          assert '- Boy: 158 cm.' not in full and '- الطول: 158 سم.' not in full
+          assert '- Boy: Güncel ölçü için resmî portföyü kontrol edin.' in full
+          assert '- الطول: يُرجى مراجعة القياس الحالي في الملف الرسمي.' in full
+          assert '[Casting card](https://serdararminsargut.com/casting-card/en)' in brief
+          target=Path('casting-card/en.html').read_text()
+          assert '<link rel="canonical" href="https://serdararminsargut.com/casting-card/en">' in target
+          base='1a6ade124a055d23194b0928ec8d677f48d151df'
+          oldfull=subprocess.check_output(['git','show',base+':llms-full.txt']).decode()
+          oldbrief=subprocess.check_output(['git','show',base+':llms.txt']).decode()
+          assert full==oldfull.replace('- Boy: 158 cm.','- Boy: Güncel ölçü için resmî portföyü kontrol edin.').replace('- الطول: 158 سم.','- الطول: يُرجى مراجعة القياس الحالي في الملف الرسمي.')
+          assert brief==oldbrief.replace('[Casting card](https://serdararminsargut.com/casting-card/v2)','[Casting card](https://serdararminsargut.com/casting-card/en)')
+          print('GEO_SOURCE_CONSISTENCY_PASS; measurements remain on canonical pages')
+          PY
+          (cd . && sha256sum --check scripts/serdar-comp-card-sha256-20261107.txt)
+          echo 'PRESERVED_PDFS_PASS 26/26'
