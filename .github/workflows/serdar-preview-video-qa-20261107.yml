@@ -1,0 +1,75 @@
+name: Serdar preview and embedded video connectivity
+on:
+  push:
+    branches: ['test/serdar-locale-csp-qa-20261107']
+    paths: ['.github/workflows/serdar-preview-video-qa-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  media-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser
+        run: |
+          python -m pip install 'playwright==1.63.0'
+          python -m playwright install --with-deps chromium
+      - name: Check preview and media without production
+        run: |
+          python - <<'PY'
+          import http.server,threading,json,urllib.request,urllib.error,urllib.parse
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright,TimeoutError
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs): return None
+          req=urllib.request.Request('https://2183da90.serdararminsargut.pages.dev/',headers={'User-Agent':'Mozilla/5.0'})
+          try: res=urllib.request.build_opener(NoRedirect).open(req,timeout=20)
+          except urllib.error.HTTPError as err: res=err
+          print('PREVIEW_HTTP',res.code,'REDIRECT_HOST',urllib.parse.urlsplit(res.headers.get('Location','')).hostname or 'none',flush=True)
+          line=next(x.strip() for x in Path('_headers').read_text().splitlines() if x.strip().startswith('Content-Security-Policy:'))
+          csp=line.split(':',1)[1].strip()
+          class Handler(http.server.SimpleHTTPRequestHandler):
+              def end_headers(self):
+                  self.send_header('Content-Security-Policy',csp)
+                  super().end_headers()
+          server=http.server.ThreadingHTTPServer(('127.0.0.1',8767),Handler)
+          threading.Thread(target=server.serve_forever,daemon=True).start()
+          results=[]
+          with sync_playwright() as p:
+              browser=p.chromium.launch(args=['--no-sandbox','--autoplay-policy=no-user-gesture-required'])
+              page=browser.new_page(viewport={'width':390,'height':844})
+              for lang in ['en','ar']:
+                  page.goto('http://127.0.0.1:8767/'+lang+'/',wait_until='domcontentloaded')
+                  page.locator('[data-video]').first.click(timeout=15000)
+                  iframe=page.locator('.video-modal iframe')
+                  src=iframe.get_attribute('src')
+                  opened=page.locator('.video-modal.open').count()==1
+                  frame=iframe.element_handle().content_frame()
+                  has_video=False; current=0; err=None
+                  try:
+                      frame.locator('video').first.wait_for(state='attached',timeout=15000)
+                      has_video=True
+                      frame.locator('video').first.evaluate("(v)=>v.play().catch(()=>{})")
+                      page.wait_for_timeout(4000)
+                      current=frame.locator('video').first.evaluate("v=>v.currentTime")
+                  except Exception as ex: err=str(ex)[:250]
+                  result={'lang':lang,'modal_open':opened,'vimeo_src':bool(src and src.startswith('https://player.vimeo.com/video/')),'video_element':has_video,'playback_advanced':current>0.2,'current_seconds':round(current,2),'error':err}
+                  results.append(result)
+                  print('MEDIA_QA',json.dumps(result,ensure_ascii=False),flush=True)
+              browser.close()
+          Path('media-results.json').write_text(json.dumps(results,indent=2),encoding='utf8')
+          PY
+      - name: Save result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-media-results
+          path: media-results.json
+          retention-days: 7
+          if-no-files-found: warn
