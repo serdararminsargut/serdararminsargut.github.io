@@ -1,0 +1,75 @@
+name: Live Hugo guide verification
+on:
+  push:
+    branches: ['test/serdar-hugo-visual-live-check-20261107']
+    paths: ['.github/workflows/serdar-hugo-visual-live-check-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser
+        run: |
+          python -m pip install 'playwright==1.63.0'
+          python -m playwright install --with-deps chromium
+      - name: Read live site and compare PDFs
+        run: |
+          python - <<'PY'
+          import hashlib,urllib.request,json
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+          base='https://serdararminsargut.com'
+          manifest=Path('scripts/serdar-comp-card-sha256-20261107.txt').read_text().splitlines()
+          count=0
+          for line in manifest:
+              digest,path=line.split(maxsplit=1)
+              path=path.lstrip('*').lstrip('./')
+              with urllib.request.urlopen(base+'/'+path,timeout=30) as response:
+                  data=response.read()
+                  assert response.status==200
+              assert hashlib.sha256(data).hexdigest()==digest,path
+              count+=1
+          assert count==26,count
+          print('LIVE_PDF_HASH_PASS',count,flush=True)
+          Path('visual-proof').mkdir(exist_ok=True)
+          with sync_playwright() as p:
+              browser=p.chromium.launch(args=['--no-sandbox'])
+              for width in [360,390,430,1280]:
+                  context=browser.new_context(viewport={'width':width,'height':844})
+                  page=context.new_page()
+                  page.route('**/*',lambda r:r.continue_() if r.request.url.startswith(base+'/') else r.abort())
+                  response=page.goto(base+'/rehber/post/',wait_until='load',timeout=45000)
+                  assert response and response.status==200
+                  page.locator('img.guide-card-image').last.scroll_into_view_if_needed(timeout=15000)
+                  page.wait_for_timeout(300)
+                  result=page.evaluate("""() => {
+                    const d=document.documentElement,t=document.querySelector('h1').getBoundingClientRect();
+                    return {width:d.clientWidth,scroll:d.scrollWidth,left:t.left,right:t.right,
+                      cards:[...document.querySelectorAll('img.guide-card-image')].map(i=>({loaded:i.complete&&i.naturalWidth>0,alt:i.alt})),
+                      placeholders:document.querySelectorAll('svg[class*="text-white/40"]').length};
+                  }""")
+                  assert result['scroll']<=result['width']+1,result
+                  assert result['left']>=12 and result['right']<=width-12,result
+                  assert len(result['cards'])==3 and all(x['loaded'] and x['alt'] for x in result['cards']),result
+                  assert result['placeholders']==0,result
+                  assert page.get_by_text('Devamını oku').count()==3
+                  page.evaluate('window.scrollTo(0,0)')
+                  page.screenshot(path='visual-proof/live-'+str(width)+'.png',full_page=True)
+                  print('LIVE_GUIDE_PASS',width,json.dumps(result),flush=True)
+                  context.close()
+              browser.close()
+          print('LIVE_GUIDE_PASS 4/4',flush=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hugo-guide-live-visual
+          path: visual-proof/
+          retention-days: 7
+          if-no-files-found: warn
