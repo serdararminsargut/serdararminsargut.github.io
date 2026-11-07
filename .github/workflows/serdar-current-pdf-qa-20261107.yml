@@ -1,0 +1,29 @@
+name: Check current Serdar approved PDF bytes
+on:
+  push:
+    branches: ['test/serdar-pdf-pipeline-qa-20261107']
+    paths: ['.github/workflows/serdar-current-pdf-qa-20261107.yml']
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Compare four live files with candidate manifest
+        run: |
+          python3 - <<'PY'
+          import hashlib,urllib.request
+          from pathlib import Path
+          manifest=Path('scripts/serdar-comp-card-sha256-20261107.txt').read_text().splitlines()
+          for lang in ['TR','EN','AR','RU']:
+              name='downloads/Serdar-Armin-Sargut-Comp-Card-'+lang+'.pdf'
+              expected=next(line.split()[0] for line in manifest if line.split()[-1]==name)
+              request=urllib.request.Request('https://serdararminsargut.com/'+name,headers={'User-Agent':'Mozilla/5.0 SerdarReadOnlyCheck/1.0','Cache-Control':'no-cache'})
+              with urllib.request.urlopen(request,timeout=30) as r: data=r.read();status=r.status
+              print('LIVE_PDF',lang,'HTTP',status,'MATCH',hashlib.sha256(data).hexdigest()==expected,flush=True)
+              assert status==200 and hashlib.sha256(data).hexdigest()==expected,lang
+          print('LIVE_PDF_MATCH 4/4',flush=True)
+          PY
