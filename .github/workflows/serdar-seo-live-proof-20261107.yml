@@ -64,7 +64,8 @@ jobs:
                   expected=hashlib.sha256(Path(p.lstrip('/')).read_bytes()).hexdigest()
                   actual=hashlib.sha256(r['data']).hexdigest()
                   results['routes'][p]={'status':r['status'],'content_type':r['content_type'],'sha256_match':expected==actual}
-                  assert r['status']==200 and expected==actual,(lang,'pdf')
+                  print('PDF_DETAIL',lang,'actual',actual,'repository',expected,'bytes',len(r['data']),flush=True)
+                  if r['status']!=200 or expected!=actual: results['errors'].append('PDF_REPOSITORY_MISMATCH_'+lang)
               with sync_playwright() as p:
                   browser=p.chromium.launch(args=['--no-sandbox'])
                   for session in ['normal','clean']:
