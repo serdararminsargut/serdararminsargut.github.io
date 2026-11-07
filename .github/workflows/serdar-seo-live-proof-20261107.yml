@@ -58,14 +58,18 @@ jobs:
                   elif path.endswith('.css'):
                       local=Path(path.lstrip('/')).read_bytes()
                       assert hashlib.sha256(local).digest()==hashlib.sha256(response['data']).digest()
-              for lang in ['TR','EN']:
+              Path('live-pdf-check').mkdir(exist_ok=True)
+              generated={'TR':'30cad180713b3aa9456d331e6cd88ae1e2318f48d4432752ef7b8d3711f74d04','EN':'a1e9bac07c110952eac3f7d15ac9c5e720059516e8c8d98a8b4a8cda303bb562','AR':'9c2e8fd016f4d20149976e55a2709b6ef3a2fb3ca4033d140a3e815355da7b71','RU':'3be2ada8fc0c3139dced850f3615bcbbc148be6cdaa57e0f57c5a9bc12f54bad'}
+              for lang in ['TR','EN','AR','RU']:
                   p='/downloads/Serdar-Armin-Sargut-Comp-Card-'+lang+'.pdf'
                   r=fetch(p)
                   expected=hashlib.sha256(Path(p.lstrip('/')).read_bytes()).hexdigest()
                   actual=hashlib.sha256(r['data']).hexdigest()
                   results['routes'][p]={'status':r['status'],'content_type':r['content_type'],'sha256_match':expected==actual}
-                  print('PDF_DETAIL',lang,'actual',actual,'repository',expected,'bytes',len(r['data']),flush=True)
-                  if r['status']!=200 or expected!=actual: results['errors'].append('PDF_REPOSITORY_MISMATCH_'+lang)
+                  Path('live-pdf-check/'+lang+'.pdf').write_bytes(r['data'])
+                  results['routes'][p]['sha256_matches_deployment_output']=(actual==generated[lang])
+                  print('PDF_DETAIL',lang,'actual',actual,'repository',expected,'deploy_match',actual==generated[lang],flush=True)
+                  if r['status']!=200 or actual!=generated[lang]: results['errors'].append('PDF_DEPLOY_MISMATCH_'+lang)
               with sync_playwright() as p:
                   browser=p.chromium.launch(args=['--no-sandbox'])
                   for session in ['normal','clean']:
@@ -102,6 +106,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: serdar-seo-live-proof
-          path: live-release-results.json
+          path: |
+            live-release-results.json
+            live-pdf-check/*.pdf
           retention-days: 14
           if-no-files-found: warn
