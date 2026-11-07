@@ -30,7 +30,7 @@ jobs:
           for line in manifest:
               digest,path=line.split(maxsplit=1)
               path=path.lstrip('*').lstrip('./')
-              with urllib.request.urlopen(base+'/'+path,timeout=30) as response:
+              with urllib.request.urlopen(urllib.request.Request(base+'/'+path,headers={'User-Agent':'Mozilla/5.0 ReleaseProof/1.0','Cache-Control':'no-cache'}),timeout=30) as response:
                   data=response.read()
                   assert response.status==200
               assert hashlib.sha256(data).hexdigest()==digest,path
