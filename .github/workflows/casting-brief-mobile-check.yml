@@ -22,6 +22,8 @@ jobs:
           trap 'kill "$server_pid" || true' EXIT
           python3 - <<'PY'
           import json, time
+          from pathlib import Path
+          Path('casting-evidence').mkdir(exist_ok=True)
           from playwright.sync_api import sync_playwright
           root='http://127.0.0.1:8793'
           with sync_playwright() as p:
@@ -48,6 +50,14 @@ jobs:
                       assert state['visible'] and state['height']>=44 and state['width']>0
                       assert state['x']>=-1 and state['right']<=width+1 and state['scrollWidth']<=width+1
                       assert state['hit'],(path,width,'link center blocked')
+                      page.screenshot(path='casting-evidence/'+('home' if path=='/' else 'secondary')+'-'+str(width)+'.png',full_page=True,timeout=20000)
                       context.close()
               browser.close()
           PY
+
+      - name: Store temporary visual test evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: casting-responsive-visual-evidence
+          path: casting-evidence/*.png
+          retention-days: 1
