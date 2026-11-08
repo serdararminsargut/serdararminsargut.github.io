@@ -1,0 +1,42 @@
+name: Weekly read-only portfolio monitor
+on:
+  schedule:
+    - cron: '20 2 * * 1'
+  workflow_dispatch:
+  push:
+    branches: ['test/auto-monitor-20261108']
+    paths:
+      - '.github/workflows/weekly-portfolio-monitor.yml'
+      - 'scripts/auto-audit-coverage.js'
+      - 'scripts/auto-audit-legacy.js'
+      - 'scripts/auto-browser-check.cjs'
+permissions:
+  contents: read
+concurrency:
+  group: weekly-portfolio-monitor-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  readonly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      AUDIT_PROJECT: serdar
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Legacy metadata and language audit
+        run: node scripts/auto-audit-legacy.js
+      - name: Current routes and PDFs
+        if: always()
+        run: node scripts/auto-audit-coverage.js
+      - name: Install isolated browser tools
+        if: always()
+        run: |
+          npm install --prefix /tmp/portfolio-monitor --no-save --no-package-lock --ignore-scripts playwright@1.63.0
+          /tmp/portfolio-monitor/node_modules/.bin/playwright install --with-deps chromium
+      - name: Read-only responsive browser smoke test
+        if: always()
+        env:
+          NODE_PATH: /tmp/portfolio-monitor/node_modules
+        run: node scripts/auto-browser-check.cjs
