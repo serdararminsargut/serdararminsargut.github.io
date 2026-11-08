@@ -1,0 +1,53 @@
+name: Casting brief responsive check
+on:
+  push:
+    branches: ['test/casting-brief-20261108']
+permissions:
+  contents: read
+jobs:
+  responsive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Chromium test runner
+        run: |
+          python3 -m pip install playwright==1.63.0
+          python3 -m playwright install --with-deps chromium
+      - name: Test responsive casting links
+        run: |
+          python3 -m http.server 8793 --bind 127.0.0.1 --directory . >/tmp/casting-http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" || true' EXIT
+          python3 - <<'PY'
+          import json, time
+          from playwright.sync_api import sync_playwright
+          root='http://127.0.0.1:8793'
+          with sync_playwright() as p:
+              browser=p.chromium.launch()
+              for path in ["/","/links/en/"]:
+                  for width in (360,390,430,1280):
+                      context=browser.new_context(viewport={'width':width,'height':844},is_mobile=width<600,has_touch=width<600)
+                      context.route('**/*',lambda route: route.continue_() if route.request.url.startswith(root+'/') else route.abort())
+                      page=context.new_page()
+                      for attempt in range(10):
+                          try:
+                              response=page.goto(root+path,wait_until='networkidle',timeout=15000)
+                              break
+                          except Exception:
+                              if attempt==9: raise
+                              time.sleep(1)
+                      assert response.status==200,(path,response.status)
+                      link=page.locator('a[href*="1rBx2v_8ovMuzS0WQzcoPQwWAMNGIHM9TQLSrZkm80Fs"]')
+                      assert link.count()==1,(path,width,link.count())
+                      link.scroll_into_view_if_needed()
+                      state=link.evaluate("""a => {let r=a.getBoundingClientRect(); let s=getComputedStyle(a); let e=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return {href:a.href,target:a.target,rel:a.rel,x:r.x,right:r.right,height:r.height,width:r.width,scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth,visible:s.visibility==='visible'&&s.display!=='none',hit:!!e&&(a===e||a.contains(e))}}""")
+                      print('RESPONSIVE_EVIDENCE '+json.dumps({'path':path,'width':width,**state}),flush=True)
+                      assert state['target']=='_blank' and {'noopener','noreferrer'}.issubset(set(state['rel'].split()))
+                      assert state['visible'] and state['height']>=44 and state['width']>0
+                      assert state['x']>=-1 and state['right']<=width+1 and state['scrollWidth']<=width+1
+                      assert state['hit'],(path,width,'link center blocked')
+                      context.close()
+              browser.close()
+          PY
