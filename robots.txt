@@ -1,27 +1,3 @@
-# Serdar Armin Sargut
-# Production robots.txt
-# Canonical sitemap: /sitemap.xml
-# Updated: 2026-09-07
-
 User-agent: *
-Allow: /
-
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: YandexBot
-Allow: /
-
-User-agent: OAI-SearchBot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
-
+Disallow: /
 Sitemap: https://serdararminsargut.com/sitemap.xml

@@ -1,4 +1,5 @@
 /*
+  X-Robots-Tag: noindex, nofollow, noarchive
   Strict-Transport-Security: max-age=2592000
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
@@ -53,3 +54,4 @@
 
 /.well-known/security.txt
   Content-Type: text/plain; charset=UTF-8
+
