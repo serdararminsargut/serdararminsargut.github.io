@@ -29,7 +29,13 @@ jobs:
         run: node scripts/auto-audit-legacy.js
       - name: Current routes and PDFs
         if: always()
-        run: node scripts/auto-audit-coverage.js
+        shell: bash
+        run: |
+          set +e
+          node scripts/auto-audit-coverage.js
+          result=$?
+          node -e 'const fs=require("fs");const f=fs.readdirSync(".").filter(x=>x.includes("-current-coverage-")&&x.endsWith(".json")).sort().at(-1);if(f){let r=JSON.parse(fs.readFileSync(f));for(let x of r.checks.filter(v=>v.status!=="PASS"))console.log("ATTENTION",JSON.stringify(x));}'
+          exit "$result"
       - name: Install isolated browser tools
         if: always()
         run: |
