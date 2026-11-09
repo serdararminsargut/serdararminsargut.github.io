@@ -1,0 +1,106 @@
+name: Serdar real preview check
+on:
+  push:
+    branches: [test/casting-brief-20261108]
+    paths: [.github/workflows/serdar-real-preview-check.yml]
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install Playwright
+        run: |
+          python3 -m pip install playwright==1.63.0
+          python3 -m playwright install --with-deps chromium
+      - name: Check Serdar real preview
+        env:
+          PORTFOLIO: serdar
+          CF_ACCESS_CLIENT_ID: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          python3 - <<'PY'
+          #!/usr/bin/env python3
+          """Check fixed Cloudflare preview targets. Never print authentication headers."""
+          import json, os, re, sys
+          from pathlib import Path
+          from urllib.parse import urlsplit
+          
+          TARGETS = {
+           'serdar': ('https://140fe4f7.serdararminsargut.pages.dev', ['/', '/links/en/'], '1rBx2v_8ovMuzS0WQzcoPQwWAMNGIHM9TQLSrZkm80Fs', 'Serdar Armin Sargut'),
+           'duru': ('https://faf32bd6.duru-mualla-sargut-site.pages.dev', ['/', '/comp-card/tr/'], '165dtNSKAEE5SisHuFEMH6xGwlqxS89KrjhU7g8NAOBg', 'Duru Mualla Sargut'),
+          }
+          name = os.environ.get('PORTFOLIO', '')
+          if name not in TARGETS:
+              sys.exit('FAIL: PORTFOLIO must be serdar or duru')
+          client, secret = os.environ.get('CF_ACCESS_CLIENT_ID'), os.environ.get('CF_ACCESS_CLIENT_SECRET')
+          if not client or not secret:
+              sys.exit('NOT TESTED: Cloudflare Access credentials unavailable')
+          from playwright.sync_api import sync_playwright
+          origin, paths, doc_id, person = TARGETS[name]
+          out = Path('preview-evidence')
+          out.mkdir(exist_ok=True)
+          records = []
+          failed = False
+          with sync_playwright() as p:
+              browser = p.chromium.launch()
+              for path in paths:
+                  for width in (360, 390, 430, 1280):
+                      context = browser.new_context(viewport={'width':width, 'height':844}, is_mobile=width<600, has_touch=width<600, service_workers='block')
+                      def auth_route(route):
+                          req = route.request
+                          headers = {k:v for k,v in req.headers.items() if k.lower() not in ('cf-access-client-id','cf-access-client-secret')}
+                          if req.url.startswith(origin + '/'):
+                              headers['CF-Access-Client-Id'] = client
+                              headers['CF-Access-Client-Secret'] = secret
+                          route.continue_(headers=headers)
+                      context.route('**/*', auth_route)
+                      page = context.new_page()
+                      label = ('home' if path == '/' else 'secondary') + '-' + str(width)
+                      record = {'path':path, 'width_expected':width, 'outcome':'NOT TESTED'}
+                      try:
+                          response = page.goto(origin + path, wait_until='domcontentloaded', timeout=45000)
+                          record['http_status'] = response.status if response else None
+                          record['origin_match'] = page.url.startswith(origin + '/')
+                          record['path_match'] = urlsplit(page.url).path == path
+                          if response is None or not page.url.startswith(origin + '/') or urlsplit(page.url).path != path or response.status != 200:
+                              raise RuntimeError('Site response or access failed; status and final origin not accepted')
+                          if person.casefold() not in (page.title() + ' ' + page.locator('body').inner_text()).casefold():
+                              raise RuntimeError('Expected person missing; possible access wall or incorrect content')
+                          header = response.header_value('x-robots-tag') or ''
+                          noindex = bool(re.search(r'\bnoindex\b', header, re.I))
+                          page.wait_for_load_state('load', timeout=30000)
+                          link = page.locator('a[href*="' + doc_id + '"]')
+                          if link.count() != 1:
+                              raise RuntimeError('Expected casting brief link count is not one')
+                          link.scroll_into_view_if_needed()
+                          state = link.evaluate('''a => {const r=a.getBoundingClientRect(), s=getComputedStyle(a), e=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {href:a.href, target:a.target, rel:a.rel, x:r.x, right:r.right, height:r.height, width:r.width, viewport:innerWidth, scrollWidth:document.documentElement.scrollWidth, visible:s.visibility==='visible'&&s.display!=='none', hit:!!e&&(a===e||a.contains(e))}}''')
+                          expected = 'https://docs.google.com/document/d/' + doc_id + '/edit'
+                          ok = (state['viewport']==width and state['scrollWidth']<=width+1 and state['height']>=44 and state['width']>0 and state['x']>=-1 and state['right']<=width+1 and state['visible'] and state['hit'] and state['href']==expected and state['target']=='_blank' and {'noopener','noreferrer'}.issubset(state['rel'].split()) and noindex)
+                          page.screenshot(path=str(out/(label+'.png')), full_page=True, timeout=30000)
+                          record.update({'http_status':response.status, 'x_robots_tag':header, 'geometry':state, 'screenshot':label+'.png', 'automated_checks':'PASS' if ok else 'FAIL', 'visual_review':'NOT TESTED', 'media_regression':'NOT TESTED', 'actual_google_doc_click':'NOT TESTED', 'outcome':'PARTIAL' if ok else 'FAIL'})
+                          if not ok: failed = True
+                      except Exception as exc:
+                          # No request/response headers, credentials, URLs with session values, or exception repr in artifacts.
+                          record['error'] = type(exc).__name__
+                          if isinstance(exc, RuntimeError) and str(exc) in ('Site response or access failed; status and final origin not accepted', 'Expected person missing; possible access wall or incorrect content', 'Expected casting brief link count is not one'):
+                              record['reason'] = str(exc)
+                          failed = True
+                      finally:
+                          records.append(record)
+                          context.close()
+              browser.close()
+          (out/'results.json').write_text(json.dumps({'portfolio':name,'preview':origin,'records':records,'complete_acceptance':'NOT TESTED: manual screenshot/media review and document click remain required'},ensure_ascii=False,indent=2),encoding='utf-8')
+          print(json.dumps({'portfolio':name,'results':records},ensure_ascii=False))
+          if failed: sys.exit(1)
+          PY
+      - name: Keep evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-real-preview-check
+          path: preview-evidence/
+          if-no-files-found: warn
+          retention-days: 7
+
