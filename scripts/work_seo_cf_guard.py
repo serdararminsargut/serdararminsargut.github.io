@@ -28,6 +28,18 @@ if a.phase=='before':
 elif a.phase=='after':
     s=snapshot();old=json.loads(Path('work-evidence/provider-before.json').read_text());assert s==old,'Production metadata changed during preview work'
     Path('work-evidence/provider-after.json').write_text(json.dumps(s,indent=2));print('PRODUCTION_UNCHANGED',json.dumps(s))
+    # The broader Access settings review is deliberately last and GET-only.
+    access={'result':'NOT VERIFIED','policy_verified':False}
+    try:
+        apps=get('/access/apps?per_page=100');matches=[]
+        for app in apps:
+            if a.project not in json.dumps({k:app.get(k) for k in ('name','domain','destinations')}):continue
+            policies=get('/access/apps/'+app['id']+'/policies?per_page=100')
+            matches.append({'name':app.get('name'),'domain':app.get('domain'),'policies':[{'name':p.get('name'),'decision':p.get('decision'),'include_rule_count':len(p.get('include') or [])} for p in policies]})
+        access.update(app_count=len(apps),matching_apps=matches)
+        if matches:access['result']='POLICY SUMMARY READ; rule membership not disclosed or inferred'
+    except Exception as e:access['error_type']=type(e).__name__;access['http_status']=getattr(e,'code',None)
+    Path('work-evidence/access-readonly.json').write_text(json.dumps(access,indent=2));print('ACCESS_READONLY',json.dumps(access))
 else:
     d=get('/pages/projects/'+a.project+'/deployments?env=preview&per_page=25')
     matches=[x for x in d if x.get('environment')=='preview' and x.get('deployment_trigger',{}).get('metadata',{}).get('branch')==a.branch and x.get('deployment_trigger',{}).get('metadata',{}).get('commit_hash')==os.environ['GITHUB_SHA'] and x.get('latest_stage',{}).get('status')=='success']

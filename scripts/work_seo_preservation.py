@@ -24,6 +24,11 @@ def approved_before(n):
     s=(b/n).read_text()
     for old,new in link_map.get(n,{}).items():
         s=re.sub(r'(\bhref\s*=\s*)(?:(["\'])'+re.escape(old)+r'\2|'+re.escape(old)+r'(?=[\s>]))',lambda m:m[1]+(m[2] or '')+new+(m[2] or ''),s)
+    if n=='index.html':
+        person='Serdar Armin Sargut' if a.project=='serdar' else 'Duru Mualla Sargut'
+        old=' aria-label="'+person+' resmî Instagram profilini yeni sekmede aç"'
+        assert s.count(old)==1,'Expected inaccessible CTA label changed outside this patch'
+        s=s.replace(old,'',1)
     return s
 assert all(body(approved_before(n))==body((c/n).read_text()) for n in htmls),'HTML body changed outside verified href replacements'
 if a.project=='duru':
@@ -31,6 +36,8 @@ if a.project=='duru':
         def normalize(s):
             s=re.sub(r'<meta\b(?=[^>]*\bname\s*=\s*["\']robots["\'])[^>]*>\s*','',s,flags=re.I)
             return re.sub(r'>\s+<','><',s)
-        assert normalize((b/n).read_text())==normalize((c/n).read_text()),'Unexpected Duru head change: '+n
+        assert normalize(approved_before(n))==normalize((c/n).read_text()),'Unexpected Duru head change: '+n
+    patch='\n/* Isolated SEO accessibility candidate: preserve layout and improve text contrast. */\n.portfolio-track a span{color:#6e6566}\n.portfolio-card .eyebrow{color:#8d4f60}\n'
+    assert (c/'styles.css').read_text()==(b/'styles.css').read_text()+patch,'Unexpected stylesheet change'
 s={'project':a.project,'baseline_files':len(bm),'candidate_files':len(cm),'baseline_bytes':sum(f.stat().st_size for f in b.rglob('*') if f.is_file()),'candidate_bytes':sum(f.stat().st_size for f in c.rglob('*') if f.is_file()),'protected_files':len(protected),'pdfs_sha256_identical':len(pdfs),'html_bodies_preserved_except_verified_hrefs':len(htmls),'approved_href_pages':len(link_map),'changed_paths':[n for n in bm if bm[n]!=cm[n]],'baseline_sha256':bm,'candidate_sha256':cm}
 Path('work-evidence').mkdir(exist_ok=True);Path('work-evidence/preservation.json').write_text(json.dumps(s,indent=2));print('PRESERVATION',json.dumps({k:v for k,v in s.items() if not k.endswith('sha256')}))
