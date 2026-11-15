@@ -34,7 +34,8 @@ with sync_playwright() as pw:
             assert info['canonical'].startswith('https://'+('serdararminsargut.com' if a.project=='serdar' else 'durumuallasargut.com')),'Canonical origin changed'
             assert not errors,'JavaScript exceptions: '+str(errors)
             if '/casting-card/' in route or '/comp-card/' in route:
-                assert len(page.locator('a[hreflang]').all())>=26,'Language menu incomplete'
+                actual=page.locator('a[href]').evaluate_all("es=>[...new Set(es.map(e=>new URL(e.href).pathname))]")
+                assert set(cards)<=set(actual),'Language menu incomplete'
                 if any('/'+lang in route for lang in ('ar','fa','ur')):assert info['dir']=='rtl','RTL missing'
             if route in ('/','/links/en/' if a.project=='serdar' else '/comp-card/tr/'):
                 assert len(info['briefs'])==1,'Casting Brief absent or duplicated'
