@@ -4,7 +4,7 @@ from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('root');p.add_argument('--csp-report-only',action='store_true');a=p.parse_args()
 r=Path(a.root);assert r.name in ('public','dist') and r.is_dir() and not r.is_symlink()
 assert not any(x.is_symlink() for x in r.rglob('*'))
-header=r/'_headers';s=header.read_text();assert s.startswith('/*\n') and s.count('/*\n')==1
+header=r/'_headers';s=header.read_text();assert s.startswith('/*\n') and len(re.findall(r'(?m)^/\*\s*$',s))==1
 assert not re.search(r'(?im)^\s*X-Robots-Tag\s*:',s)
 extra='  X-Robots-Tag: noindex, nofollow, noarchive\n'
 if a.csp_report_only:

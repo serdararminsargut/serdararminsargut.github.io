@@ -1,0 +1,66 @@
+{
+  "index.html": {
+    "/casting-card/tr.html": "/casting-card/tr",
+    "./postcard.html": "/postcard"
+  },
+  "rehber/index.html": {
+    "https://serdararminsargut.com/casting-card/tr.html": "/casting-card/tr"
+  },
+  "kk/index.html": {
+    "/card.html": "/casting-card/en",
+    "/postcard.html": "/postcard"
+  },
+  "en/index.html": {
+    "../postcard.html": "/postcard"
+  },
+  "uz/index.html": {
+    "/card.html": "/casting-card/en",
+    "/postcard.html": "/postcard"
+  },
+  "ky/index.html": {
+    "/card.html": "/casting-card/en",
+    "/postcard.html": "/postcard"
+  },
+  "ru/index.html": {
+    "../card.html": "/casting-card/en",
+    "../postcard.html": "/postcard"
+  },
+  "az/index.html": {
+    "/card.html": "/casting-card/en",
+    "/postcard.html": "/postcard"
+  },
+  "ar/index.html": {
+    "../card.html": "/casting-card/en",
+    "../postcard.html": "/postcard"
+  },
+  "rehber/turk-dunyasi-cocuk-oyuncu-model-portfoyu/index.html": {
+    "/casting-card/": "/casting-card/tr"
+  },
+  "rehber/korfez-cocuk-model-portfoyu/index.html": {
+    "/casting-card/": "/casting-card/tr"
+  },
+  "rehber/post/cocuk-oyuncu-casting-sunum-dosyasi/index.html": {
+    "https://serdararminsargut.com/casting-card/tr.html": "/casting-card/tr"
+  },
+  "en/gulf-child-model-portfolio/index.html": {
+    "/casting-card/": "/casting-card/en"
+  },
+  "blog/reklam-filmi-erkek-cocuk-oyuncu/index.html": {
+    "/casting-card/": "/casting-card/tr"
+  },
+  "blog/istanbul-cocuk-oyuncu-casting/index.html": {
+    "/casting-card/": "/casting-card/tr"
+  },
+  "blog/cocuk-model-portfoyu/index.html": {
+    "/casting-card/": "/casting-card/tr"
+  },
+  "blog/cocuk-oyuncu-comp-card/index.html": {
+    "/casting-card/": "/casting-card/tr"
+  },
+  "blog/cocuk-oyuncu-showreel/index.html": {
+    "/casting-card/": "/casting-card/tr"
+  },
+  "ar/dalil-malaf-model-atfal-al-khalij/index.html": {
+    "/casting-card/": "/casting-card/ar"
+  }
+}

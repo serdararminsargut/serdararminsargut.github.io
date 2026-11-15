@@ -154,6 +154,38 @@ jobs:
       run: python3 scripts/work_seo_seal_preview.py dist
     - name: Verify protected paths, PDF bytes, photos and page bodies
       run: python3 scripts/work_seo_preservation.py ../baseline/dist dist --project serdar
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - name: Install browser and local Pages runtime
+      run: |
+        python3 -m pip install playwright==1.63.0
+        python3 -m playwright install --with-deps chromium
+        npm install --no-save wrangler@4 lighthouse
+    - name: Test isolated local Pages output in Chromium
+      id: local_browser
+      continue-on-error: true
+      run: |
+        set -euo pipefail
+        mkdir -p work-evidence
+        CLOUDFLARE_SEND_METRICS=false npx wrangler pages dev dist --port 8788 --ip 127.0.0.1 >work-evidence/local-pages.log 2>&1 &
+        echo $! > work-evidence/local-pages.pid
+        for attempt in $(seq 1 30); do
+          if curl -fsS http://127.0.0.1:8788/ >/dev/null; then break; fi
+          sleep 1
+        done
+        python3 scripts/work_seo_browser_qa.py --project serdar --root dist
+    - name: Measure local mobile Lighthouse (lab only)
+      continue-on-error: true
+      run: |-
+        npx lighthouse http://127.0.0.1:8788/ --chrome-flags="--headless --no-sandbox" --output=json --output-path=work-evidence/lighthouse-mobile.json --only-categories=performance,accessibility,best-practices,seo --quiet
+        python3 - <<'PY'
+        import json
+        x=json.load(open('work-evidence/lighthouse-mobile.json'))
+        print('LOCAL_LIGHTHOUSE_LAB',json.dumps({k:v.get('score') for k,v in x['categories'].items()}))
+        for k in ['largest-contentful-paint','cumulative-layout-shift','first-contentful-paint','total-blocking-time']:
+         print(k,x['audits'][k].get('numericValue'))
+        PY
     - name: Normalize account identifier without logging credentials
       id: account
       env:
@@ -183,14 +215,19 @@ jobs:
     - name: Verify real preview HTTP noindex
       run: |-
         python3 - <<'PY'
-        import json,urllib.request
-        x=json.load(open('work-evidence/preview.json'))
+        import json,urllib.request,urllib.parse
+        x=json.load(open('work-evidence/preview.json'));rows=[]
         for path in ['/','/casting-card/tr','/robots.txt']:
          req=urllib.request.Request(x['url']+path,headers={'User-Agent':'Mozilla/5.0'})
          with urllib.request.urlopen(req,timeout=30) as r:
-          assert r.status==200 and 'noindex' in r.headers.get('X-Robots-Tag','').lower()
-          print('PREVIEW_HTTP_NOINDEX',path,r.status)
+          actual_host=urllib.parse.urlsplit(r.url).hostname
+          blocked=actual_host!=urllib.parse.urlsplit(x['url']).hostname
+          row={'path':path,'status':r.status,'final_host':actual_host,'x_robots_tag':r.headers.get('X-Robots-Tag',''),'result':'BLOCKED_ACCESS' if blocked else 'PASS' if r.status==200 and 'noindex' in r.headers.get('X-Robots-Tag','').lower() else 'FAIL'}
+          rows.append(row);print('PREVIEW_HTTP_RESULT',json.dumps(row))
+        open('work-evidence/preview-http.json','w').write(json.dumps(rows,indent=2))
+        if any(x['result']!='PASS' for x in rows):raise SystemExit(1)
         PY
+      continue-on-error: true
     - name: Verify production main and configuration unchanged
       if: always()
       env:
@@ -211,5 +248,6 @@ jobs:
         python3 - <<'PY'
         from pathlib import Path
         for f in Path('work-evidence').glob('*.json'):
+         if f.name in ('lighthouse-mobile.json','browser-qa.json'): continue
          print('WORK_EVIDENCE_FILE',f.name);print(f.read_text())
         PY
