@@ -1,0 +1,104 @@
+name: Spotify Serdar local responsive QA (NO DEPLOY)
+on:
+  push:
+    branches: ['test/spotify-local-qa-20261115']
+    paths: ['.github/workflows/spotify-local-responsive-qa.yml']
+permissions:
+  contents: read
+jobs:
+  verify-local:
+    if: github.ref == 'refs/heads/test/spotify-local-qa-20261115'
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - name: Checkout isolated QA branch (no credentials)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install local Chromium only
+        run: |
+          python3 -m pip install --disable-pip-version-check 'playwright==1.63.0'
+          python3 -m playwright install --with-deps chromium
+      - name: Verify four Spotify routes at 360 390 430 1280 px
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p qa-artifacts
+          python3 -m http.server 8767 --bind 127.0.0.1 --directory . > qa-artifacts/http.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8767/ -o /dev/null; then break; fi
+            sleep 1
+          done
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from playwright.sync_api import sync_playwright
+          
+          base = "http://127.0.0.1:8767/"
+          expected = "https://open.spotify.com/show/0gg9VDMXI4csW2DmuBmKKm"
+          routes = ["/", "/en/", "/links/", "/links/en/"]
+          widths = (360, 390, 430, 1280)
+          out = Path("qa-artifacts")
+          out.mkdir(exist_ok=True)
+          cases, errors = [], []
+          with sync_playwright() as playwright:
+              browser = playwright.chromium.launch(headless=True, args=["--no-sandbox"])
+              for width in widths:
+                  ctx = browser.new_context(viewport={"width": width, "height": 844},
+                      is_mobile=width<600, has_touch=width<600, device_scale_factor=1)
+                  ctx.route("**/*", lambda r: r.continue_() if r.request.url.startswith(base) else r.abort())
+                  for path in routes:
+                      page = ctx.new_page()
+                      row = {"path": path, "width": width, "result": "NOT_VERIFIED"}
+                      try:
+                          response = page.goto(base + path.lstrip("/"), wait_until="domcontentloaded", timeout=25000)
+                          assert response and response.status == 200, "Not HTTP 200"
+                          locator = page.locator("a[href='" + expected + "']")
+                          assert locator.count() == 1, "Exactly one official show link required"
+                          assert locator.first.is_visible(), "Spotify link hidden"
+                          metrics = page.evaluate("""() => ({
+                              scroll: document.documentElement.scrollWidth,
+                              viewport: window.innerWidth,
+                              canonical: document.querySelector('link[rel=canonical]')?.href || '',
+                              lang: document.documentElement.lang
+                          })""")
+                          row.update(metrics)
+                          assert metrics["scroll"] <= metrics["viewport"] + 2, "Horizontal page overflow"
+                          assert metrics["canonical"].startswith("https://serdararminsargut.com/"), "Canonical not official origin"
+                          assert metrics["lang"].startswith("en" if "/en/" in path else "tr"), "Unexpected page language"
+                          if width in (390, 1280):
+                              locator.first.scroll_into_view_if_needed()
+                              page.screenshot(path=str(out / ("serdar-" + path.strip("/").replace("/", "-").replace("", "", 1).replace(" ", "") + "-" + str(width) + ".png")), full_page=False)
+                          row["result"] = "PASS"
+                      except Exception as err:
+                          row["result"], row["error"] = "FAIL", str(err)
+                          errors.append(path + "@" + str(width) + ": " + str(err))
+                          try:
+                              page.screenshot(path=str(out / ("FAIL-" + str(len(errors)) + ".png")), full_page=False)
+                          except Exception:
+                              pass
+                      finally:
+                          cases.append(row)
+                          page.close()
+                  ctx.close()
+              browser.close()
+          report = {"scope": "SERDAR_LOCAL_CHROMIUM_NO_DEPLOY",
+                    "candidateParent": "a2d7031c262c5a753b234db8061849f79680a8ec",
+                    "routes": routes, "widths": widths, "passed": sum(c["result"]=="PASS" for c in cases),
+                    "total": len(cases), "failures": errors, "cases": cases,
+                    "authenticatedCloudflareHTTPHeaders": "NOT_VERIFIED", "physicalAndroid": "NOT_VERIFIED"}
+          (out / "report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+          print("SERDAR_SPOTIFY_LOCAL_QA: " + str(report["passed"]) + "/" + str(report["total"]))
+          if errors:
+              raise SystemExit("LOCAL QA FAIL: " + "; ".join(errors))
+          PY
+      - name: Archive test report and screenshots (NO DEPLOY)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serdar-spotify-local-responsive-qa
+          path: qa-artifacts/
+          if-no-files-found: warn
+          retention-days: 7
