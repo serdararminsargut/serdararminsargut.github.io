@@ -1,0 +1,62 @@
+name: Casting links responsive verification (read only)
+on:
+  push:
+    branches: ['test/casting-release-20261115']
+    paths: ['.github/workflows/casting-live-responsive-check.yml']
+permissions:
+  contents: read
+jobs:
+  responsive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install browser testing tools
+        run: |
+          python3 -m pip install playwright==1.63.0
+          python3 -m playwright install --with-deps chromium
+      - name: Test deployed pages and response headers without changing content
+        run: |
+          python3 - <<'PY'
+          import urllib.request
+          from playwright.sync_api import sync_playwright
+          urls=['https://serdararminsargut.com/','https://serdararminsargut.com/links/en/']
+          doc='1rBx2v_8ovMuzS0WQzcoPQwWAMNGIHM9TQLSrZkm80Fs'
+          for url in urls:
+              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+              with urllib.request.urlopen(req,timeout=30) as res:
+                  xrobots=res.headers.get('X-Robots-Tag','')
+                  print('HTTP_HEADER',url,res.status,'X-Robots-Tag:',repr(xrobots),flush=True)
+                  assert res.status==200 and 'noindex' not in xrobots.lower()
+          with sync_playwright() as p:
+              browser=p.chromium.launch()
+              for url in urls:
+                  for width in (360,390,430,1280):
+                      ctx=browser.new_context(viewport={'width':width,'height':844},is_mobile=width<600,has_touch=width<600)
+                      def route_fn(route):
+                          u=route.request.url
+                          if u.startswith('https://docs.google.com/document/d/'+doc):
+                              route.fulfill(status=200,content_type='text/html',body='<title>Document target verified separately</title>')
+                          elif u.startswith('https://serdararminsargut.com/'):
+                              route.continue_()
+                          else:
+                              route.abort()
+                      ctx.route('**/*',route_fn)
+                      page=ctx.new_page()
+                      res=page.goto(url,wait_until='domcontentloaded',timeout=30000)
+                      assert res and res.status==200,(url,width,'status',res.status if res else None)
+                      a=page.locator('a[href*="'+doc+'"]')
+                      assert a.count()==1,(url,width,'link count',a.count())
+                      a.scroll_into_view_if_needed()
+                      x=a.evaluate("""e=>{let r=e.getBoundingClientRect(),s=getComputedStyle(e),h=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return {x:r.x,right:r.right,height:r.height,width:r.width,scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth,visible:s.visibility==='visible'&&s.display!=='none',hit:!!h&&(h===e||e.contains(h)),href:e.href,target:e.target,rel:e.rel}}""")
+                      assert x['visible'] and x['hit'] and x['height']>=44 and x['x']>=-1 and x['right']<=width+1 and x['scrollWidth']<=width+1,(url,width,x)
+                      assert x['target']=='_blank' and {'noopener','noreferrer'}.issubset(set(x['rel'].split()))
+                      with page.expect_popup(timeout=10000) as pop:
+                          if width<600: a.tap()
+                          else: a.click()
+                      new=pop.value
+                      new.wait_for_load_state('domcontentloaded',timeout=10000)
+                      assert '/document/d/'+doc in new.url,(url,width,new.url)
+                      print('RESPONSIVE_CLICK_PASS',url,width,'viewport',x['viewport'],flush=True)
+                      ctx.close()
+              browser.close()
+          PY
