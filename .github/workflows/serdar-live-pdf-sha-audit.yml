@@ -1,0 +1,46 @@
+name: Serdar 26 live Comp Card PDF SHA acceptance (READ ONLY)
+on:
+  push:
+    branches: [test/serdar-postrelease-pdf-audit-20261115]
+    paths:
+      - .github/workflows/serdar-live-pdf-sha-audit.yml
+permissions:
+  contents: read
+jobs:
+  audit-live:
+    if: github.ref == 'refs/heads/test/serdar-postrelease-pdf-audit-20261115'
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout exact approved Serdar production source
+        uses: actions/checkout@v4
+        with:
+          ref: 89cc99b2b6813e13f2196ea265591c76898d98df
+          persist-credentials: false
+      - name: Compare 26 public PDFs with approved SHA-256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '89cc99b2b6813e13f2196ea265591c76898d98df'
+          manifest='scripts/serdar-comp-card-sha256-20261107.txt'
+          test "$(wc -l < "$manifest")" -eq 26
+          sha256sum --check "$manifest"
+          mkdir -p /tmp/serdar-live-pdfs
+          count=0
+          while read -r expected path; do
+            case "$path" in downloads/*.pdf) ;; *) echo "INVALID_MANIFEST_PATH"; exit 1;; esac
+            file="$(basename "$path")"
+            target="/tmp/serdar-live-pdfs/$file"
+            url="https://serdararminsargut.com/$path"
+            status="$(curl --silent --show-error --fail-with-body --location --max-redirs 3 --retry 2 --connect-timeout 10 --max-time 80 --output "$target" --write-out '%{http_code}' "$url")"
+            test "$status" = '200'
+            actual="$(sha256sum "$target" | cut -d' ' -f1)"
+            if [ "$actual" != "$expected" ]; then
+              echo "NO-GO SERDAR_LIVE_PDF_SHA_MISMATCH $file"
+              exit 1
+            fi
+            count=$((count+1))
+            echo "SERDAR_LIVE_PDF_SHA_PASS $file"
+          done < "$manifest"
+          test "$count" -eq 26
+          echo 'SERDAR_LIVE_VS_APPROVED_MANIFEST_SHA256_PASS_26_OF_26'
