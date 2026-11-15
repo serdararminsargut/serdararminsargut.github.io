@@ -7,7 +7,16 @@ def manifest(r):return {str(f.relative_to(r)):hashlib.sha256(f.read_bytes()).hex
 bm,cm=manifest(b),manifest(c);assert bm.keys()==cm.keys(),'Artifact paths changed'
 protected=[n for n in bm if Path(n).suffix.lower() in ('.pdf','.jpg','.jpeg','.png','.webp','.svg','.mp4','.mp3','.woff','.woff2')]
 assert all(bm[n]==cm[n] for n in protected),'Protected asset bytes changed'
-pdfs=[n for n in protected if n.endswith('.pdf')];assert len(pdfs)==26,'Expected 26 protected PDFs'
+pdfs=[n for n in protected if n.endswith('.pdf')]
+assert len(pdfs)>=26,'Expected at least the 26 protected language PDFs'
+if a.project=='serdar':
+    lines=Path('scripts/serdar-comp-card-sha256-20261107.txt').read_text().splitlines()
+    assert len(lines)==26,'Language PDF manifest count changed'
+    for line in lines:
+        expected,name=line.split(None,1);name=name.strip().lstrip('*')
+        assert bm.get(name)==expected and cm.get(name)==expected,'Approved language PDF changed: '+name
+else:
+    assert len(pdfs)==26,'Duru PDF inventory changed'
 def body(s):return s.split('</head>',1)[1]
 htmls=[n for n in bm if n.endswith('.html')]
 link_map=json.loads(Path('scripts/work-seo-link-replacements.json').read_text()) if a.project=='serdar' and Path('scripts/work-seo-link-replacements.json').exists() else {}
