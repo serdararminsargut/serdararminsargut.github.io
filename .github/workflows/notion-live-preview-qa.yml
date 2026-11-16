@@ -1,0 +1,87 @@
+name: Notion real Cloudflare preview viewport QA - isolated
+on:
+  push:
+    branches:
+      - qa/notion-viewport-20261116
+    paths-ignore:
+      - 'qa-results/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      QA_TARGETS: '[{"id":"serdar-tr","url":"https://test-notion-links-20261116.serdararminsargut.pages.dev/links/","target":"https://flawless-wren-eb9.notion.site/Serdar-Armin-Sargut-Official-Acting-Modeling-Portfolio-412f6b33563e80048dfdd1a3950fa6e1","title":"Notion — Uluslararası Oyunculuk ve Modellik Portföyü","casting":false,"imdb":false},{"id":"serdar-en","url":"https://test-notion-links-20261116.serdararminsargut.pages.dev/links/en/","target":"https://flawless-wren-eb9.notion.site/Serdar-Armin-Sargut-Official-Acting-Modeling-Portfolio-412f6b33563e80048dfdd1a3950fa6e1","title":"Notion — International Acting & Modeling Portfolio","casting":true,"imdb":false}]'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Playwright Chromium (QA only)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Check actual Cloudflare Pages preview at 360 390 430 1280 CSS px
+        shell: bash
+        run: |
+          node <<'NODE'
+          const {chromium}=require('playwright');
+          const fs=require('node:fs');
+          (async()=>{
+           const browser=await chromium.launch({headless:true});
+           fs.mkdirSync('qa-live-screenshots',{recursive:true});
+           let bad=[];
+           let report=[];
+           const targets=JSON.parse(process.env.QA_TARGETS);
+           for(const t of targets){
+             for(const width of [360,390,430,1280]){
+               const context=await browser.newContext({viewport:{width,height:900},deviceScaleFactor:1});
+               const page=await context.newPage();
+               const errors=[];
+               try {
+                 const resp=await page.goto(t.url,{waitUntil:'domcontentloaded',timeout:25000});
+                 await page.waitForLoadState('load',{timeout:18000}).catch(()=>{});
+                 await page.waitForTimeout(350);
+                 const q=await page.evaluate((wanted)=>{
+                   const all=[...document.querySelectorAll('a[href]')];
+                   const a=all.filter(e=>e.href===wanted)[0];
+                   const r=a?.getBoundingClientRect();
+                   const sw=Math.max(document.documentElement.scrollWidth,document.body?.scrollWidth||0);
+                   return {innerWidth,scrollWidth:sw,ctaCount:all.filter(e=>e.href===wanted).length,ctaTitle:a?.innerText?.slice(0,200),ctaTarget:a?.target,ctaRel:a?.rel,ctaRect:r?{x:r.left,right:r.right,width:r.width}:null,title:document.title,linksCount:all.length,hasCastingBrief:document.body.innerText.includes('International Casting Brief'),hasIMDb:document.body.innerText.includes('IMDb'),lang:document.documentElement.lang};
+                 },t.target);
+                 const status=resp?.status()??0, header=resp?.headers()?.['x-robots-tag']??'';
+                 const finalUrl=page.url();
+                 if(status!==200) errors.push('HTTP_'+status);
+                 if(!finalUrl.startsWith(t.url)) errors.push('REDIRECT_TO_'+finalUrl.slice(0,130));
+                 if(!header.toLowerCase().includes('noindex'))errors.push('NO_NOINDEX_HEADER_'+header);
+                 if(q.innerWidth!==width) errors.push('WIDTH_MISMATCH_'+q.innerWidth);
+                 if(q.scrollWidth>q.innerWidth+1) errors.push('OVERFLOW_'+(q.scrollWidth-q.innerWidth));
+                 if(q.ctaCount!==1) errors.push('NOTION_CTA_COUNT_'+q.ctaCount);
+                 if(!q.ctaTitle?.includes(t.title))errors.push('NOTION_TITLE_WRONG');
+                 if(q.ctaTarget!=='_blank'||!q.ctaRel?.includes('noopener')||!q.ctaRel?.includes('noreferrer'))errors.push('EXTERNAL_LINK_UNSAFE');
+                 if(!q.ctaRect||q.ctaRect.x < -1||q.ctaRect.right > width+1)errors.push('CTA_CLIPPED');
+                 if(t.casting && !q.hasCastingBrief)errors.push('CASTING_BRIEF_MISSING');
+                 if(t.imdb && !q.hasIMDb)errors.push('IMDB_MISSING');
+                 await page.screenshot({path:'qa-live-screenshots/'+t.id+'-'+width+'.png',fullPage:true,timeout:20000});
+                 let entry={id:t.id,width,url:t.url,status:errors.length?'NOT_VERIFIED':'PASS',http:status,noindex:header,finalUrl,overflow:Math.max(0,q.scrollWidth-q.innerWidth),...q,errors};
+                 report.push(entry); if(errors.length)bad.push(entry);
+                 console.log('PREVIEW_QA '+JSON.stringify(entry));
+               }catch(e){
+                 let entry={id:t.id,width,url:t.url,status:'NOT_VERIFIED',errors:[String(e)]};
+                 report.push(entry);bad.push(entry);console.log('PREVIEW_QA '+JSON.stringify(entry));
+               }finally{await context.close();}
+             }
+           }
+           await browser.close();
+           fs.writeFileSync('qa-live-results.json',JSON.stringify({date:'2026-11-16',scope:'real Cloudflare Pages preview',results:report,allPass:bad.length===0},null,2));
+           if(bad.length){console.error('PREVIEW_QA_NOT_VERIFIED '+bad.length+'/'+report.length);process.exitCode=1}
+           else console.log('PREVIEW_QA_ALL_PASS '+report.length+'/'+report.length);
+          })().catch(e=>{console.error('PREVIEW_QA_FATAL '+e);process.exitCode=1});
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notion-real-preview-qa
+          path: |
+            qa-live-screenshots/
+            qa-live-results.json
+          retention-days: 7
