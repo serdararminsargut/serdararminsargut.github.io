@@ -1,0 +1,36 @@
+name: Dependency security candidate - NO DEPLOY
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated:
+    if: github.head_ref == 'test/dependency-security-20261119' || github.ref_name == 'test/dependency-security-20261119'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout candidate without persisted credentials
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify only test tooling changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check 2e3cf81721fd471a072f404ce33e3cc4065fd308 HEAD
+          git diff --name-only 2e3cf81721fd471a072f404ce33e3cc4065fd308 HEAD | sort > /tmp/actual-paths
+          printf '%s\n' '.github/workflows/dependency-security-candidate-20261119.yml' '.github/workflows/weekly-portfolio-monitor.yml' | sort > /tmp/expected-paths
+          diff -u /tmp/expected-paths /tmp/actual-paths
+          grep -Fq 'uses: actions/checkout@v7' .github/workflows/weekly-portfolio-monitor.yml
+          grep -Fq 'persist-credentials: false' .github/workflows/weekly-portfolio-monitor.yml
+          node --check scripts/auto-browser-check.cjs
+          node --check scripts/auto-audit-legacy.js
+          node --check scripts/auto-audit-coverage.js
+          echo 'SERDAR: static site content unchanged; checkout and JS syntax gate passed; NO DEPLOY'
