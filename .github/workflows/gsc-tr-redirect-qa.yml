@@ -1,0 +1,82 @@
+name: GSC Turkish redirect QA (preview only)
+on:
+  push:
+    branches: ['test/gsc-tr-redirect-20261119']
+    paths: ['.github/workflows/gsc-tr-redirect-qa.yml']
+permissions:
+  contents: read
+jobs:
+  local-and-preview:
+    if: github.ref == 'refs/heads/test/gsc-tr-redirect-20261119'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Local Pages HTTP test (no deploy)
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/gsc-wrangler --no-audit --no-fund wrangler@4
+          mkdir -p /tmp/gsc-site
+          cp _redirects _headers index.html 404.html /tmp/gsc-site/
+          /tmp/gsc-wrangler/node_modules/.bin/wrangler pages dev /tmp/gsc-site --ip 127.0.0.1 --port 8798 > /tmp/gsc-wrangler.log 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 25); do
+            if curl -fsS --max-time 2 http://127.0.0.1:8798/ -o /dev/null; then break; fi
+            sleep 1
+          done
+          python3 - <<'PY'
+          import http.client
+          from urllib.parse import urljoin, urlsplit
+          base = 'http://127.0.0.1:8798'
+          for path in ('/tr', '/tr/'):
+              c = http.client.HTTPConnection('127.0.0.1',8798,timeout=10)
+              c.request('GET',path)
+              r=c.getresponse()
+              loc=r.getheader('Location')
+              print(path, r.status, 'location=',loc)
+              assert r.status == 301 and urljoin(base+path,loc or '') == base+'/'
+              r.read(); c.close()
+          c=http.client.HTTPConnection('127.0.0.1',8798,timeout=10)
+          c.request('GET','/')
+          r=c.getresponse()
+          print('/',r.status)
+          assert r.status == 200
+          assert b'lang="tr"' in r.read()
+          print('LOCAL_REDIRECT_PASS 2/2')
+          PY
+      - name: Fixed deployed preview HTTP evidence (read only)
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import http.client, sys
+          from urllib.parse import urljoin, urlsplit
+          host='2578358e.serdararminsargut.pages.dev'
+          base='https://'+host
+          ok=True
+          for path in ('/tr','/tr/','/'):
+              try:
+                  c=http.client.HTTPSConnection(host,timeout=15)
+                  c.request('GET',path)
+                  r=c.getresponse()
+                  loc=r.getheader('Location') or ''
+                  robots=r.getheader('X-Robots-Tag') or ''
+                  # Never expose Access login query parameters or cookies.
+                  dest=urlsplit(urljoin(base+path,loc))
+                  print(path,'status=',r.status,'location_host=',dest.hostname if loc else '-', 'location_path=',dest.path if loc else '-', 'x-robots-tag=',robots or 'ABSENT')
+                  if path=='/':
+                      body=r.read(500000)
+                      good=r.status==200 and b'lang="tr"' in body and 'noindex' in robots.lower()
+                  else:
+                      good=r.status==301 and urljoin(base+path,loc)==base+'/'
+                  ok=ok and good
+                  c.close()
+              except Exception as e:
+                  print(path,'HTTP_ERROR',type(e).__name__)
+                  ok=False
+          print('PREVIEW_HTTP_PASS' if ok else 'PREVIEW_HTTP_NOT_VERIFIED')
+          sys.exit(0 if ok else 1)
+          PY
