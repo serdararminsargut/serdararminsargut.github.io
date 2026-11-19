@@ -1,3 +1,5 @@
+/* Test candidate: do not send analytics from non-production hostnames. */
+if (window.location.hostname === 'serdararminsargut.com' && document.documentElement.dataset.releaseState !== 'preview') {
 /* Analytics bootstrap: defer third-party network work until after initial render. */
 window.dataLayer = window.dataLayer || [];
 function gtag(){window.dataLayer.push(arguments);}
@@ -55,3 +57,5 @@ gtag('config', 'G-H894LKL93J');
     window.addEventListener('load', scheduleAnalytics, {once: true});
   }
 })();
+
+}
