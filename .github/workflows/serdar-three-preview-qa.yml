@@ -1,0 +1,120 @@
+name: Serdar isolated CSP mobile and video preview acceptance
+on:
+  push:
+    branches: ['test/gsc-tr-redirect-20261119']
+    paths: ['.github/workflows/serdar-three-preview-qa.yml']
+permissions:
+  contents: read
+jobs:
+  preview-only:
+    if: github.ref == 'refs/heads/test/gsc-tr-redirect-20261119'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install browser
+        run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Protected previews and browser checks
+        env:
+          ACCESS_ID: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_ID }}
+          ACCESS_SECRET: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          python - <<'PY'
+          import os, http.client, json, re, xml.etree.ElementTree as ET
+          from urllib.parse import urlsplit
+          from playwright.sync_api import sync_playwright
+          hosts={'csp':'62e0b95c.serdararminsargut.pages.dev','mobile':'3738a3f9.serdararminsargut.pages.dev','video':'72a920a4.serdararminsargut.pages.dev'}
+          auth={'CF-Access-Client-Id':os.environ['ACCESS_ID'],'CF-Access-Client-Secret':os.environ['ACCESS_SECRET']}
+          assert all(auth.values())
+          checks=[]
+          def record(name,ok):
+              checks.append(bool(ok))
+              print(name,'PASS' if ok else 'FAIL',flush=True)
+          def get(host,path,authorized=True):
+              assert host in hosts.values()
+              c=http.client.HTTPSConnection(host,timeout=20)
+              try:
+                  c.request('GET',path,headers=auth if authorized else {})
+                  r=c.getresponse()
+                  return r.status,dict((k.lower(),v) for k,v in r.getheaders()),r.read()
+              finally: c.close()
+          for kind,host in hosts.items():
+              status,h,body=get(host,'/',False)
+              record(kind+'_access_guard',status in (401,403) or (status==302 and '.cloudflareaccess.com' in (urlsplit(h.get('location','')).hostname or '')))
+              status,h,body=get(host,'/')
+              record(kind+'_http_noindex',status==200 and 'noindex' in h.get('x-robots-tag','').lower())
+              if kind=='csp':
+                  policy=h.get('content-security-policy','')
+                  directives={i.split()[0]:i.split()[1:] for i in policy.split(';') if i.strip()}
+                  record('CSP_watch_path_only',all('https://mc.yandex.com/watch/' in directives.get(d,[]) and 'https://mc.yandex.com' not in directives.get(d,[]) for d in ('img-src','connect-src')) and "'unsafe-eval'" not in policy)
+              if kind=='mobile':
+                  record('mobile_markup',b'decoding="async" fetchpriority="high"' in body and b'<script defer src="/assets/js/site.js">' in body)
+                  status,h,script=get(host,'/assets/js/analytics.js')
+                  record('analytics_preview_guard',status==200 and b"window.location.hostname === 'serdararminsargut.com'" in script)
+          host=hosts['video']
+          status,h,body=get(host,'/projeler/ana-showreel/')
+          html=body.decode('utf-8')
+          record('watch_http_noindex',status==200 and 'noindex' in h.get('x-robots-tag','').lower())
+          record('watch_inline_player',bool(re.search(r'<iframe[^>]+src="https://player.vimeo.com/video/1218440447\?dnt=1"',html)))
+          record('watch_canonical','https://serdararminsargut.com/projeler/ana-showreel/' in html)
+          status,h,body=get(host,'/projeler/video-sitemap.xml')
+          ns={'s':'http://www.sitemaps.org/schemas/sitemap/0.9','v':'http://www.google.com/schemas/sitemap-video/1.1'}
+          try:
+              xml=ET.fromstring(body)
+              video=xml.find('.//v:video',ns)
+              record('video_sitemap',status==200 and 'xml' in h.get('content-type','') and video is not None and video.find('v:player_loc',ns).text=='https://player.vimeo.com/video/1218440447?dnt=1')
+          except Exception: record('video_sitemap',False)
+          with sync_playwright() as p:
+              browser=p.chromium.launch(headless=True)
+              for kind in ('mobile','video'):
+                  host=hosts[kind]
+                  for width in (360,390,430,1280):
+                      ctx=browser.new_context(viewport={'width':width,'height':900})
+                      # Authenticate only exact known preview origin, never forward credentials to third parties.
+                      # Block production analytics; this is functional QA, not a Lighthouse benchmark.
+                      def intercept(route):
+                          u=urlsplit(route.request.url)
+                          if u.scheme=='https' and u.hostname==host and u.port in (None,443):
+                              try:
+                                  response=route.fetch(headers={**route.request.headers,**auth},max_redirects=0,timeout=20000)
+                                  route.fulfill(response=response)
+                              except Exception: route.abort()
+                          elif kind=='video' and u.scheme=='https' and (u.hostname=='player.vimeo.com' or (u.hostname or '').endswith('.vimeocdn.com') or (u.hostname or '').endswith('.akamaized.net')):
+                              route.continue_()
+                          else: route.abort()
+                      ctx.route('**/*',intercept)
+                      page=ctx.new_page()
+                      try:
+                          path='/projeler/ana-showreel/' if kind=='video' else '/'
+                          response=page.goto('https://'+host+path,wait_until='domcontentloaded',timeout=35000)
+                          page.locator('h1').first.wait_for(state='visible')
+                          page.wait_for_timeout(1200)
+                          visible=page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
+                          if kind=='video':
+                              frame=page.locator('iframe.player')
+                              box=frame.bounding_box()
+                              visible=visible and bool(box and box['width']<=width and box['y']<900 and box['height']>200)
+                          else:
+                              img=page.locator('.hero-media img')
+                              img.wait_for(state='visible')
+                              visible=visible and img.evaluate('(el)=>el.complete && el.naturalWidth>0')
+                          record(kind+'_viewport_'+str(width),response.status==200 and visible)
+                          if kind=='video' and width==390:
+                              try:
+                                  fr=page.frame_locator('iframe.player')
+                                  button=fr.get_by_role('button',name=re.compile('play',re.I)).first
+                                  button.click(timeout=10000)
+                                  page.wait_for_timeout(4000)
+                                  v=fr.locator('video').first
+                                  playing=v.evaluate('(el)=>!el.paused || el.currentTime>0',timeout=8000)
+                                  record('vimeo_playback',playing)
+                              except Exception: record('vimeo_playback',False)
+                      except Exception as e:
+                          print(kind,width,type(e).__name__)
+                          record(kind+'_viewport_'+str(width),False)
+                      finally: ctx.close()
+              browser.close()
+          print('ACCEPTANCE',sum(checks),'/',len(checks),flush=True)
+          raise SystemExit(0 if all(checks) else 1)
+          PY
