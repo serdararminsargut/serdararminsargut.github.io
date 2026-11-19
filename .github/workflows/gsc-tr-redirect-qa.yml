@@ -57,7 +57,7 @@ jobs:
           python3 - <<'PY'
           import http.client, os, sys
           from urllib.parse import urljoin, urlsplit
-          host='2578358e.serdararminsargut.pages.dev'
+          host='c4bac8ca.serdararminsargut.pages.dev'
           base='https://'+host
           cid=os.environ.get('CF_ACCESS_ID','')
           sec=os.environ.get('CF_ACCESS_SECRET','')
