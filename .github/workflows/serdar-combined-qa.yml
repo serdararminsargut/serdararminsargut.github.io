@@ -47,9 +47,18 @@ jobs:
               finally:c.close()
           status,h,body=get('/',False)
           check('access_guard',status in (401,403) or (status==302 and '.cloudflareaccess.com' in (urlsplit(h.get('location','')).hostname or '')))
-          for path in ('/','/projeler/ana-showreel/','/casting-card/tr.html','/links/en/','/sitemap.xml','/sitemap-google.xml','/sitemap.txt','/projeler/video-sitemap.xml'):
+          for path in ('/','/projeler/ana-showreel/','/casting-card/tr','/links/en/','/sitemap.xml','/sitemap-google.xml','/sitemap.txt','/projeler/video-sitemap.xml'):
               status,h,body=get(path)
               check('http_noindex_'+path,status==200 and 'noindex' in h.get('x-robots-tag','').lower())
+          # Cloudflare Pages may redirect a physical .html file to its canonical clean URL.
+          status,h,legacy=get('/casting-card/tr.html')
+          from urllib.parse import urljoin
+          loc=urlsplit(urljoin(origin+'/',h.get('location','')))
+          print('casting_card_legacy_http',status,'location_path',loc.path,flush=True)
+          canonical_ok=loc.scheme=='https' and loc.hostname==host and loc.port in (None,443) and loc.path=='/casting-card/tr' and not loc.query and not loc.fragment
+          check('casting_card_legacy_redirect',status in (301,302,307,308) and canonical_ok)
+          status,h,card=get('/casting-card/tr')
+          check('casting_card_final_canonical',status==200 and 'noindex' in h.get('x-robots-tag','').lower() and b'rel="canonical" href="https://serdararminsargut.com/casting-card/tr"' in card)
           status,h,home=get('/')
           policy=h.get('content-security-policy','')
           directives={i.split()[0]:i.split()[1:] for i in policy.split(';') if i.strip()}
