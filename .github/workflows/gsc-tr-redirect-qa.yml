@@ -50,33 +50,50 @@ jobs:
           PY
       - name: Fixed deployed preview HTTP evidence (read only)
         if: always()
+        env:
+          CF_ACCESS_ID: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_SECRET: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_SECRET }}
         run: |
           python3 - <<'PY'
-          import http.client, sys
+          import http.client, os, sys
           from urllib.parse import urljoin, urlsplit
           host='2578358e.serdararminsargut.pages.dev'
           base='https://'+host
-          ok=True
-          for path in ('/tr','/tr/','/'):
+          cid=os.environ.get('CF_ACCESS_ID','')
+          sec=os.environ.get('CF_ACCESS_SECRET','')
+          if not cid or not sec:
+              print('ACCESS_CREDENTIALS_MISSING')
+              sys.exit(1)
+          # Fixed TLS host, no automatic redirects, no credential or cookie logging.
+          def get(path, auth):
+              c=http.client.HTTPSConnection(host,timeout=20)
               try:
-                  c=http.client.HTTPSConnection(host,timeout=15)
-                  c.request('GET',path)
+                  headers={'User-Agent':'Serdar-Preview-QA/1.0'}
+                  if auth:
+                      headers.update({'CF-Access-Client-Id':cid,'CF-Access-Client-Secret':sec})
+                  c.request('GET',path,headers=headers)
                   r=c.getresponse()
-                  loc=r.getheader('Location') or ''
-                  robots=r.getheader('X-Robots-Tag') or ''
-                  # Never expose Access login query parameters or cookies.
-                  dest=urlsplit(urljoin(base+path,loc))
-                  print(path,'status=',r.status,'location_host=',dest.hostname if loc else '-', 'location_path=',dest.path if loc else '-', 'x-robots-tag=',robots or 'ABSENT')
-                  if path=='/':
-                      body=r.read(500000)
-                      good=r.status==200 and b'lang="tr"' in body and 'noindex' in robots.lower()
-                  else:
-                      good=r.status==301 and urljoin(base+path,loc)==base+'/'
-                  ok=ok and good
+                  return r.status, r.getheader('Location') or '', r.getheader('X-Robots-Tag') or '', r.read(1000000)
+              finally:
                   c.close()
-              except Exception as e:
-                  print(path,'HTTP_ERROR',type(e).__name__)
-                  ok=False
-          print('PREVIEW_HTTP_PASS' if ok else 'PREVIEW_HTTP_NOT_VERIFIED')
-          sys.exit(0 if ok else 1)
+          try:
+              status, loc, _, _=get('/',False)
+              protected=status in (401,403) or (status in (302,303) and '.cloudflareaccess.com' in (urlsplit(loc).hostname or ''))
+              print('UNAUTHENTICATED_PREVIEW',status,'PROTECTED' if protected else 'NOT_VERIFIED')
+              ok=protected
+              for path in ('/tr','/tr/','/'):
+                  status, loc, robots, body=get(path,True)
+                  target_root=bool(loc) and urljoin(base+path,loc)==base+'/'
+                  noindex='noindex' in robots.lower()
+                  print('AUTHENTICATED',path,'status=',status,'location_is_preview_root=',target_root,'x_robots_noindex=',noindex)
+                  if path=='/':
+                      good=status==200 and b'lang="tr"' in body and noindex
+                  else:
+                      good=status==301 and target_root
+                  ok=ok and good
+              print('PREVIEW_HTTP_PASS' if ok else 'PREVIEW_HTTP_NOT_VERIFIED')
+              sys.exit(0 if ok else 1)
+          except Exception as e:
+              print('PREVIEW_HTTP_ERROR',type(e).__name__)
+              sys.exit(1)
           PY
