@@ -1,0 +1,91 @@
+name: Serdar Vimeo playback diagnostics (preview only)
+on:
+  push:
+    branches: ['test/gsc-tr-redirect-20261119']
+    paths: ['.github/workflows/serdar-vimeo-qa.yml']
+permissions:
+  contents: read
+jobs:
+  video:
+    if: github.ref == 'refs/heads/test/gsc-tr-redirect-20261119'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - run: |
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Observe actual playback (not production)
+        env:
+          ACCESS_ID: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_ID }}
+          ACCESS_SECRET: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          python - <<'PY'
+          import os, re, json, urllib.request
+          from urllib.parse import urlsplit
+          from playwright.sync_api import sync_playwright
+          host='72a920a4.serdararminsargut.pages.dev'
+          path='/projeler/ana-showreel/'
+          auth={'CF-Access-Client-Id':os.environ['ACCESS_ID'],'CF-Access-Client-Secret':os.environ['ACCESS_SECRET']}
+          assert all(auth.values())
+          try:
+              req=urllib.request.Request('https://vimeo.com/api/oembed.json?url=https%3A%2F%2Fvimeo.com%2F1218440447',headers={'User-Agent':'Serdar-Preview-QA/1.0'})
+              with urllib.request.urlopen(req,timeout=15) as r:
+                  o=json.load(r)
+                  print('OEMBED',r.status,'id_match',str(o.get('video_id'))=='1218440447','duration',o.get('duration'),'upload_date',o.get('upload_date'), 'width',o.get('width'),'height',o.get('height'),'thumbnail',o.get('thumbnail_url'),flush=True)
+          except Exception as e: print('OEMBED_UNVERIFIED',type(e).__name__,getattr(e,'code',None),flush=True)
+          with sync_playwright() as p:
+              browser=p.chromium.launch(channel='chrome',headless=True)
+              ctx=browser.new_context(viewport={'width':390,'height':844})
+              def intercept(route):
+                  u=urlsplit(route.request.url)
+                  if u.scheme=='https' and u.hostname==host and u.port in (None,443):
+                      try:
+                          r=route.fetch(headers={**route.request.headers,**auth},max_redirects=0,timeout=20000)
+                          route.fulfill(response=r)
+                      except Exception: route.abort()
+                  elif u.scheme=='https' and u.hostname not in ('www.googletagmanager.com','www.google-analytics.com','mc.yandex.ru','mc.yandex.com','static.cloudflareinsights.com'):
+                      route.continue_()
+                  else: route.abort()
+              ctx.route('**/*',intercept)
+              page=ctx.new_page()
+              requests=[]
+              def on_response(r):
+                  u=urlsplit(r.url)
+                  if u.hostname=='player.vimeo.com':
+                      print('PLAYER_HTTP',r.status, u.path.split('/')[1:3],flush=True)
+                  if r.status>=400 and u.hostname and u.hostname!=host:
+                      requests.append((u.hostname,r.status))
+              page.on('response',on_response)
+              page.goto('https://'+host+path,wait_until='domcontentloaded',timeout=40000)
+              page.wait_for_timeout(6000)
+              fr=page.frame_locator('iframe.player')
+              ok=False
+              try:
+                  print('PLAYER_BUTTONS',fr.locator('button').evaluate_all('(els)=>els.slice(0,18).map(e=>({label:e.getAttribute("aria-label"),title:e.getAttribute("title")}))'),flush=True)
+                  buttons=fr.locator('button[aria-label*="Play" i],button[title*="Play" i],button[aria-label*="Oynat" i],button[data-play-button],button.play')
+                  if buttons.count()>0: buttons.first.click(timeout=12000)
+                  else:
+                      play=fr.get_by_role('button',name=re.compile('play|oynat',re.I))
+                      if play.count()>0: play.first.click(timeout=12000)
+                  try:
+                      v=fr.locator('video').first
+                      v.wait_for(state='attached',timeout=15000)
+                      for i in range(8):
+                          a=v.evaluate('(v)=>({t:v.currentTime,paused:v.paused,ready:v.readyState,error:v.error?.code??null})')
+                          print('MEDIA_STATE',a,flush=True)
+                          if a['t']>0.5 and a['ready']>=2:
+                              ok=True;break
+                          page.wait_for_timeout(1500)
+                  except Exception as e: print('MEDIA_UNVERIFIED',type(e).__name__,flush=True)
+              except Exception as e: print('PLAYER_INTERACTION',type(e).__name__,flush=True)
+              if not ok:
+                  try:
+                      text=fr.locator('body').inner_text(timeout=5000).lower()
+                      for term in ['privacy','permission','not available','not found','sorry','error','cannot','could not','password','restricted','domain','gizlilik']:
+                          if term in text: print('PLAYER_MESSAGE_KEYWORD',term,flush=True)
+                  except Exception: pass
+              print('PLAYER_HTTP_ERRORS',sorted(set(requests)),flush=True)
+              print('VIMEO_PLAYBACK','PASS' if ok else 'NOT_VERIFIED',flush=True)
+              ctx.close();browser.close()
+              raise SystemExit(0 if ok else 1)
+          PY
