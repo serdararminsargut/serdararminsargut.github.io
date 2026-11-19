@@ -1,0 +1,121 @@
+name: Serdar combined release candidate acceptance
+on:
+  push:
+    branches: ['test/gsc-tr-redirect-20261119']
+    paths: ['.github/workflows/serdar-combined-qa.yml']
+permissions:
+  contents: read
+jobs:
+  candidate:
+    if: github.ref == 'refs/heads/test/gsc-tr-redirect-20261119'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: b8785509fb09e7f33702f91d33f25564cc0976a6
+          persist-credentials: false
+      - name: Verify exact candidate and PDF integrity
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = b8785509fb09e7f33702f91d33f25564cc0976a6
+          sha256sum --check scripts/serdar-comp-card-sha256-20261107.txt
+          python -m pip install --disable-pip-version-check playwright
+          python -m playwright install --with-deps chromium
+      - name: Protected Preview and isolated analytics checks
+        env:
+          ACCESS_ID: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_ID }}
+          ACCESS_SECRET: ${{ secrets.SERDAR_CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          python - <<'PY'
+          import os, http.client, xml.etree.ElementTree as ET
+          from pathlib import Path
+          from urllib.parse import urlsplit
+          from playwright.sync_api import sync_playwright
+          host='e9e4cdec.serdararminsargut.pages.dev'
+          origin='https://'+host
+          auth={'CF-Access-Client-Id':os.environ['ACCESS_ID'],'CF-Access-Client-Secret':os.environ['ACCESS_SECRET']}
+          assert all(auth.values())
+          results=[]
+          def check(name, ok):
+              results.append(bool(ok));print(name,'PASS' if ok else 'FAIL',flush=True)
+          def get(path,authorized=True):
+              c=http.client.HTTPSConnection(host,timeout=20)
+              try:
+                  c.request('GET',path,headers=auth if authorized else {})
+                  r=c.getresponse();return r.status,dict((k.lower(),v) for k,v in r.getheaders()),r.read()
+              finally:c.close()
+          status,h,body=get('/',False)
+          check('access_guard',status in (401,403) or (status==302 and '.cloudflareaccess.com' in (urlsplit(h.get('location','')).hostname or '')))
+          for path in ('/','/projeler/ana-showreel/','/casting-card/tr.html','/links/en/','/sitemap.xml','/sitemap-google.xml','/sitemap.txt','/projeler/video-sitemap.xml'):
+              status,h,body=get(path)
+              check('http_noindex_'+path,status==200 and 'noindex' in h.get('x-robots-tag','').lower())
+          status,h,home=get('/')
+          policy=h.get('content-security-policy','')
+          directives={i.split()[0]:i.split()[1:] for i in policy.split(';') if i.strip()}
+          check('restricted_csp',all('https://mc.yandex.com/watch/' in directives.get(d,[]) and 'https://mc.yandex.com' not in directives.get(d,[]) for d in ('img-src','connect-src')) and "'unsafe-eval'" not in policy)
+          check('mobile_markup',b'decoding="async" fetchpriority="high"' in home and b'<script defer src="/assets/js/site.js">' in home)
+          check('home_video_link',b'href="/projeler/ana-showreel/"' in home)
+          status,h,watch=get('/projeler/ana-showreel/')
+          check('watch_identity',b'https://player.vimeo.com/video/1218440447?dnt=1' in watch and b'<link rel="canonical" href="https://serdararminsargut.com/projeler/ana-showreel/"' in watch)
+          code,h,video=get('/projeler/video-sitemap.xml')
+          try:
+              root=ET.fromstring(video)
+              ns={'s':'http://www.sitemaps.org/schemas/sitemap/0.9','v':'http://www.google.com/schemas/sitemap-video/1.1'}
+              check('video_sitemap_metadata',code==200 and 'xml' in h.get('content-type','') and root.find('s:url/s:loc',ns).text=='https://serdararminsargut.com/projeler/ana-showreel/' and root.find('.//v:player_loc',ns).text=='https://player.vimeo.com/video/1218440447?dnt=1')
+          except Exception:check('video_sitemap_metadata',False)
+          with sync_playwright() as p:
+              browser=p.chromium.launch(headless=True)
+              for width in (360,390,430,1280):
+                  ctx=browser.new_context(viewport={'width':width,'height':900})
+                  def intercept(route):
+                      u=urlsplit(route.request.url)
+                      if u.scheme=='https' and u.hostname==host and u.port in (None,443):
+                          try:
+                              r=route.fetch(headers={**route.request.headers,**auth},max_redirects=0,timeout=20000);route.fulfill(response=r)
+                          except Exception:route.abort()
+                      else:route.abort()
+                  ctx.route('**/*',intercept)
+                  page=ctx.new_page()
+                  try:
+                      r=page.goto(origin+'/',wait_until='domcontentloaded',timeout=35000)
+                      page.locator('.hero-media img').wait_for(state='visible')
+                      page.wait_for_function("document.querySelector('.hero-media img').complete && document.querySelector('.hero-media img').naturalWidth>0")
+                      check('home_viewport_'+str(width),r.status==200 and page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'))
+                      check('preview_analytics_inert_'+str(width),page.evaluate("typeof window.gtag !== 'function' && typeof window.ym !== 'function'"))
+                      r=page.goto(origin+'/projeler/ana-showreel/',wait_until='domcontentloaded',timeout=35000)
+                      box=page.locator('iframe.player').bounding_box()
+                      check('watch_viewport_'+str(width),r.status==200 and page.evaluate('document.documentElement.scrollWidth<=innerWidth+1') and bool(box and box['width']<=width and box['height']>200 and box['y']<900))
+                  except Exception as e:print('BROWSER_EXCEPTION',width,type(e).__name__);check('browser_'+str(width),False)
+                  finally:ctx.close()
+              # Synthetic canonical origin, all browser requests fulfilled or blocked locally.
+              # This checks configuration/queues, not actual production measurement or data receipt.
+              ctx=browser.new_context()
+              mocked=[]
+              analytics=Path('assets/js/analytics.js').read_text()
+              def stub(route):
+                  u=urlsplit(route.request.url)
+                  if u.hostname=='serdararminsargut.com' and u.path=='/':
+                      route.fulfill(status=200,content_type='text/html',body='<html><head><script defer src="/assets/js/analytics.js"></script></head><body>isolated QA</body></html>',headers={'Content-Security-Policy':policy})
+                  elif u.hostname=='serdararminsargut.com' and u.path=='/assets/js/analytics.js':
+                      route.fulfill(status=200,content_type='text/javascript',body=analytics)
+                  elif u.hostname=='www.googletagmanager.com' and u.path=='/gtag/js':
+                      mocked.append('ga');route.fulfill(status=200,content_type='text/javascript',body='/* local stub */')
+                  elif u.hostname=='mc.yandex.ru' and u.path=='/metrika/tag.js':
+                      mocked.append('ym');route.fulfill(status=200,content_type='text/javascript',body='/* local stub */')
+                  elif u.hostname=='mc.yandex.com' and u.path.startswith('/watch/'):
+                      mocked.append('watch');route.fulfill(status=200,content_type='text/plain',body='ok',headers={'Access-Control-Allow-Origin':'*'})
+                  else:
+                      if u.hostname=='mc.yandex.com':mocked.append('unexpected')
+                      route.abort()
+              ctx.route('**/*',stub)
+              page=ctx.new_page()
+              page.goto('https://serdararminsargut.com/',wait_until='load')
+              page.wait_for_timeout(3500)
+              check('mock_analytics_bootstrap',mocked.count('ga')==1 and mocked.count('ym')==1 and page.evaluate("typeof gtag==='function' && typeof ym==='function' && dataLayer.some(x=>x[0]==='config') && ym.a.some(x=>x[1]==='init')"))
+              page.evaluate("async()=>{await fetch('https://mc.yandex.com/watch/qa').catch(()=>{}); await fetch('https://mc.yandex.com/sync_cookie_image_check').catch(()=>{});}")
+              check('mock_csp_measurement_only','watch' in mocked and 'unexpected' not in mocked)
+              ctx.close();browser.close()
+          print('COMBINED_ACCEPTANCE',sum(results),'/',len(results),flush=True)
+          raise SystemExit(0 if all(results) else 1)
+          PY
