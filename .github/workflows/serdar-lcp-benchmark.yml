@@ -1,0 +1,77 @@
+name: Serdar isolated mobile Lighthouse comparison
+on:
+  push:
+    branches: ['test/gsc-tr-redirect-20261119']
+    paths: ['.github/workflows/serdar-lcp-benchmark.yml']
+permissions:
+  contents: read
+jobs:
+  local-comparison:
+    if: github.ref == 'refs/heads/test/gsc-tr-redirect-20261119'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c4c34102efcab2c964d5969937e81f841f88cbfd
+          path: baseline
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: dc61b13fea859aad7f2baa68fd5636330f81c2b3
+          path: candidate
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify fixed revisions and PDFs
+        run: |
+          set -euo pipefail
+          test "$(git -C baseline rev-parse HEAD)" = c4c34102efcab2c964d5969937e81f841f88cbfd
+          test "$(git -C candidate rev-parse HEAD)" = dc61b13fea859aad7f2baa68fd5636330f81c2b3
+          (cd baseline && sha256sum --check scripts/serdar-comp-card-sha256-20261107.txt)
+          (cd candidate && sha256sum --check scripts/serdar-comp-card-sha256-20261107.txt)
+      - name: Paired local benchmark, no production requests
+        run: |
+          set -euo pipefail
+          npm install --prefix /tmp/serdar-lh --no-audit --no-fund lighthouse chrome-launcher
+          python3 -m http.server 8761 --bind 127.0.0.1 --directory baseline >/tmp/serdar-baseline.log 2>&1 &
+          p1=$!
+          python3 -m http.server 8762 --bind 127.0.0.1 --directory candidate >/tmp/serdar-candidate.log 2>&1 &
+          p2=$!
+          trap 'kill "$p1" "$p2" 2>/dev/null || true' EXIT
+          for p in 8761 8762; do
+            for i in $(seq 1 10); do
+              if curl -fsS "http://127.0.0.1:$p/" -o /dev/null; then break; fi
+              sleep 1
+            done
+          done
+          cat >/tmp/serdar-lh/compare.mjs <<'JS'
+          import lighthouse from 'lighthouse';
+          import {launch} from 'chrome-launcher';
+          const results={baseline:[],candidate:[]};
+          const blockedUrlPatterns=['*googletagmanager.com*','*google-analytics.com*','*analytics.google.com*','*mc.yandex.ru*','*mc.yandex.com*','*webvisor.com*','*webvisor.org*','*cloudflareinsights.com*','*player.vimeo.com*'];
+          const targets={baseline:'http://127.0.0.1:8761/',candidate:'http://127.0.0.1:8762/'};
+          const median=a=>[...a].sort((x,y)=>x-y)[Math.floor(a.length/2)];
+          for(let i=0;i<3;i++){
+            for(const key of i%2===0?['baseline','candidate']:['candidate','baseline']){
+              const chrome=await launch({chromeFlags:['--headless','--no-sandbox','--disable-background-networking','--disable-dev-shm-usage']});
+              try{
+                const r=await lighthouse(targets[key],{port:chrome.port,logLevel:'error',output:'json',onlyCategories:['performance'],formFactor:'mobile',throttlingMethod:'simulate',blockedUrlPatterns});
+                const l=r.lhr;
+                if(l.runtimeError) throw Error(l.runtimeError.code);
+                if(!l.finalDisplayedUrl.startsWith(targets[key])) throw Error('unexpected final URL');
+                const a=l.audits;
+                const sample={score:Math.round(l.categories.performance.score*100),lcp:Math.round(a['largest-contentful-paint'].numericValue),fcp:Math.round(a['first-contentful-paint'].numericValue),tbt:Math.round(a['total-blocking-time'].numericValue),cls:a['cumulative-layout-shift'].numericValue,si:Math.round(a['speed-index'].numericValue)};
+                console.log('BENCH_SAMPLE',key,i+1,JSON.stringify(sample),'LH',l.lighthouseVersion);
+                results[key].push(sample);
+              }finally{await chrome.kill();}
+            }
+          }
+          for(const key of Object.keys(results)){
+            const m={};for(const field of Object.keys(results[key][0]))m[field]=median(results[key].map(x=>x[field]));
+            console.log('BENCH_MEDIAN',key,JSON.stringify(m));
+          }
+          console.log('BENCH_SCOPE local first-party comparison; analytics network blocked both; candidate preview guard active; not production PSI or full analytics acceptance');
+          JS
+          node /tmp/serdar-lh/compare.mjs
