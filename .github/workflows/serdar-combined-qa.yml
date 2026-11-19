@@ -76,27 +76,46 @@ jobs:
           with sync_playwright() as p:
               browser=p.chromium.launch(headless=True)
               for width in (360,390,430,1280):
-                  ctx=browser.new_context(viewport={'width':width,'height':900})
-                  def intercept(route):
-                      u=urlsplit(route.request.url)
-                      if u.scheme=='https' and u.hostname==host and u.port in (None,443):
-                          try:
-                              r=route.fetch(headers={**route.request.headers,**auth},max_redirects=0,timeout=20000);route.fulfill(response=r)
-                          except Exception:route.abort()
-                      else:route.abort()
-                  ctx.route('**/*',intercept)
-                  page=ctx.new_page()
-                  try:
-                      r=page.goto(origin+'/',wait_until='domcontentloaded',timeout=35000)
-                      page.locator('.hero-media img').wait_for(state='visible')
-                      page.wait_for_function("document.querySelector('.hero-media img').complete && document.querySelector('.hero-media img').naturalWidth>0")
-                      check('home_viewport_'+str(width),r.status==200 and page.evaluate('document.documentElement.scrollWidth<=innerWidth+1'))
-                      check('preview_analytics_inert_'+str(width),page.evaluate("typeof window.gtag !== 'function' && typeof window.ym !== 'function'"))
-                      r=page.goto(origin+'/projeler/ana-showreel/',wait_until='domcontentloaded',timeout=35000)
-                      box=page.locator('iframe.player').bounding_box()
-                      check('watch_viewport_'+str(width),r.status==200 and page.evaluate('document.documentElement.scrollWidth<=innerWidth+1') and bool(box and box['width']<=width and box['height']>200 and box['y']<900))
-                  except Exception as e:print('BROWSER_EXCEPTION',width,type(e).__name__);check('browser_'+str(width),False)
-                  finally:ctx.close()
+                  outcomes=None
+                  for attempt in (1,2,3):
+                      ctx=browser.new_context(viewport={'width':width,'height':900},service_workers='block')
+                      route_errors=[]
+                      def intercept(route):
+                          u=urlsplit(route.request.url)
+                          if u.scheme=='https' and u.hostname==host and u.port in (None,443):
+                              try:
+                                  r=route.fetch(headers={**route.request.headers,**auth},max_redirects=0,timeout=20000)
+                                  route.fulfill(response=r)
+                              except Exception as e:
+                                  route_errors.append((u.path,type(e).__name__))
+                                  route.abort()
+                          else:route.abort()
+                      ctx.route('**/*',intercept)
+                      page=ctx.new_page()
+                      stage='home navigation'
+                      try:
+                          r=page.goto(origin+'/',wait_until='domcontentloaded',timeout=35000)
+                          stage='hero render'
+                          page.locator('.hero-media img').wait_for(state='visible',timeout=15000)
+                          page.wait_for_function("document.querySelector('.hero-media img').complete && document.querySelector('.hero-media img').naturalWidth>0",timeout=15000)
+                          home_ok=r.status==200 and page.evaluate('document.documentElement.scrollWidth<=innerWidth+1')
+                          inert_ok=page.evaluate("typeof window.gtag !== 'function' && typeof window.ym !== 'function'")
+                          stage='watch navigation'
+                          r=page.goto(origin+'/projeler/ana-showreel/',wait_until='domcontentloaded',timeout=35000)
+                          stage='watch render'
+                          page.locator('iframe.player').wait_for(state='visible',timeout=15000)
+                          box=page.locator('iframe.player').bounding_box()
+                          watch_ok=r.status==200 and page.evaluate('document.documentElement.scrollWidth<=innerWidth+1') and bool(box and box['width']<=width and box['height']>200 and box['y']<900)
+                          outcomes=(home_ok,inert_ok,watch_ok)
+                          print('BROWSER_ATTEMPT',width,attempt,'completed',outcomes,flush=True)
+                          break
+                      except Exception as e:
+                          msg=str(e).splitlines()[0]
+                          for secret in auth.values():msg=msg.replace(secret,'[redacted]')
+                          print('BROWSER_ATTEMPT',width,attempt,stage,type(e).__name__,msg[:350],'route_errors',route_errors[:5],flush=True)
+                      finally:ctx.close()
+                  if outcomes is None:outcomes=(False,False,False)
+                  for label,ok in zip(('home_viewport_','preview_analytics_inert_','watch_viewport_'),outcomes):check(label+str(width),ok)
               # Synthetic canonical origin, all browser requests fulfilled or blocked locally.
               # This checks configuration/queues, not actual production measurement or data receipt.
               ctx=browser.new_context()
