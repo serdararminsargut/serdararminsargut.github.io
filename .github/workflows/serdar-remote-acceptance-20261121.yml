@@ -1,0 +1,98 @@
+name: Serdar protected remote acceptance preview
+permissions:
+  contents: read
+concurrency:
+  group: serdar-remote-qa-20261121
+  cancel-in-progress: true
+jobs:
+  preview:
+    if: github.repository == 'serdararminsargut/serdararminsargut.github.io' && github.ref
+      == 'refs/heads/test/work-seo-serdar-remote-qa-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: Build unchanged accepted output and add isolated QA page
+      run: "set -euo pipefail\nrm -rf dist\nmkdir -p dist\n\nfor item in \\\n  .nojekyll\
+        \ \\\n  .well-known \\\n  _headers \\\n  _redirects \\\n  404.html \\\n  ai.txt\
+        \ \\\n  ar \\\n  assets \\\n  az \\\n  blog \\\n  card.html \\\n  casting-card\
+        \ \\\n  de \\\n  downloads \\\n  en \\\n  fa \\\n  favicon.svg \\\n  favicon.ico\
+        \ \\\n  favicon-96x96.png \\\n  fr \\\n  index.html \\\n  indexnow-key.txt\
+        \ \\\n  72f0dad836e29ffcc2d9dd42a794dbf0.txt \\\n  erkek-cocuk-model \\\n\
+        \  spor-giyim-cocuk-modeli \\\n  cocuk-giyim-modeli \\\n  e-ticaret-cocuk-modeli\
+        \ \\\n  it \\\n  kk \\\n  ky \\\n  llms.txt \\\n  llms-full.txt \\\n  links\
+        \ \\\n  postcard.html \\\n  projeler \\\n  rehber \\\n  robots.txt \\\n  ru\
+        \ \\\n  sitemap.xml \\\n  sitemap-google.xml \\\n  sitemap.txt \\\n  tk \\\
+        \n  uz \\\n  zh-cn \\\n  yandex_*.html\ndo\n  if compgen -G \"$item\" > /dev/null;\
+        \ then\n    cp -R $item dist/\n  elif [ -e \"$item\" ]; then\n    cp -R \"\
+        $item\" dist/\n  fi\ndone\n\npython3 scripts/work_seo_seal_preview.py dist\n\
+        python3 qa/prepare_remote_acceptance.py\n"
+    - name: Guard immutable main and preview target
+      id: guard
+      env:
+        CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
+      run: python3 scripts/work_seo_cf_guard.py before --project serdararminsargut
+        --repo serdararminsargut/serdararminsargut.github.io --base 06091f2501ee1db3db7d6d62fe090ca4691111c7
+        --branch test/work-seo-serdar-remote-qa-20261121 --production-id capture
+    - name: Normalize account identifier privately
+      id: account
+      env:
+        CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      run: 'python3 - <<''PY''
+
+        import os,re
+
+        value=os.environ[''CF_ACCOUNT''];m=re.search(r''dash\.cloudflare\.com/([a-fA-F0-9]{32})'',value)
+
+        if m:value=m[1]
+
+        assert re.fullmatch(''[a-fA-F0-9]{32}'',value)
+
+        print(''::add-mask::''+value)
+
+        with open(os.environ[''GITHUB_OUTPUT''],''a'') as out:out.write(''id=''+value+''\n'')
+
+        PY
+
+        '
+    - name: Deploy test branch PREVIEW only
+      uses: cloudflare/wrangler-action@v3
+      with:
+        apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        accountId: ${{ steps.account.outputs.id }}
+        command: pages deploy dist --project-name=serdararminsargut --branch=test/work-seo-serdar-remote-qa-20261121
+          --commit-hash=${{ github.sha }}
+    - name: Resolve exact preview SHA
+      env:
+        CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
+      run: python3 scripts/work_seo_cf_guard.py resolve --project serdararminsargut
+        --repo serdararminsargut/serdararminsargut.github.io --base 06091f2501ee1db3db7d6d62fe090ca4691111c7
+        --branch test/work-seo-serdar-remote-qa-20261121 --production-id capture
+    - name: Verify main and production metadata unchanged
+      if: always() && steps.guard.outcome == 'success'
+      env:
+        CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
+      run: python3 scripts/work_seo_cf_guard.py after --project serdararminsargut
+        --repo serdararminsargut/serdararminsargut.github.io --base 06091f2501ee1db3db7d6d62fe090ca4691111c7
+        --branch test/work-seo-serdar-remote-qa-20261121 --production-id capture
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: serdar-remote-qa-${{ github.sha }}
+        path: work-evidence/*.json
+        retention-days: 30
+'on':
+  push:
+    branches:
+    - test/work-seo-serdar-remote-qa-20261121

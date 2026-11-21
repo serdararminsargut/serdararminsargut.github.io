@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow,noarchive"><title>Serdar — Preview QA</title>
+<style>body{margin:16px;font:15px system-ui;color:#17202b;background:#f5f6f8}h1{font-size:20px}label,button,select{margin:4px;padding:7px}button{cursor:pointer}pre{white-space:pre-wrap;max-height:270px;overflow:auto;background:white;padding:12px;border:1px solid #ccd2da}.frame-shell{overflow:auto;background:white;border:1px solid #ccd2da}iframe{display:block;border:0;height:844px;max-width:none}</style></head>
+<body><h1>Serdar — yalnız korumalı preview QA</h1><p id="provenance">Kaynak: __SOURCE_SHA__ · Mevcut Access oturumu · Canlı yayın değildir.</p>
+<label>Sayfa <select id="route"><option value="/">Ana sayfa</option><option value="/links/en/">EN bağlantılar</option></select></label>
+<label>CSS genişliği <select id="width"><option>360</option><option>390</option><option>430</option><option>1280</option></select></label>
+<button id="open">Önizlemeyi aç</button><button id="check">Yerleşim ve CTA kontrolü</button><button id="gallery">Galeri kontrolü</button><button id="headers">HTTP başlıklarını kontrol et</button>
+<p id="state" role="status">Hazır.</p><pre id="result">[]</pre><div class="frame-shell"><iframe id="site" title="Gerçek Serdar test sayfası"></iframe></div>
+<script src="./acceptance.js" defer></script></body></html>
