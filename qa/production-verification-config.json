@@ -1,0 +1,56 @@
+{
+  "person": "SERDAR",
+  "repo": "serdararminsargut/serdararminsargut.github.io",
+  "project": "serdararminsargut",
+  "origin": "https://serdararminsargut.com",
+  "main": "73b4a2581bc633b45e610def2c603c580715e32e",
+  "approved_source": "f00ba068208cec458907af7541c6adae9ae20eed",
+  "qa_branch": "test/work-seo-production-verify-20261122",
+  "previous_production_id": "d6180fd2-4641-49c7-8619-0d9ceaabee58",
+  "config_sha256": "088e11c710b6243bb05b3d7fae4ef2dfd479c1f3f6d2bd88fa4cccebe7ae445b",
+  "normal_bundle": {
+    "files": 229,
+    "bytes": 10174108,
+    "basis": "Prior CI normal application build; merged tree exactly equals approved application tree"
+  },
+  "requests": [
+    {
+      "route": "/",
+      "kind": "html",
+      "sha256": "01e44a9a0bbde0f682b0595c53911eea566543327a535212adce7bdeeb194590"
+    },
+    {
+      "route": "/en/ecommerce-child-model/",
+      "kind": "html",
+      "sha256": "3a9673e0be96ef230463bbc6d4067a9e42e762e36798c6fecccd41799721860e",
+      "alternate_count": 14
+    },
+    {
+      "route": "/en/kidswear-model/",
+      "kind": "html",
+      "sha256": "4f57c254130426153131180335bee14319415b68d7d27c703f3342fa7b877eef",
+      "alternate_count": 14
+    },
+    {
+      "route": "/en/kids-sportswear-model/",
+      "kind": "html",
+      "sha256": "b143db3eb8257ae4eae5ab14d7d0ec7ac03f199e17bd2a9d3c78cde2e73d9c5c",
+      "alternate_count": 14
+    },
+    {
+      "route": "/links/en/",
+      "kind": "html",
+      "sha256": "7b6206315ccbd8b105956ea8da6134cd44d3d08e42da740d19c65de79504d28b"
+    },
+    {
+      "route": "/robots.txt",
+      "kind": "robots",
+      "sha256": "7e1c2d2c6467dd920f66cf8ba038448eef55c80c9549c4b2268b088417ad3764"
+    },
+    {
+      "route": "/sitemap.xml",
+      "kind": "sitemap",
+      "sha256": "038af9727f4942931fa5cd73bc47905006f4e19a1e283470d8c85e0719af930e"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+name: Approved production source and HTTP read-only evidence
+on:
+  push:
+    branches: [test/work-seo-production-verify-20261122]
+    paths: ['.github/workflows/production-readonly-evidence-20261122.yml','qa/production-verification.py','qa/production-verification-config.json']
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.ref_name == 'test/work-seo-production-verify-20261122'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read provider source, configuration and narrow live HTTP evidence only
+        env:
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 qa/production-verification.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: approved-production-readonly-evidence
+          path: work-release-evidence
+          retention-days: 30
