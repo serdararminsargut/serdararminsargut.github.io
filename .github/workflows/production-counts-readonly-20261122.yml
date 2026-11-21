@@ -1,0 +1,23 @@
+name: Compare existing production upload totals (read only)
+on:
+  push:
+    branches: [test/work-seo-production-verify-20261122]
+    paths: ['.github/workflows/production-counts-readonly-20261122.yml','qa/production-counts.py']
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read old and current provider upload progress only
+        env:
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: python3 qa/production-counts.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: provider-upload-count-comparison
+          path: work-release-counts
+          retention-days: 30
