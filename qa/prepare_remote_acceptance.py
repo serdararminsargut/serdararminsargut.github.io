@@ -6,7 +6,7 @@ expected=json.loads(Path('qa/remote_expected_preview.json').read_text())
 assert manifest()==expected,'Accepted 229 preview files changed'
 assert not (root/'_qa').exists()
 (root/'_qa').mkdir()
-for src,dst in [('remote_acceptance.html','index.html'),('remote_acceptance.js','acceptance.js')]:
+for src,dst in [('remote_acceptance.html','index.html'),('acceptance.js','acceptance.js')]:
  text=Path('qa',src).read_text();assert text.count('__SOURCE_SHA__')==1
  (root/'_qa'/dst).write_text(text.replace('__SOURCE_SHA__',os.environ['GITHUB_SHA']))
 assert '/_qa/' not in (root/'sitemap.xml').read_text()
