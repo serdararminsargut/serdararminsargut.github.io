@@ -1,0 +1,163 @@
+name: Serdar SEO current-baseline preview acceptance 20261121
+'on':
+  push:
+    branches:
+    - test/work-seo-serdar-20261121
+permissions:
+  contents: read
+concurrency:
+  group: work-seo-serdar-20261121
+  cancel-in-progress: true
+jobs:
+  preview:
+    if: github.repository == 'serdararminsargut/serdararminsargut.github.io' && github.ref
+      == 'refs/heads/test/work-seo-serdar-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: Build baseline in isolated local worktree
+      run: "git worktree add --detach ../baseline 06091f2501ee1db3db7d6d62fe090ca4691111c7\n\
+        cd ../baseline\nset -euo pipefail\nrm -rf dist\nmkdir -p dist\n\nfor item\
+        \ in \\\n  .nojekyll \\\n  .well-known \\\n  _headers \\\n  _redirects \\\n\
+        \  404.html \\\n  ai.txt \\\n  ar \\\n  assets \\\n  az \\\n  blog \\\n  card.html\
+        \ \\\n  casting-card \\\n  de \\\n  downloads \\\n  en \\\n  fa \\\n  favicon.svg\
+        \ \\\n  favicon.ico \\\n  favicon-96x96.png \\\n  fr \\\n  index.html \\\n\
+        \  indexnow-key.txt \\\n  72f0dad836e29ffcc2d9dd42a794dbf0.txt \\\n  erkek-cocuk-model\
+        \ \\\n  spor-giyim-cocuk-modeli \\\n  cocuk-giyim-modeli \\\n  e-ticaret-cocuk-modeli\
+        \ \\\n  it \\\n  kk \\\n  ky \\\n  llms.txt \\\n  llms-full.txt \\\n  links\
+        \ \\\n  postcard.html \\\n  projeler \\\n  rehber \\\n  robots.txt \\\n  ru\
+        \ \\\n  sitemap.xml \\\n  sitemap-google.xml \\\n  sitemap.txt \\\n  tk \\\
+        \n  uz \\\n  zh-cn \\\n  yandex_*.html\ndo\n  if compgen -G \"$item\" > /dev/null;\
+        \ then\n    cp -R $item dist/\n  elif [ -e \"$item\" ]; then\n    cp -R \"\
+        $item\" dist/\n  fi\ndone\n\n"
+    - name: Build candidate without deploying production
+      run: "set -euo pipefail\nrm -rf dist\nmkdir -p dist\n\nfor item in \\\n  .nojekyll\
+        \ \\\n  .well-known \\\n  _headers \\\n  _redirects \\\n  404.html \\\n  ai.txt\
+        \ \\\n  ar \\\n  assets \\\n  az \\\n  blog \\\n  card.html \\\n  casting-card\
+        \ \\\n  de \\\n  downloads \\\n  en \\\n  fa \\\n  favicon.svg \\\n  favicon.ico\
+        \ \\\n  favicon-96x96.png \\\n  fr \\\n  index.html \\\n  indexnow-key.txt\
+        \ \\\n  72f0dad836e29ffcc2d9dd42a794dbf0.txt \\\n  erkek-cocuk-model \\\n\
+        \  spor-giyim-cocuk-modeli \\\n  cocuk-giyim-modeli \\\n  e-ticaret-cocuk-modeli\
+        \ \\\n  it \\\n  kk \\\n  ky \\\n  llms.txt \\\n  llms-full.txt \\\n  links\
+        \ \\\n  postcard.html \\\n  projeler \\\n  rehber \\\n  robots.txt \\\n  ru\
+        \ \\\n  sitemap.xml \\\n  sitemap-google.xml \\\n  sitemap.txt \\\n  tk \\\
+        \n  uz \\\n  zh-cn \\\n  yandex_*.html\ndo\n  if compgen -G \"$item\" > /dev/null;\
+        \ then\n    cp -R $item dist/\n  elif [ -e \"$item\" ]; then\n    cp -R \"\
+        $item\" dist/\n  fi\ndone\n"
+    - name: Validate production-shaped source SEO
+      run: python3 scripts/seo_static_audit.py --root dist --origin https://serdararminsargut.com
+        --require-complete-hreflang
+    - name: Seal preview build only
+      run: python3 scripts/work_seo_seal_preview.py dist
+    - name: Verify protected paths, PDF bytes, photos and page bodies
+      run: python3 scripts/work_seo_preservation.py ../baseline/dist dist --project
+        serdar
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+    - name: Install browser and local Pages runtime
+      run: 'python3 -m pip install playwright==1.63.0
+
+        python3 -m playwright install --with-deps chromium
+
+        npm install --no-save wrangler@4 lighthouse
+
+        '
+    - name: Test isolated local Pages output in Chromium
+      id: local_browser
+      run: "set -euo pipefail\nmkdir -p work-evidence\nCLOUDFLARE_SEND_METRICS=false\
+        \ npx wrangler pages dev dist --port 8788 --ip 127.0.0.1 >work-evidence/local-pages.log\
+        \ 2>&1 &\necho $! > work-evidence/local-pages.pid\nfor attempt in $(seq 1\
+        \ 30); do\n  if curl -fsS http://127.0.0.1:8788/ >/dev/null; then break; fi\n\
+        \  sleep 1\ndone\npython3 scripts/work_seo_browser_qa.py --project serdar\
+        \ --root dist\n"
+    - name: Measure local mobile Lighthouse (lab only)
+      run: "npx lighthouse http://127.0.0.1:8788/ --chrome-flags=\"--headless --no-sandbox\"\
+        \ --output=json --output-path=work-evidence/lighthouse-mobile.json --only-categories=performance,accessibility,best-practices,seo\
+        \ --quiet\npython3 - <<'PY'\nimport json\nx=json.load(open('work-evidence/lighthouse-mobile.json'))\n\
+        print('LOCAL_LIGHTHOUSE_LAB',json.dumps({k:v.get('score') for k,v in x['categories'].items()}))\n\
+        for k in ['largest-contentful-paint','cumulative-layout-shift','first-contentful-paint','total-blocking-time']:\n\
+        \ print(k,x['audits'][k].get('numericValue'))\nPY"
+    - name: Guard immutable main and preview deployment target (GET only)
+      env:
+        CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
+      run: python3 scripts/work_seo_cf_guard.py before --project serdararminsargut
+        --repo serdararminsargut/serdararminsargut.github.io --base 06091f2501ee1db3db7d6d62fe090ca4691111c7
+        --branch test/work-seo-serdar-20261121 --production-id capture
+      id: guard
+    - name: Normalize account identifier without logging credentials
+      id: account
+      env:
+        CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      run: 'python3 - <<''PY''
+
+        import os,re
+
+        x=os.environ[''CF_ACCOUNT''];m=re.search(r''dash\.cloudflare\.com/([a-fA-F0-9]{32})'',x)
+
+        if m:x=m[1]
+
+        assert re.fullmatch(''[a-fA-F0-9]{32}'',x)
+
+        print(''::add-mask::''+x)
+
+        with open(os.environ[''GITHUB_OUTPUT''],''a'') as f:f.write(''id=''+x+''\n'')
+
+        PY'
+    - name: Deploy exact test branch as Cloudflare PREVIEW only
+      uses: cloudflare/wrangler-action@v3
+      with:
+        apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        accountId: ${{ steps.account.outputs.id }}
+        command: pages deploy dist --project-name=serdararminsargut --branch=test/work-seo-serdar-20261121
+          --commit-hash=${{ github.sha }}
+    - name: Resolve successful preview with identical source SHA
+      id: preview
+      env:
+        CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
+      run: python3 scripts/work_seo_cf_guard.py resolve --project serdararminsargut
+        --repo serdararminsargut/serdararminsargut.github.io --base 06091f2501ee1db3db7d6d62fe090ca4691111c7
+        --branch test/work-seo-serdar-20261121 --production-id capture
+    - name: Verify real preview HTTP noindex
+      run: "python3 - <<'PY'\nimport json,urllib.request,urllib.parse\nx=json.load(open('work-evidence/preview.json'));rows=[]\n\
+        for path in ['/','/casting-card/tr','/robots.txt']:\n req=urllib.request.Request(x['url']+path,headers={'User-Agent':'Mozilla/5.0'})\n\
+        \ with urllib.request.urlopen(req,timeout=30) as r:\n  actual_host=urllib.parse.urlsplit(r.url).hostname\n\
+        \  blocked=actual_host!=urllib.parse.urlsplit(x['url']).hostname\n  row={'path':path,'status':r.status,'final_host':actual_host,'x_robots_tag':r.headers.get('X-Robots-Tag',''),'result':'BLOCKED_ACCESS'\
+        \ if blocked else 'PASS' if r.status==200 and 'noindex' in r.headers.get('X-Robots-Tag','').lower()\
+        \ else 'FAIL'}\n  rows.append(row);print('PREVIEW_HTTP_RESULT',json.dumps(row))\n\
+        open('work-evidence/preview-http.json','w').write(json.dumps(rows,indent=2))\n\
+        if any(x['result']!='PASS' for x in rows):raise SystemExit(1)\nPY"
+      continue-on-error: true
+    - name: Verify production main and configuration unchanged
+      if: always() && steps.guard.outcome == 'success'
+      env:
+        CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        GH_TOKEN: ${{ github.token }}
+      run: python3 scripts/work_seo_cf_guard.py after --project serdararminsargut
+        --repo serdararminsargut/serdararminsargut.github.io --base 06091f2501ee1db3db7d6d62fe090ca4691111c7
+        --branch test/work-seo-serdar-20261121 --production-id capture
+    - name: Archive exact evidence
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: serdar-work-seo-evidence-${{ github.sha }}
+        path: work-evidence/
+        retention-days: 30
+    - name: Emit preservation evidence
+      if: always()
+      run: "python3 - <<'PY'\nfrom pathlib import Path\nimport json\nfor name in ('preview.json','preview-http.json','provider-after.json','access-readonly.json'):\n\
+        \ p=Path('work-evidence')/name\n if p.exists():print(name,p.read_text())\n\
+        p=Path('work-evidence/preservation.json')\nif p.exists():\n x=json.loads(p.read_text());print('PRESERVATION_SUMMARY',json.dumps({k:v\
+        \ for k,v in x.items() if not k.endswith('sha256')}))\nPY\n"

@@ -70,6 +70,8 @@ def main():
     cli = argparse.ArgumentParser()
     cli.add_argument("--root", required=True)
     cli.add_argument("--origin", required=True)
+    cli.add_argument("--require-complete-hreflang", action="store_true",
+                     help="Require identical alternate sets within each shared x-default group")
     args = cli.parse_args()
     root = Path(args.root).resolve()
     origin = args.origin.rstrip("/")
@@ -194,6 +196,23 @@ def main():
             errors.append(f"{url}: missing self hreflang for {source.lang}")
         if source.alternates and source.alternates.get(source.lang) != url:
             errors.append(f"{url}: self hreflang does not match canonical")
+
+    # Reciprocal subsets can be valid for Google. This explicit release gate
+    # additionally checks the project's intended complete language groups.
+    if args.require_complete_hreflang:
+        groups = {}
+        for url in urls:
+            parsed = pages.get(url)
+            if parsed and parsed.alternates.get("x-default"):
+                groups.setdefault(parsed.alternates["x-default"], []).append((url, parsed))
+        for fallback, members in groups.items():
+            expected = pages.get(fallback)
+            if expected is None:
+                errors.append(f"Hreflang fallback source missing: {fallback}")
+                continue
+            for url, parsed in members:
+                if parsed.alternates != expected.alternates:
+                    errors.append(f"{url}: incomplete alternate set for {fallback}")
 
     robots_file = root / "robots.txt"
     if not robots_file.is_file():
