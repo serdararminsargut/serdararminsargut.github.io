@@ -1,0 +1,45 @@
+name: Serdar clean application source equivalence
+'on':
+  push:
+    branches:
+    - test/work-seo-serdar-clean-qa-20261121
+permissions:
+  contents: read
+concurrency:
+  group: serdar-clean-qa-20261121
+  cancel-in-progress: true
+jobs:
+  equivalence:
+    if: github.repository == 'serdararminsargut/serdararminsargut.github.io' && github.ref
+      == 'refs/heads/test/work-seo-serdar-clean-qa-20261121'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+    - name: Build application-only output locally
+      run: "set -euo pipefail\nrm -rf dist\nmkdir -p dist\n\nfor item in \\\n  .nojekyll\
+        \ \\\n  .well-known \\\n  _headers \\\n  _redirects \\\n  404.html \\\n  ai.txt\
+        \ \\\n  ar \\\n  assets \\\n  az \\\n  blog \\\n  card.html \\\n  casting-card\
+        \ \\\n  de \\\n  downloads \\\n  en \\\n  fa \\\n  favicon.svg \\\n  favicon.ico\
+        \ \\\n  favicon-96x96.png \\\n  fr \\\n  index.html \\\n  indexnow-key.txt\
+        \ \\\n  72f0dad836e29ffcc2d9dd42a794dbf0.txt \\\n  erkek-cocuk-model \\\n\
+        \  spor-giyim-cocuk-modeli \\\n  cocuk-giyim-modeli \\\n  e-ticaret-cocuk-modeli\
+        \ \\\n  it \\\n  kk \\\n  ky \\\n  llms.txt \\\n  llms-full.txt \\\n  links\
+        \ \\\n  postcard.html \\\n  projeler \\\n  rehber \\\n  robots.txt \\\n  ru\
+        \ \\\n  sitemap.xml \\\n  sitemap-google.xml \\\n  sitemap.txt \\\n  tk \\\
+        \n  uz \\\n  zh-cn \\\n  yandex_*.html\ndo\n  if compgen -G \"$item\" > /dev/null;\
+        \ then\n    cp -R $item dist/\n  elif [ -e \"$item\" ]; then\n    cp -R \"\
+        $item\" dist/\n  fi\ndone\n"
+    - name: Compare all 229 files with accepted independent manifests
+      run: python3 qa/validate.py
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: serdar-clean-source-${{ github.sha }}
+        path: work-clean-proof/*.json
+        retention-days: 30
