@@ -1,0 +1,59 @@
+name: Serdar overflow check (test only)
+on:
+  push:
+    branches: ['test/serdar-instagram-overflow-20261106']
+    paths: ['.github/workflows/serdar-overflow-check.yml']
+permissions:
+  contents: read
+jobs:
+  check:
+    if: github.ref_name == 'test/serdar-instagram-overflow-20261106'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install browser
+        run: |
+          python -m pip install 'playwright==1.63.0'
+          python -m playwright install --with-deps chromium
+      - name: Check 26 languages at four widths
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m http.server 8767 --bind 127.0.0.1 > /tmp/serdar-server.log 2>&1 &
+          trap 'kill $! 2>/dev/null || true' EXIT
+          python - <<'PY'
+          from playwright.sync_api import sync_playwright
+          codes='tr en ru ar az de fr es kk uz ky tk it pt-br uk pl bg el sr-latn sq fa ur hi zh-hans ja ko'.split()
+          failures=[]
+          with sync_playwright() as p:
+              browser=p.chromium.launch(args=['--no-sandbox'])
+              for width in (360,390,430,1280):
+                  ctx=browser.new_context(viewport={'width':width,'height':844},is_mobile=width<800,has_touch=width<800)
+                  ctx.route('**/*', lambda route: route.continue_() if route.request.url.startswith('http://127.0.0.1:8767/') else route.abort())
+                  for code in codes:
+                      page=ctx.new_page()
+                      try:
+                          resp=page.goto('http://127.0.0.1:8767/casting-card/'+code+'.html',wait_until='load',timeout=30000)
+                          assert resp.status==200
+                          result=page.evaluate("""() => {
+                            const outer=document.querySelector('.card-shell').getBoundingClientRect();
+                            const sel=['.info','.lead','.facts','.fact strong','.actions .btn','.language-switch a'];
+                            const bad=sel.flatMap(s=>Array.from(document.querySelectorAll(s)).filter(e=>e.getBoundingClientRect().width>0).map(e=>({s,left:e.getBoundingClientRect().left,right:e.getBoundingClientRect().right}))).filter(x=>x.left<outer.left-2||x.right>outer.right+2);
+                            return {doc:document.documentElement.scrollWidth,viewport:innerWidth,bad};
+                          }""")
+                          assert result['doc']<=result['viewport']+2, result
+                          assert not result['bad'],result
+                          print('PASS',code,width)
+                      except Exception as e:
+                          failures.append((code,width,str(e)))
+                          print('FAIL',code,width,str(e))
+                      finally: page.close()
+                  ctx.close()
+              browser.close()
+          if failures: raise SystemExit(str(failures))
+          print('SERDAR_OVERFLOW_CHECK_PASS 104/104; Instagram WebView not tested')
+          PY
